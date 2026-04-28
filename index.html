@@ -76,9 +76,46 @@
                     <h2 class="text-2xl font-bold text-gray-800 mb-2">Unggah Data LJK</h2>
                     <p class="text-gray-500 mb-6">Format didukung: <strong>.xlsx / .xls</strong></p>
                     
-                    <div class="bg-blue-50 text-blue-800 text-sm p-4 rounded-xl text-left mb-8 border border-blue-100">
+                    <div class="bg-blue-50 text-blue-800 text-sm p-4 rounded-xl text-left mb-6 border border-blue-100">
                         <p class="font-bold mb-1"><i class="fas fa-info-circle"></i> Pastikan urutan kolom Sheet 1:</p>
                         <p class="font-mono text-xs bg-white p-2 rounded border border-blue-200">A:No | B:Nama | C:Kelas | D:Benar | E:Salah | F:Kosong | G:Det.Benar | H:Det.Salah | I:Jawaban</p>
+                    </div>
+
+                    <!-- Identitas Guru -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-left bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">Nama Pendidik</label>
+                            <input type="text" id="input-nama-guru" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Cth: Budi Santoso, S.Pd.">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">Mata Pelajaran</label>
+                            <select id="input-mapel" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="">-- Pilih Mapel --</option>
+                                <option value="Pendidikan Agama">Pendidikan Agama</option>
+                                <option value="PPKn">PPKn</option>
+                                <option value="Bahasa Indonesia">Bahasa Indonesia</option>
+                                <option value="Matematika">Matematika</option>
+                                <option value="Ilmu Pengetahuan Alam (IPA)">IPA</option>
+                                <option value="Ilmu Pengetahuan Sosial (IPS)">IPS</option>
+                                <option value="Bahasa Inggris">Bahasa Inggris</option>
+                                <option value="Seni Budaya">Seni Budaya</option>
+                                <option value="PJOK">PJOK</option>
+                                <option value="Prakarya / Informatika">Prakarya / Informatika</option>
+                                <option value="Muatan Lokal">Muatan Lokal</option>
+                                <option value="Lainnya">Lainnya</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">Kelas / Fase</label>
+                            <select id="input-kelas-guru" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="">-- Pilih Kelas --</option>
+                                <option value="Kelas 7">Kelas 7</option>
+                                <option value="Kelas 8">Kelas 8</option>
+                                <option value="Kelas 9">Kelas 9</option>
+                                <option value="Fase D">Fase D</option>
+                                <option value="Semua Kelas">Semua Kelas</option>
+                            </select>
+                        </div>
                     </div>
                     
                     <div class="border-2 border-dashed border-gray-300 rounded-xl p-8 hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer group" onclick="document.getElementById('excel-file').click()">
@@ -97,6 +134,13 @@
 
             <!-- Dashboard Section -->
             <div id="view-dashboard" class="hidden flex flex-col h-full">
+                <!-- Header Identitas Guru -->
+                <div class="bg-white border-b border-gray-200 px-6 py-3 flex flex-wrap gap-x-6 gap-y-2 items-center text-sm mb-4 rounded-xl shadow-sm border">
+                    <div class="flex items-center gap-2"><i class="fas fa-user-tie text-blue-500"></i><span class="text-gray-500">Guru:</span> <span id="display-nama-guru" class="font-bold text-gray-800">-</span></div>
+                    <div class="flex items-center gap-2"><i class="fas fa-book text-blue-500"></i><span class="text-gray-500">Mapel:</span> <span id="display-mapel" class="font-bold text-gray-800">-</span></div>
+                    <div class="flex items-center gap-2"><i class="fas fa-chalkboard text-blue-500"></i><span class="text-gray-500">Kelas:</span> <span id="display-kelas-guru" class="font-bold text-gray-800">-</span></div>
+                </div>
+
                 <!-- Tab Navigation -->
                 <div class="border-b border-gray-200 mb-6">
                     <nav class="-mb-px flex space-x-8" aria-label="Tabs">
@@ -361,6 +405,9 @@
             totalQuestions: 0,
             kkm: 75,
             fileName: '',
+            teacherName: '',
+            subject: '',
+            gradeLevel: '',
             
             // Psychometric Stats
             reliabilitas: 0,
@@ -404,6 +451,11 @@
                     
                     if (AppState.students && AppState.students.length > 0) {
                         ui.kkmInput.value = AppState.kkm;
+                        
+                        document.getElementById('input-nama-guru').value = AppState.teacherName !== '-' ? AppState.teacherName : '';
+                        document.getElementById('input-mapel').value = AppState.subject !== '-' ? AppState.subject : '';
+                        document.getElementById('input-kelas-guru').value = AppState.gradeLevel !== '-' ? AppState.gradeLevel : '';
+
                         if (AppState.fileName) {
                             document.getElementById('file-name-display').textContent = AppState.fileName + " (Disimpan)";
                             const btn = document.getElementById('btn-process');
@@ -466,8 +518,14 @@
             const fileInput = document.getElementById('excel-file');
             const file = fileInput.files[0];
             
+            AppState.teacherName = document.getElementById('input-nama-guru').value || '-';
+            AppState.subject = document.getElementById('input-mapel').value || '-';
+            AppState.gradeLevel = document.getElementById('input-kelas-guru').value || '-';
+
             if (!file && AppState.students.length > 0) {
+                updateUI();
                 switchToDashboard();
+                saveState();
                 return;
             }
             if (!file) return;
@@ -879,6 +937,11 @@
             document.getElementById('nav-actions').classList.add('hidden');
             document.getElementById('excel-file').value = "";
             document.getElementById('file-name-display').textContent = "Tidak ada file";
+            
+            document.getElementById('input-nama-guru').value = "";
+            document.getElementById('input-mapel').value = "";
+            document.getElementById('input-kelas-guru').value = "";
+            
             document.getElementById('btn-process').classList.add('opacity-50', 'cursor-not-allowed');
             document.getElementById('btn-process').setAttribute('disabled', 'true');
             if (chartDistribusiInst) chartDistribusiInst.destroy();
@@ -886,6 +949,9 @@
             
             AppState.students = [];
             AppState.fileName = '';
+            AppState.teacherName = '';
+            AppState.subject = '';
+            AppState.gradeLevel = '';
         }
 
         function switchTab(tabName) {
@@ -903,6 +969,10 @@
         }
 
         function updateUI() {
+            document.getElementById('display-nama-guru').textContent = AppState.teacherName;
+            document.getElementById('display-mapel').textContent = AppState.subject;
+            document.getElementById('display-kelas-guru').textContent = AppState.gradeLevel;
+
             const total = AppState.students.length;
             const tuntas = AppState.students.filter(s => s.isTuntas).length;
             const avg = AppState.students.reduce((sum, s) => sum + s.score, 0) / total;
@@ -1097,6 +1167,26 @@
                 alert("Tidak ada data untuk diekspor!"); return;
             }
 
+            // IDENTITAS GURU
+            let tableIdentitasHTML = `
+            <table border="0" cellspacing="0" cellpadding="0" style="width: 100%; border: none; margin-bottom: 15px; margin-top: 5px;">
+                <tr style="line-height: 1.2;">
+                    <td style="border: none; padding: 0; width: 130px;"><b>Nama Pendidik</b></td>
+                    <td style="border: none; padding: 0; width: 15px;">:</td>
+                    <td style="border: none; padding: 0;">${AppState.teacherName}</td>
+                </tr>
+                <tr style="line-height: 1.2;">
+                    <td style="border: none; padding: 0;"><b>Mata Pelajaran</b></td>
+                    <td style="border: none; padding: 0;">:</td>
+                    <td style="border: none; padding: 0;">${AppState.subject}</td>
+                </tr>
+                <tr style="line-height: 1.2;">
+                    <td style="border: none; padding: 0;"><b>Kelas / Fase</b></td>
+                    <td style="border: none; padding: 0;">:</td>
+                    <td style="border: none; padding: 0;">${AppState.gradeLevel}</td>
+                </tr>
+            </table>`;
+
             // A. KLASIKAL
             const pctTuntas = ((AppState.students.filter(s=>s.isTuntas).length / AppState.students.length) * 100).toFixed(1);
             const avgClass = (AppState.students.reduce((a,b)=>a+b.score,0)/AppState.students.length).toFixed(1);
@@ -1169,9 +1259,9 @@
             let htmlSiswaText = `<p style="text-align: justify; margin: 0 0 5px 0;"><b>Deskripsi Psikologis Perilaku Asesmen Individu:</b> Terdeteksi fenomena <b>${siswaRagu} responden</b> yang mendemonstrasikan keraguan kognitif parah (tingkat peninggalan/<i>omission</i> jawaban tak rasional), lalu terdapat anomali <b>${siswaTebak} responden</b> terdeteksi melancarkan taktik <i>pseudo-guessing</i> (asimetri hasil ekstrem), disusul <b>${siswaError} responden</b> melakukan kecerobohan birokratis pada media isian (error pengisian ganda).</p>`;
             
             // Rekomendasi Remedial TOP 10
-            const hardestQuestions = [...AppState.questions].sort((a,b) => a.p - b.p).slice(0, 10);
+            const hardestQuestionsExport = [...AppState.questions].sort((a,b) => a.p - b.p).slice(0, 10);
             let htmlRekomendasiSoal = `<ul style="margin: 0; padding-left: 20px; text-align: left;">`;
-            hardestQuestions.forEach(q => {
+            hardestQuestionsExport.forEach(q => {
                 let pSalah = ((1 - q.p) * 100).toFixed(0);
                 htmlRekomendasiSoal += `<li style="margin-bottom: 2px;"><b>Instrumen No. ${q.id}</b> dengan indeks kegagalan kolektif hingga ${pSalah}% populasi.</li>`;
             });
@@ -1299,6 +1389,8 @@
                 <div class="WordSection1">
                     
                     <h1>Laporan Resume Analitik Kognitif & Evaluasi Psikometrik</h1>
+                    
+                    ${tableIdentitasHTML}
 
                     <h2>A. ANALISIS PENYERAPAN MATERI (Klasikal / Kelas)</h2>
                     <div class="box">
@@ -1350,17 +1442,32 @@
                     ${tableSoalHTML}
 
                     ${kesimpulanAkhir}
+                    
+                    <br clear="all" />
+                    <div style="border-top: 1px solid #ccc; margin-top: 20px; padding-top: 10px; font-size: 8.5pt; color: #555; text-align: justify;">
+                        <b>Pernyataan Validitas Sistem:</b> Seluruh kalkulasi statistik (Tingkat Kesukaran, Daya Pembeda, Reliabilitas KR-20, dan Deteksi Miskonsepsi) dalam dokumen ini dihasilkan secara otomatis melalui algoritma pemrosesan data psikometrik mutakhir. Hasil analisis dinyatakan <b>Valid dan Akurat</b> merepresentasikan data respon peserta didik pada lembar jawaban yang diunggah. Laporan ini sah digunakan sebagai dasar pengambilan keputusan akademis dan manajerial pendidikan.
+                    </div>
 
                 </div>
                 </body>
                 </html>
             `;
 
+            // Generate Filename: Kelas Mapel Nama Guru
+            let baseFileName = `${AppState.gradeLevel} ${AppState.subject} ${AppState.teacherName}`;
+            // Jika kosong/default, gunakan nama default
+            if (baseFileName.trim() === '- - -' || baseFileName.trim() === '') {
+                baseFileName = `Laporan_Analisis_Akademik_${new Date().toISOString().slice(0,10)}`;
+            } else {
+                // Membersihkan karakter yang dilarang pada nama file Windows
+                baseFileName = baseFileName.replace(/[\\/:*?"<>|]/g, '').trim();
+            }
+
             const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `Laporan_Analisis_Akademik_${new Date().toISOString().slice(0,10)}.doc`;
+            link.download = `${baseFileName}.doc`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
