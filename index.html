@@ -287,7 +287,7 @@
         </div>
     </main>
 
-    <!-- Footer Profil (Tampil di UI Aplikasi Saja) -->
+    <!-- Footer Profil -->
     <footer class="bg-white border-t border-gray-200 py-4 flex-shrink-0 relative z-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs sm:text-sm text-gray-500">
             <p class="mb-1">Dikembangkan oleh: <b>YUSUF ARIS SYAMSUDDIN</b></p>
@@ -435,6 +435,7 @@
             AppState.students = [];
             let maxQ = 0;
             const classSet = new Set();
+            
             for (let i = 0; i < data.length; i++) {
                 const row = data[i];
                 if (!row || !Array.isArray(row) || row.length === 0) continue;
@@ -668,7 +669,7 @@
                         <label class="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Nomor Soal (Gunakan - dan , )</label>
                         <input type="text" value="${bab.qs}" onchange="AppState.babConfig[${idx}].qs=this.value; saveState();" class="w-full text-xs sm:text-sm border border-gray-300 rounded-md px-2 sm:px-3 py-1.5 sm:py-2 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono" placeholder="Cth: 1-7 atau 18-24, 31-34">
                     </div>
-                    <button onclick="removeBabRow(${idx})" class="bg-red-50 text-red-500 hover:bg-red-100 border border-red-100 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md font-bold transition-colors mb-px"><i class="fas fa-trash-alt"></i></button>
+                    <button onclick="removeBabRow(${idx})" class="bg-red-50 text-red-500 hover:bg-red-100 border border-red-100 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md font-bold transition-colors mb-px" title="Hapus baris ini"><i class="fas fa-trash-alt"></i></button>
                 </div>
             </div>`).join('');
         }
@@ -861,14 +862,16 @@
             document.getElementById('rekomendasi-remedial-container').innerHTML = top10.map(q => `<div class="bg-white border border-red-200 px-2 py-1 sm:px-3 sm:py-1.5 rounded-md shadow-sm text-xs sm:text-sm"><b>Soal No. ${q.id}</b> <span class="text-[10px] sm:text-xs text-gray-500">(${((1 - q.p) * 100).toFixed(0)}% Gagal)</span></div>`).join('');
 
             const sZonk = AppState.questions.filter(q => q.p < 0.2), sInv = AppState.questions.filter(q => q.dayaBeda < 0.2), sMis = AppState.questions.filter(q => q.miskonsepsi !== null);
-            let sTxt = `<p><b>Evaluasi Validitas & Reliabilitas Instrumen:</b> Berdasarkan postulat pengukuran statistik atas ${AppState.totalQuestions} butir soal, diperoleh <b>Indeks Reliabilitas (KR-20) sebesar ${AppState.reliabilitas.toFixed(2)}</b> (<b>${AppState.reliabilitas >= 0.7 ? "Konsistensi Tinggi/Sangat Reliabel" : "Konsistensi Kurang/Butuh Revisi"}</b>). Komposisi tingkat kesukaran tes: <b>${AppState.proporsiKesukaran.mudah} Mudah, ${AppState.proporsiKesukaran.sedang} Sedang, ${AppState.proporsiKesukaran.sukar} Sukar</b>.</p>`;
-            sTxt += `<ul class="list-disc ml-5 mt-1 mb-2 text-xs sm:text-sm">`;
-            sTxt += `<li><b>${sInv.length} Mendegradasi Validitas:</b> ${sInv.length > 0 ? sInv.map(q=>q.id).join(', ') : '-'} (Daya Diskriminasi/Pembeda &lt; 0.20, tidak mampu mendistingsi kemampuan tinggi/rendah peserta didik).</li>`;
-            sTxt += `<li><b>${sZonk.length} Kesukaran Ekstrem (Zonking):</b> ${sZonk.length > 0 ? sZonk.map(q=>q.id).join(', ') : '-'} (Rasio kebenaran &lt; 20%).</li>`;
-            sTxt += `<li><b>${sMis.length} Indikasi Miskonsepsi:</b> ${sMis.length > 0 ? sMis.map(q=>q.id).join(', ') : '-'} (Kehadiran distraktor/pengecoh salah yang menyerap atensi populasi dalam kadar masif).</li>`;
-            sTxt += `</ul>`;
-            sTxt += `<p class="text-[10px] sm:text-xs"><b>Rekomendasi Pemeliharaan Instrumen:</b> <br>1. Melakukan penyusutan (<i>drop</i>) terhadap butir tak-valid dari perhitungan komposit.<br>2. Verifikasi triangulasi silabus dan kunci jawaban bagi soal Zonking.<br>3. Menganulir atau meredaksional ulang pengecoh tidak berfungsi (<i>non-functioning distractors</i>) sebagaimana rincian tabel di bawah.</p>`;
-            document.getElementById('summary-soal-text').innerHTML = sTxt;
+            
+            let infoReliabilitas = AppState.reliabilitas > 0.7 ? "Konsistensi Tinggi (Sangat Reliabel)" : "Konsistensi Rendah (Butuh Revisi)";
+            let soalText = `<p><b>Evaluasi Validitas & Reliabilitas Instrumen:</b> Berdasarkan postulat pengukuran statistik atas ${AppState.totalQuestions} butir soal, diperoleh <b>Indeks Reliabilitas (KR-20) sebesar ${AppState.reliabilitas.toFixed(2)}</b> (<b>${infoReliabilitas}</b>). Komposisi tingkat kesukaran tes: <b>${AppState.proporsiKesukaran.mudah} Mudah, ${AppState.proporsiKesukaran.sedang} Sedang, ${AppState.proporsiKesukaran.sukar} Sukar</b>.</p>`;
+            soalText += `<ul class="list-disc ml-5 mt-1 mb-2 text-xs sm:text-sm">`;
+            soalText += `<li><b>${sInv.length} Mendegradasi Validitas:</b> ${sInv.length > 0 ? sInv.map(q=>q.id).join(', ') : '-'} (Daya Diskriminasi/Pembeda &lt; 0.20, tidak mampu mendistingsi kemampuan tinggi/rendah peserta didik).</li>`;
+            soalText += `<li><b>${sZonk.length} Kesukaran Ekstrem (Zonking):</b> ${sZonk.length > 0 ? sZonk.map(q=>q.id).join(', ') : '-'} (Rasio kebenaran &lt; 20%).</li>`;
+            soalText += `<li><b>${sMis.length} Indikasi Miskonsepsi:</b> ${sMis.length > 0 ? sMis.map(q=>q.id).join(', ') : '-'} (Kehadiran distraktor/pengecoh salah yang menyerap atensi populasi dalam kadar masif).</li>`;
+            soalText += `</ul>`;
+            soalText += `<p class="text-[10px] sm:text-xs"><b>Rekomendasi Pemeliharaan Instrumen:</b> <br>1. Melakukan penyusutan (<i>drop</i>) terhadap butir tak-valid dari perhitungan komposit.<br>2. Verifikasi triangulasi silabus dan kunci jawaban bagi soal Zonking.<br>3. Menganulir atau meredaksional ulang pengecoh tidak berfungsi (<i>non-functioning distractors</i>) sebagaimana rincian tabel di bawah.</p>`;
+            document.getElementById('summary-soal-text').innerHTML = soalText;
         }
 
         function renderKlasikalInsights() {
@@ -1146,7 +1149,7 @@
                     <h3>Tabel Pembedahan Validitas Konstruk Per Butir Soal (<i>Item Analysis Table</i>)</h3>
                     ${tS}
 
-                    ${kA}
+                    ${kesimpulanAkhir}
                     
                     <br clear="all" />
                     <div style="border-top: 1px solid #ccc; margin-top: 20px; padding-top: 10px; font-size: 8.5pt; color: #555; text-align: justify;">
