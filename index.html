@@ -80,7 +80,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 text-left bg-gray-50 p-4 rounded-xl border border-gray-200">
                         <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nama Pendidik</label>
-                            <input type="text" id="input-nama-guru" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Cth: Yusuf Aris S, S.Pd.">
+                            <input type="text" id="input-nama-guru" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Cth: Budi Santoso, S.Pd.">
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Mata Pelajaran</label>
@@ -199,7 +199,7 @@
                         <div id="summary-siswa-text" class="text-xs sm:text-sm text-gray-700 space-y-2 mb-4 leading-relaxed text-justify"></div>
                         <div class="bg-red-50 p-3 sm:p-4 rounded-lg border border-red-100">
                             <h4 class="text-xs sm:text-sm font-bold text-red-800 mb-1"><i class="fas fa-exclamation-circle"></i> Rekomendasi Modul Remedial Prioritas (Top 10 Learning Gaps)</h4>
-                            <p class="text-[10px] sm:text-xs text-red-700 mb-3">Distribusi defisit kompetensi tertinggi ditemukan pada butir asesmen berikut. Instuksikan pendidik untuk merancang ulang pendekatan pedagogis:</p>
+                            <p class="text-[10px] sm:text-xs text-red-700 mb-3">Distribusi defisit kompetensi tertinggi ditemukan pada butir-butir asesmen berikut. Instuksikan pendidik untuk merancang ulang pendekatan pedagogis:</p>
                             <div id="rekomendasi-remedial-container" class="flex flex-wrap gap-2"></div>
                         </div>
                     </div>
@@ -210,7 +210,13 @@
                         </div>
                         <div class="bg-blue-50 p-3 rounded-lg mb-4 text-[10px] sm:text-xs text-blue-800 flex gap-2 items-start">
                             <i class="fas fa-info-circle mt-0.5"></i>
-                            <div><strong>Kamus Indikator Klinis:</strong><br><span class="bg-yellow-100 text-yellow-800 px-1 rounded">Keraguan Tingkat Tinggi</span> = Rasio pengosongan jawaban &gt; 10% | <span class="bg-red-100 text-red-800 px-1 rounded">Anomali Input</span> = Terdeteksi pengisian ganda (*) | <span class="bg-purple-100 text-purple-800 px-1 rounded">Pseudo-guessing (Tebakan)</span> = Akurasi &le; 50% di soal termudah, namun &ge; 50% di soal tersulit.</div>
+                            <div>
+                                <strong>Kamus Indikator Klinis:</strong><br>
+                                <span class="bg-yellow-100 text-yellow-800 px-1 rounded">Keraguan Tingkat Tinggi</span> = Rasio pengosongan jawaban &gt; 10% | 
+                                <span class="bg-red-100 text-red-800 px-1 rounded">Anomali Input</span> = Terdeteksi pengisian ganda (*) | 
+                                <span class="bg-purple-100 text-purple-800 px-1 rounded">Pseudo-guessing (Tebakan)</span> = Akurasi &le; 50% di soal termudah, namun &ge; 50% di soal tersulit. |
+                                <span class="bg-gray-800 text-white px-1 rounded">Indikasi Mencontek</span> = WIC Index / Analisis Kesamaan Kesalahan tinggi dengan siswa lain.
+                            </div>
                         </div>
                         <div class="custom-scroll overflow-x-auto border rounded-lg max-h-[500px] w-full">
                             <table class="min-w-full divide-y divide-gray-200">
@@ -280,6 +286,14 @@
             </div>
         </div>
     </main>
+
+    <!-- Footer Profil (Tampil di UI Aplikasi Saja) -->
+    <footer class="bg-white border-t border-gray-200 py-4 flex-shrink-0 relative z-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs sm:text-sm text-gray-500">
+            <p class="mb-1">Dikembangkan oleh: <b>YUSUF ARIS SYAMSUDDIN</b></p>
+            <p>ID: 0762773674130202 | Guru IPA & Informatika - SMPN 2 Secang</p>
+        </div>
+    </footer>
 
     <script>
         Chart.register({
@@ -583,6 +597,30 @@
                 }
             });
 
+            // WIC Index / Error Similarity Cheating Analysis
+            AppState.students.forEach(s1 => {
+                s1.isMencontek = false;
+                if (s1.salah >= 3) {
+                    let maxWIC = 0;
+                    AppState.students.forEach(s2 => {
+                        if (s1.no !== s2.no && s1.kelas === s2.kelas) {
+                            let wicCount = 0;
+                            s1.detailSalah.forEach(qId => {
+                                if (s2.detailSalah.includes(qId)) {
+                                    const ans1 = s1.jawaban.charAt(qId - 1);
+                                    const ans2 = s2.jawaban.charAt(qId - 1);
+                                    if (ans1 && ans1 !== '-' && ans1 !== '*' && ans1 !== ' ' && ans1 === ans2) {
+                                        wicCount++;
+                                    }
+                                }
+                            });
+                            if (wicCount > maxWIC) maxWIC = wicCount;
+                        }
+                    });
+                    if (maxWIC >= 4 && (maxWIC / s1.salah) >= 0.5) s1.isMencontek = true;
+                }
+            });
+
             if(varRaw > 0 && maxQ > 1) {
                 AppState.reliabilitas = (maxQ / (maxQ - 1)) * (1 - (sumPQ / varRaw));
             } else {
@@ -816,8 +854,8 @@
             else kTxt += `<p class="mt-2"><span class="text-green-600 font-bold">Asimilasi kompetensi klasikal terkategori Sangat Optimal.</span><br><b>Rekomendasi Tindak Lanjut:</b> Eksekusi instruksional dapat diakselerasi menuju tahapan silabus berikutnya. Fasilitasi program pengayaan (<i>enrichment</i>) sangat disarankan untuk merangsang eskalasi nalar tinggi siswa.</p>`;
             document.getElementById('summary-klasikal-text').innerHTML = kTxt;
 
-            const sRagu = AppState.students.filter(s => s.raguRagu).length, sTebak = AppState.students.filter(s => s.isTebakan).length, sErr = AppState.students.filter(s => s.jawabanGanda > 0).length;
-            document.getElementById('summary-siswa-text').innerHTML = `<p><b>Deskripsi Psikologis Perilaku Asesmen:</b> Terdeteksi fenomena <b>${sRagu} responden</b> yang mendemonstrasikan keraguan kognitif (tingkat peninggalan jawaban/<i>omission</i> tinggi), anomali <b>${sTebak} responden</b> terdeteksi melancarkan taktik <i>pseudo-guessing</i> (asimetri hasil ekstrem antara soal termudah & tersulit), serta <b>${sErr} responden</b> melakukan kecerobohan birokratis pengisian ganda.</p><p class="mt-2"><b>Rekomendasi Tindak Lanjut:</b> Lakukan wawancara singkat untuk siswa dengan keraguan dan tebakan tinggi. Gunakan <b>Top 10 Modul Remedial Prioritas</b> di bawah ini sebagai fokus utama pembahasan intervensi klinis (remedial).</p>`;
+            const sRagu = AppState.students.filter(s => s.raguRagu).length, sTebak = AppState.students.filter(s => s.isTebakan).length, sErr = AppState.students.filter(s => s.jawabanGanda > 0).length, sCont = AppState.students.filter(s => s.isMencontek).length;
+            document.getElementById('summary-siswa-text').innerHTML = `<p><b>Deskripsi Psikologis Perilaku Asesmen:</b> Terdeteksi fenomena <b>${sRagu} responden</b> yang mendemonstrasikan keraguan kognitif (tingkat peninggalan jawaban/<i>omission</i> tinggi), anomali <b>${sTebak} responden</b> terdeteksi melancarkan taktik <i>pseudo-guessing</i> (asimetri hasil ekstrem antara soal termudah & tersulit), <b>${sErr} responden</b> melakukan kecerobohan birokratis pengisian ganda, dan terdiagnosis <b>${sCont} responden</b> dengan tingkat kesamaan pola error absolut (WIC Index) yang mengindikasikan tindakan curang.</p><p class="mt-2"><b>Rekomendasi Tindak Lanjut:</b> Lakukan wawancara singkat untuk siswa dengan keraguan, tebakan tinggi, maupun anomali kesamaan pola jawaban. Gunakan <b>Top 10 Modul Remedial Prioritas</b> di bawah ini sebagai fokus utama pembahasan intervensi klinis (remedial).</p>`;
 
             const top10 = [...AppState.questions].sort((a,b) => a.p - b.p).slice(0, 10).sort((a,b) => a.id - b.id);
             document.getElementById('rekomendasi-remedial-container').innerHTML = top10.map(q => `<div class="bg-white border border-red-200 px-2 py-1 sm:px-3 sm:py-1.5 rounded-md shadow-sm text-xs sm:text-sm"><b>Soal No. ${q.id}</b> <span class="text-[10px] sm:text-xs text-gray-500">(${((1 - q.p) * 100).toFixed(0)}% Gagal)</span></div>`).join('');
@@ -860,6 +898,7 @@
                 if(s.raguRagu) d.push(`<span class="bg-yellow-100 text-yellow-800 text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-yellow-200">Omission Rate Tinggi (${s.kosong} kosong)</span>`);
                 if(s.jawabanGanda > 0) d.push(`<span class="bg-red-100 text-red-800 text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-red-200">Anomali Input (${s.jawabanGanda} butir)</span>`);
                 if(s.isTebakan) d.push(`<span class="bg-purple-100 text-purple-800 text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-purple-200">Indikasi Pseudo-Guessing</span>`);
+                if(s.isMencontek) d.push(`<span class="bg-gray-800 text-white text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-gray-900" title="Analisis Kesamaan Kesalahan (WIC Index) tinggi">Indikasi Mencontek</span>`);
                 
                 return `<tr class="hover:bg-slate-50 transition-colors border-b border-gray-100">
                     <td class="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap"><div class="font-semibold text-xs sm:text-sm text-gray-800">${s.nama}</div><div class="text-[9px] sm:text-xs text-gray-500">Kelas ${s.kelas} | No. ${s.no}</div></td>
@@ -929,32 +968,199 @@
             let tD = `<table class="compact-table"><thead><tr><th>Rentang Frekuensi Jawaban Benar</th><th>Jumlah Probandus (Peserta Didik)</th></tr></thead><tbody>${AppState.distLabels.map((l,i)=>`<tr><td class="center">${l}</td><td class="center"><b>${AppState.distData[i]}</b></td></tr>`).join('')}</tbody></table>`;
             let tB = AppState.babLabels.length > 0 ? `<table class="compact-table"><thead><tr><th>Pemetaan Kompetensi / Topik Dasar</th><th>Persentase Ketercapaian (Benar)</th><th>Persentase Defisit (Salah)</th></tr></thead><tbody>${AppState.babLabels.map((l,i)=>`<tr><td><b>${l}</b></td><td class="center text-green">${AppState.babDataBenar[i]}%</td><td class="center text-red">${AppState.babDataSalah[i]}%</td></tr>`).join('')}</tbody></table>` : `<p style="margin:0; font-style:italic;">Konfigurasi agregasi per kompetensi dasar (BAB) belum diinisialisasi dalam kerangka aplikasi.</p>`;
 
-            const sRa = AppState.students.filter(s=>s.raguRagu).length, sTe = AppState.students.filter(s=>s.isTebakan).length, sEr = AppState.students.filter(s=>s.jawabanGanda > 0).length;
-            let hs = `<p style="text-align:justify; margin:0 0 5px 0;"><b>Deskripsi Psikologis Perilaku Asesmen Individu:</b> Terdeteksi fenomena <b>${sRa} responden</b> yang mendemonstrasikan keraguan kognitif parah (tingkat peninggalan/<i>omission</i> jawaban tak rasional), lalu terdapat anomali <b>${sTe} responden</b> terdeteksi melancarkan taktik <i>pseudo-guessing</i> (asimetri hasil ekstrem), disusul <b>${sEr} responden</b> melakukan kecerobohan birokratis pada media isian (error pengisian ganda).</p>`;
+            const sRa = AppState.students.filter(s=>s.raguRagu).length, sTe = AppState.students.filter(s=>s.isTebakan).length, sEr = AppState.students.filter(s=>s.jawabanGanda > 0).length, sCo = AppState.students.filter(s=>s.isMencontek).length;
+            let hs = `<p style="text-align:justify; margin:0 0 5px 0;"><b>Deskripsi Psikologis Perilaku Asesmen Individu:</b> Terdeteksi fenomena <b>${sRa} responden</b> yang mendemonstrasikan keraguan kognitif parah (tingkat peninggalan/<i>omission</i> jawaban tak rasional), <b>${sTe} responden</b> terdeteksi melancarkan taktik <i>pseudo-guessing</i> (asimetri hasil ekstrem), <b>${sEr} responden</b> melakukan kecerobohan birokratis pada media isian (error pengisian ganda), dan terdeteksi <b>${sCo} responden</b> dengan tingkat kesamaan pola error (WIC Index) abnormal yang mengindikasikan kecurangan menyalin jawaban.</p>`;
             
-            let hr = `<ul style="margin:0; padding-left:20px; text-align:left;">${[...AppState.questions].sort((a,b)=>a.p - b.p).slice(0,10).sort((a,b)=>a.id - b.id).map(q=>`<li style="margin-bottom:2px;"><b>Instrumen No. ${q.id}</b> dengan indeks kegagalan kolektif hingga ${((1-q.p)*100).toFixed(0)}% populasi.</li>`).join('')}</ul>`;
+            const hardestQuestionsExport = [...AppState.questions].sort((a,b) => a.p - b.p).slice(0, 10).sort((a,b) => a.id - b.id);
+            let hr = `<ul style="margin: 0; padding-left: 20px; text-align: left;">`;
+            hardestQuestionsExport.forEach(q => {
+                let pSalah = ((1 - q.p) * 100).toFixed(0);
+                hr += `<li style="margin-bottom: 2px;"><b>Instrumen No. ${q.id}</b> dengan indeks kegagalan kolektif hingga ${pSalah}% populasi.</li>`;
+            });
+            hr += `</ul>`;
 
-            const sZ = AppState.questions.filter(q=>q.p<0.2), sI = AppState.questions.filter(q=>q.dayaBeda<0.2), sM = AppState.questions.filter(q=>q.miskonsepsi!==null), sMd = AppState.questions.filter(q=>q.p>0.85), iR = AppState.reliabilitas>=0.7?"Konsistensi Tinggi / Sangat Reliabel":"Konsistensi Kurang / Butuh Penyesuaian";
-            let hSo = `<p style="text-align:justify; margin:0 0 5px 0;"><b>Evaluasi Reliabilitas & Karakteristik Instrumen:</b> Analisis psikometrik komprehensif mengkalkulasi <b>Indeks Reliabilitas (KR-20) instrumen ini pada angka ${AppState.reliabilitas.toFixed(2)}</b> yang merepresentasikan <b>${iR}</b>. Distribusi keseimbangan tingkat kesukaran tes terdiri atas: ${AppState.proporsiKesukaran.mudah} Mudah, ${AppState.proporsiKesukaran.sedang} Sedang, dan ${AppState.proporsiKesukaran.sukar} Sukar.</p><ul style="margin:0 0 5px 0; padding-left:20px; text-align:left;"><li style="margin-bottom:2px;"><b>${sI.length} Instrumen Mendegradasi Validitas:</b> ${sI.length>0?sI.map(q=>q.id).join(', '):'-'} (Daya Diskriminasi/Pembeda &lt; 0.20, instrumen mandul dalam mengkategorisasikan kelompok siswa superordinat dan subordinat).</li><li style="margin-bottom:2px;"><b>${sZ.length} Instrumen Zonking:</b> ${sZ.length>0?sZ.map(q=>q.id).join(', '):'-'} (Rasio kebenaran &lt; 20%).</li><li style="margin-bottom:2px;"><b>${sM.length} Instrumen Bermuatan Miskonsepsi:</b> ${sM.length>0?sM.map(q=>q.id).join(', '):'-'} (Kehadiran distraktor yang sangat dominan).</li><li style="margin-bottom:2px;"><b>${sMd.length} Instrumen Kurang Kompetitif (Terlalu Mudah):</b> ${sMd.length>0?sMd.map(q=>q.id).join(', '):'-'} (Akurasi klasikal &gt; 85%).</li></ul>`;
-            let hP = `<p style="text-align:left; margin:5px 0 2px 0;"><b>Rekomendasi Pemeliharaan Instrumen:</b></p><ol style="text-align:left; padding-left:20px; margin:0;"><li>Soal Tidak Valid (Daya Beda &lt; 0.20) sebaiknya <b>dieliminasi (<i>drop</i>)</b> dari penilaian akhir atau direvisi total kalimatnya.</li><li>Untuk soal sangat sulit (<i>Zonking</i>), harap periksa kembali kebenaran acuan kunci jawaban tes.</li><li>Pengecoh yang tak pernah dipilih (<i>non-functioning distractors</i>) sebagaimana dirinci di tabel bawah ini, wajib diganti opsinya pada ujian mendatang.</li></ol>`;
+            const sZ = AppState.questions.filter(q => q.p < 0.2);
+            const sI = AppState.questions.filter(q => q.dayaBeda < 0.2);
+            const sM = AppState.questions.filter(q => q.miskonsepsi !== null);
+            const infoReliabilitas = AppState.reliabilitas >= 0.70 ? "Konsistensi Tinggi / Sangat Reliabel" : "Konsistensi Kurang / Butuh Penyesuaian";
             
-            let tS = `<table class="compact-table"><thead><tr><th>No</th><th>Kunci</th><th>Tingkat Kesukaran (P)</th><th>Daya Diskriminasi (D)</th><th>Diagnostik & Preskripsi Distraktor</th></tr></thead><tbody>${AppState.questions.map(q=>{
-                let dL=q.p>0.7?'Mudah':q.p>=0.3?'Sedang':'Sukar', vL=q.dayaBeda<0.2?'<span class="text-red">Revisi</span>':'<span class="text-green">Ideal</span>', a='';
-                if(q.p<0.2) a+='<span class="badge badge-zonk">[Warning Zonking]</span> '; if(q.miskonsepsi) a+=`<span class="badge badge-mis">[Miskonsepsi di ${q.miskonsepsi.opt} - ${q.miskonsepsi.count} respons]</span> `; if(q.pengecohKosong.length>0) a+=`<span class="badge badge-kosong">[Drop distraktor: ${q.pengecohKosong.join(', ')}]</span>`; if(a==='') a='Utilitas Instrumen Seimbang & Baik';
-                return `<tr><td class="center"><b>${q.id}</b></td><td class="center"><b>${q.kunci}</b></td><td class="center">${(q.p*100).toFixed(0)}% (${dL})</td><td class="center">${q.dayaBeda.toFixed(2)} (${vL})</td><td style="font-size:8.5pt; text-align:left;">${a}</td></tr>`;
-            }).join('')}</tbody></table>`;
+            let hSo = `<p style="text-align: justify; margin: 0 0 5px 0;"><b>Evaluasi Reliabilitas & Karakteristik Instrumen:</b> Analisis psikometrik komprehensif mengkalkulasi <b>Indeks Reliabilitas (KR-20) instrumen ini pada angka ${AppState.reliabilitas.toFixed(2)}</b> yang merepresentasikan <b>${infoReliabilitas}</b>. Distribusi keseimbangan tingkat kesukaran tes terdiri atas: ${AppState.proporsiKesukaran.mudah} Mudah, ${AppState.proporsiKesukaran.sedang} Sedang, dan ${AppState.proporsiKesukaran.sukar} Sukar.</p>`;
+            hSo += `<ul style="margin: 0 0 5px 0; padding-left: 20px; text-align: left;">`;
+            hSo += `<li style="margin-bottom: 2px;"><b>${sI.length} Instrumen Mendegradasi Validitas:</b> ${sI.length > 0 ? `Item ${sI.map(q=>q.id).join(', ')}` : '-'} (Daya Diskriminasi/Pembeda &lt; 0.20, instrumen mandul dalam mengkategorisasikan kelompok siswa superordinat dan subordinat).</li>`;
+            hSo += `<li style="margin-bottom: 2px;"><b>${sZ.length} Instrumen Zonking:</b> ${sZ.length > 0 ? `Item ${sZ.map(q=>q.id).join(', ')}` : '-'} (Rasio kebenaran &lt; 20%).</li>`;
+            hSo += `<li style="margin-bottom: 2px;"><b>${sM.length} Instrumen Bermuatan Miskonsepsi:</b> ${sM.length > 0 ? `Item ${sM.map(q=>q.id).join(', ')}` : '-'} (Kehadiran distraktor yang sangat dominan).</li>`;
+            hSo += `</ul>`;
 
-            let pS = sI.length > 0 || sZ.length > 0 ? `<b>1. Evaluasi & Revisi Bank Soal (Kepada Tim Kurikulum & Pembuat Soal):</b> Ditemukan ${sI.length} soal tidak valid dan ${sZ.length} soal berkategori <i>Zonking</i>. Instrumen tes terbukti memiliki kecacatan fungsi secara metodologis dalam mengukur kompetensi siswa. Tim penyusun tes <b>diwajibkan</b> membedah dan merombak total diksi stimulus maupun opsi pengecoh pada butir-butir soal tersebut sebelum diujikan pada tahun ajaran berikutnya, atau menghapusnya sama sekali dari <i>Item Bank</i> sekolah.` : `<b>1. Preservasi Bank Soal (Kepada Tim Kurikulum & Pembuat Soal):</b> Secara keseluruhan, validitas empiris instrumen ujian sudah sangat prima dengan koefisien reliabilitas yang memuaskan. Konstruksi bahasa dan pengecoh soal telah berfungsi memadai. Sangat disarankan untuk mematenkan (meregistrasi) instrumen ini sebagai tes terstandar (<i>standardized test</i>) internal pada Bank Soal sekolah yang dapat diujikan berulang pada angkatan berikutnya.`;
-            let pM = sM.length > 0 ? `<b>2. Pelurusan Miskonsepsi Tersistematis (Kepada Guru Mata Pelajaran):</b> Kehadiran ${sM.length} butir soal dengan distraktor/pengecoh yang sangat dominan menjadi bukti empiris adanya sebuah konsep fundamental yang salah namun secara massal diyakini kebenarannya oleh mayoritas siswa di kelas ini. Guru mapel yang bersangkutan <b>diminta memprioritaskan pelurusan</b> materi (<i>debiasing</i>) terkait indikator soal tersebut pada jam tatap muka pertama setelah ujian.` : `<b>2. Pemantapan Konsep Akademik (Kepada Guru Mata Pelajaran):</b> Tidak terdeteksi adanya miskonsepsi massal (kesesatan pemahaman kolektif) yang fatal. Peserta didik secara umum telah memproses esensi materi secara akurat. Guru dipersilakan melanjutkan ekspansi materi dan memberikan variasi studi kasus guna memperkaya literasi analitis peserta didik.`;
-            let pT = pt < 50 ? `<b>3. Strategi Intervensi & Remedial Ekstensif (Kebijakan Pengajaran):</b> Menyikapi tingkat ketuntasan agregat yang sangat defisit (${pt}%), pendekatan perbaikan secara individual dinilai membuang waktu dan tidak efisien. Guru pengampu diinstruksikan mendedikasikan waktu alokasi khusus guna melaksanakan <b>pengajaran ulang (<i>re-teaching</i>) secara klasikal massal</b>. Silakan fokus murni pada daftar <b>"Top 10 Materi Remedial Prioritas"</b> di atas sebagai acuan utama perbaikan sebelum memaksakan perpindahan kompetensi dasar.` : pt < 80 ? `<b>3. Optimalisasi Tutor Sebaya & Remedial Klinis (Kebijakan Pengajaran):</b> Dengan proporsi ketuntasan ${pt}%, metode pembelajaran kooperatif menjadi solusi manajerial paling efektif. Kami merekomendasikan pendayagunaan ${AppState.students.filter(s=>s.isTuntas).length} siswa yang telah melampaui KKM agar ditugaskan bertindak sebagai fasilitator (tutor sebaya) bagi rekan sejawatnya. Sementara itu, atensi khusus dan intervensi tatap muka dari guru dapat difokuskan eksklusif hanya kepada ${sRa + sTe} siswa yang memiliki rekam jejak "Keraguan" dan "Pseudo-guessing" tingkat tinggi.` : `<b>3. Akselerasi Silabus & Pengayaan Lanjutan (Kebijakan Pengajaran):</b> Tingkat ketuntasan tercapai dengan persentase sangat memuaskan (${pt}%). Alokasi waktu dan birokrasi untuk program remedial klasikal dapat dieliminasi. Guru pengampu diberikan keleluasaan (diskresi) untuk mengakselerasi proses penyelesaian silabus, serta dipersilakan menginjeksikan matriks penugasan pengayaan berbasis <i>High Order Thinking Skills (HOTS)</i> agar potensi kognitif dan nalar analitis kelompok superior dapat terekspansi secara maksimal.`;
-            
-            let kA = `<div class="box" style="border-top:3px solid #1e3a8a; border-bottom:3px solid #1e3a8a; background-color:#f0f9ff; padding:12px; margin-top:20px;"><h2 style="text-align:center; color:#1e3a8a; border:none; margin:0 0 10px 0; font-size:12pt;">KESIMPULAN MANAJERIAL & REKOMENDASI KEBIJAKAN SEKOLAH</h2><p style="text-align:justify; margin-bottom:8px;">Berdasarkan kompilasi dan kalkulasi silang atas matriks ketuntasan daya serap, perilaku diagnostik ujian, dan parameter validitas butir tes (<i>Item Analysis</i>), maka Tim Pengembang Kurikulum serta Pimpinan Sekolah mensyaratkan tindak lanjut implementasi kebijakan akademik di lingkup instansi sebagai berikut:</p><div style="text-align:justify; padding-left:0; margin:0; display:flex; flex-direction:column; gap:6px;"><p style="margin:0 0 8px 0;">${pS}</p><p style="margin:0 0 8px 0;">${pM}</p><p style="margin:0 0 0 0;">${pT}</p></div></div>`;
+            let hP = `<p style="text-align: left; margin: 5px 0 2px 0;"><b>Rekomendasi Pemeliharaan Instrumen:</b></p>
+            <ol style="text-align: left; padding-left: 20px; margin: 0;">
+                <li>Soal Tidak Valid (Daya Beda &lt; 0.20) sebaiknya <b>dieliminasi (<i>drop</i>)</b> dari penilaian akhir atau direvisi total kalimatnya.</li>
+                <li>Untuk soal sangat sulit (<i>Zonking</i>), harap periksa kembali kebenaran acuan kunci jawaban tes.</li>
+                <li>Pengecoh yang tak pernah dipilih (<i>non-functioning distractors</i>) sebagaimana dirinci di tabel bawah ini, wajib diganti opsinya pada ujian mendatang.</li>
+            </ol>`;
 
-            const hc = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Laporan Evaluasi</title><style>@page WordSection1 { size:595.3pt 841.9pt; margin:28.35pt; } div.WordSection1 { page:WordSection1; } body { font-family:'Arial',sans-serif; font-size:9pt; color:#111; line-height:1.15; } h1 { font-size:13pt; text-align:center; border-bottom:2px solid #2563eb; padding-bottom:3px; margin-bottom:8px; color:#1e3a8a;} h2 { font-size:10.5pt; margin-top:12px; margin-bottom:5px; background-color:#dbeafe; padding:4px 6px; border-left:4px solid #2563eb; color:#1e3a8a;} h3 { font-size:9.5pt; margin-top:8px; margin-bottom:3px; color:#374151;} p { margin-top:0; margin-bottom:4px; } .box { border:1px solid #cbd5e1; padding:6px; margin-bottom:8px; background-color:#f8fafc; border-radius:3px;} .alert-danger { border-left:3px solid #dc2626; background-color:#fef2f2; } .alert-warning { border-left:3px solid #d97706; background-color:#fffbeb; } table.compact-table { width:100%; border-collapse:collapse; margin-bottom:8px; margin-top:2px; } .compact-table th, .compact-table td { border:1px solid #94a3b8; padding:2px 4px; vertical-align:middle; font-size:8.5pt;} .compact-table th { font-weight:bold; background-color:#e2e8f0; color:#0f172a; text-align:center;} .center { text-align:center; } .text-green { color:#16a34a; font-weight:bold;} .text-red { color:#dc2626; font-weight:bold;} .text-orange { color:#d97706; font-weight:bold;} .badge { display:inline-block; padding:0.5px 3px; font-size:7.5pt;} .badge-zonk { color:#b91c1c; font-weight:bold;} .badge-mis { color:#b45309; font-weight:bold;} .badge-kosong { color:#475569; font-style:italic; }</style></head><body><div class="WordSection1"><h1>Laporan Resume Analitik Kognitif & Evaluasi Psikometrik</h1>${tId}<h2>A. ANALISIS PENYERAPAN MATERI (Klasikal / Kelas)</h2><div class="box">${hk}<table class="compact-table" style="margin-top:5px;"><thead><tr><th>Total Populasi (Peserta Didik)</th><th>Rata-rata Nilai (Tendensi Sentral)</th><th>Frekuensi Tuntas (<i>Mastery</i>)</th><th>Frekuensi Tidak Tuntas (Remedial)</th></tr></thead><tbody><tr><td class="center"><b>${AppState.students.length} Subjek</b></td><td class="center"><b>${av}</b></td><td class="center text-green">${AppState.students.filter(s=>s.isTuntas).length} Peserta Didik</td><td class="center text-red">${AppState.students.length - AppState.students.filter(s=>s.isTuntas).length} Peserta Didik</td></tr></tbody></table></div><h3>1. Laporan Diagnostik Kendala Kelas (Sistem Peringatan Dini / <i>Early-Warning</i>)</h3>${hm}<h3>2. Tabel Tabulasi Distribusi Frekuensi Keseluruhan</h3>${tD}<h3>3. Tabel Konversi Persentase Ketepatan Respon Berdasarkan Kompetensi Dasar / BAB</h3>${tB}<h2>B. PEMETAAN DIAGNOSTIK INDIVIDU PESERTA DIDIK</h2><div class="box">${hs}<hr style="border:0; border-top:1px dashed #cbd5e1; margin:6px 0;"><p style="text-align:left; margin:0 0 2px 0;"><b>Top 10 Materi Remedial Prioritas (<i>Learning Gaps Target</i>):</b></p>${hr}</div><h2>C. EVALUASI KUALITAS SOAL UJIAN (Analisis Butir Instrumen)</h2><div class="box">${hSo}${hP}</div><h3>Tabel Pembedahan Validitas Konstruk Per Butir Soal (<i>Item Analysis Table</i>)</h3>${tS}${kA}<br clear="all" /><div style="border-top:1px solid #ccc; margin-top:20px; padding-top:10px; font-size:8.5pt; color:#555; text-align:justify;"><b>Pernyataan Validitas Sistem:</b> Seluruh kalkulasi statistik (Tingkat Kesukaran, Daya Pembeda, Reliabilitas KR-20, dan Deteksi Miskonsepsi) dalam dokumen ini di-generate secara otomatis melalui algoritma pemrosesan data psikometrik. Hasil analisis dinyatakan <b>Valid dan Akurat</b>. Laporan ini sah digunakan sebagai dasar pengambilan keputusan akademis dan evaluasi kurikulum institusi.</div></div></body></html>`;
+            let tS = `
+            <table class="compact-table">
+                <thead>
+                    <tr>
+                        <th>No</th><th>Kunci</th><th>Tingkat Kesukaran (P)</th><th>Daya Diskriminasi (D)</th><th>Diagnostik & Preskripsi Distraktor</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            AppState.questions.forEach(q => {
+                let dL = q.p > 0.7 ? 'Mudah' : (q.p >= 0.3 ? 'Sedang' : 'Sukar');
+                let vL = q.dayaBeda < 0.2 ? '<span class="text-red">Revisi</span>' : '<span class="text-green">Ideal</span>';
+                
+                let a = '';
+                if(q.p < 0.2) a += '<span class="badge badge-zonk">[Warning Zonking]</span> ';
+                if(q.miskonsepsi) a += `<span class="badge badge-mis">[Miskonsepsi di ${q.miskonsepsi.opt} - ${q.miskonsepsi.count} respons]</span> `;
+                if(q.pengecohKosong.length > 0) a += `<span class="badge badge-kosong">[Drop distraktor: ${q.pengecohKosong.join(', ')}]</span>`;
+                if(a === '') a = 'Utilitas Instrumen Seimbang & Baik';
+
+                tS += `
+                <tr>
+                    <td class="center"><b>${q.id}</b></td>
+                    <td class="center"><b>${q.kunci}</b></td>
+                    <td class="center">${(q.p*100).toFixed(0)}% (${dL})</td>
+                    <td class="center">${q.dayaBeda.toFixed(2)} (${vL})</td>
+                    <td style="font-size:8.5pt; text-align: left;">${a}</td>
+                </tr>`;
+            });
+            tS += `</tbody></table>`;
+
+            let poinSoal = "";
+            if (sI.length > 0 || sZ.length > 0) {
+                poinSoal = `<b>1. Evaluasi & Revisi Bank Soal (Kepada Tim Kurikulum & Pembuat Soal):</b> Ditemukan ${sI.length} soal tidak valid dan ${sZ.length} soal berkategori <i>Zonking</i>. Instrumen tes terbukti memiliki kecacatan fungsi secara metodologis dalam mengukur kompetensi siswa. Tim penyusun tes <b>diwajibkan</b> membedah dan merombak total diksi stimulus maupun opsi pengecoh pada butir-butir soal tersebut sebelum diujikan pada tahun ajaran berikutnya, atau menghapusnya sama sekali dari <i>Item Bank</i> sekolah.`;
+            } else {
+                poinSoal = `<b>1. Preservasi Bank Soal (Kepada Tim Kurikulum & Pembuat Soal):</b> Secara keseluruhan, validitas empiris instrumen ujian sudah sangat prima dengan koefisien reliabilitas yang memuaskan. Konstruksi bahasa dan pengecoh soal telah berfungsi memadai. Sangat disarankan untuk mematenkan (meregistrasi) instrumen ini sebagai tes terstandar (<i>standardized test</i>) internal pada Bank Soal sekolah yang dapat diujikan berulang pada angkatan berikutnya.`;
+            }
+
+            let poinMiskonsepsi = "";
+            if (sM.length > 0) {
+                poinMiskonsepsi = `<b>2. Pelurusan Miskonsepsi Tersistematis (Kepada Guru Mata Pelajaran):</b> Kehadiran ${sM.length} butir soal dengan distraktor/pengecoh yang sangat dominan menjadi bukti empiris adanya sebuah konsep fundamental yang salah namun secara massal diyakini kebenarannya oleh mayoritas siswa di kelas ini. Guru mapel yang bersangkutan <b>diminta memprioritaskan pelurusan</b> materi (<i>debiasing</i>) terkait indikator soal tersebut pada jam tatap muka pertama setelah ujian.`;
+            } else {
+                poinMiskonsepsi = `<b>2. Pemantapan Konsep Akademik (Kepada Guru Mata Pelajaran):</b> Tidak terdeteksi adanya miskonsepsi massal (kesesatan pemahaman kolektif) yang fatal. Peserta didik secara umum telah memproses esensi materi secara akurat. Guru dipersilakan melanjutkan ekspansi materi dan memberikan variasi studi kasus guna memperkaya literasi analitis peserta didik.`;
+            }
+
+            let poinTindakLanjut = "";
+            if (pt < 50) {
+                poinTindakLanjut = `<b>3. Strategi Intervensi & Remedial Ekstensif (Kebijakan Pengajaran):</b> Menyikapi tingkat ketuntasan agregat yang sangat defisit (${pt}%), pendekatan perbaikan secara individual dinilai membuang waktu dan tidak efisien. Guru pengampu diinstruksikan mendedikasikan waktu alokasi khusus guna melaksanakan <b>pengajaran ulang (<i>re-teaching</i>) secara klasikal massal</b>. Silakan fokus murni pada daftar <b>"Top 10 Materi Remedial Prioritas"</b> di atas sebagai acuan utama perbaikan sebelum memaksakan perpindahan kompetensi dasar.`;
+            } else if (pt < 80) {
+                poinTindakLanjut = `<b>3. Optimalisasi Tutor Sebaya & Remedial Klinis (Kebijakan Pengajaran):</b> Dengan proporsi ketuntasan ${pt}%, metode pembelajaran kooperatif menjadi solusi manajerial paling efektif. Kami merekomendasikan pendayagunaan ${AppState.students.filter(s=>s.isTuntas).length} siswa yang telah melampaui KKM agar ditugaskan bertindak sebagai fasilitator (tutor sebaya) bagi rekan sejawatnya. Sementara itu, atensi khusus dan intervensi tatap muka dari guru dapat difokuskan eksklusif hanya kepada siswa yang memiliki rekam jejak "Keraguan" dan "Pseudo-guessing" tingkat tinggi.`;
+            } else {
+                poinTindakLanjut = `<b>3. Akselerasi Silabus & Pengayaan Lanjutan (Kebijakan Pengajaran):</b> Tingkat ketuntasan tercapai dengan persentase sangat memuaskan (${pt}%). Alokasi waktu dan birokrasi untuk program remedial klasikal dapat dieliminasi. Guru pengampu diberikan keleluasaan (diskresi) untuk mengakselerasi proses penyelesaian silabus, serta dipersilakan menginjeksikan matriks penugasan pengayaan berbasis <i>High Order Thinking Skills (HOTS)</i> agar potensi kognitif dan nalar analitis kelompok superior dapat terekspansi secara maksimal.`;
+            }
+
+            let kesimpulanAkhir = `
+                <div class="box" style="border-top: 3px solid #1e3a8a; border-bottom: 3px solid #1e3a8a; background-color: #f0f9ff; padding: 12px; margin-top: 20px;">
+                    <h2 style="text-align:center; color: #1e3a8a; border:none; margin: 0 0 10px 0; font-size:12pt;">KESIMPULAN MANAJERIAL & REKOMENDASI KEBIJAKAN SEKOLAH</h2>
+                    <p style="text-align: justify; margin-bottom:8px;">Berdasarkan kompilasi dan kalkulasi silang atas matriks ketuntasan daya serap, perilaku diagnostik ujian, dan parameter validitas butir tes (<i>Item Analysis</i>), maka Tim Pengembang Kurikulum serta Pimpinan Sekolah mensyaratkan tindak lanjut implementasi kebijakan akademik di lingkup instansi sebagai berikut:</p>
+                    <div style="text-align: justify; padding-left: 0; margin: 0; display:flex; flex-direction:column; gap:6px;">
+                        <p style="margin:0 0 8px 0;">${poinSoal}</p>
+                        <p style="margin:0 0 8px 0;">${poinMiskonsepsi}</p>
+                        <p style="margin:0 0 0 0;">${poinTindakLanjut}</p>
+                    </div>
+                </div>
+            `;
+
+            const htmlContent = `
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                <head>
+                <meta charset='utf-8'><title>Laporan Evaluasi</title>
+                <style>
+                    @page WordSection1 { size: 595.3pt 841.9pt; margin: 28.35pt; }
+                    div.WordSection1 { page: WordSection1; }
+                    body { font-family: 'Arial', sans-serif; font-size: 9pt; color: #111; line-height: 1.15; }
+                    h1 { font-size: 13pt; text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 3px; margin-bottom: 8px; color: #1e3a8a;}
+                    h2 { font-size: 10.5pt; margin-top: 12px; margin-bottom: 5px; background-color: #dbeafe; padding: 4px 6px; border-left: 4px solid #2563eb; color: #1e3a8a;}
+                    h3 { font-size: 9.5pt; margin-top: 8px; margin-bottom: 3px; color: #374151;}
+                    p { margin-top: 0; margin-bottom: 4px; }
+                    .box { border: 1px solid #cbd5e1; padding: 6px; margin-bottom: 8px; background-color: #f8fafc; border-radius: 3px;}
+                    .alert-danger { border-left: 3px solid #dc2626; background-color: #fef2f2; }
+                    .alert-warning { border-left: 3px solid #d97706; background-color: #fffbeb; }
+                    table.compact-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; margin-top: 2px; }
+                    .compact-table th, .compact-table td { border: 1px solid #94a3b8; padding: 2px 4px; vertical-align: middle; font-size: 8.5pt;}
+                    .compact-table th { font-weight: bold; background-color: #e2e8f0; color: #0f172a; text-align: center;}
+                    .center { text-align: center; }
+                    .text-green { color: #16a34a; font-weight: bold;}
+                    .text-red { color: #dc2626; font-weight: bold;}
+                    .text-orange { color: #d97706; font-weight: bold;}
+                    .badge { display: inline-block; padding: 0.5px 3px; font-size: 7.5pt;}
+                    .badge-zonk { color: #b91c1c; font-weight:bold;}
+                    .badge-mis { color: #b45309; font-weight:bold;}
+                    .badge-kosong { color: #475569; font-style: italic; }
+                </style>
+                </head>
+                <body>
+                <div class="WordSection1">
+                    
+                    <h1>Laporan Resume Analitik Kognitif & Evaluasi Psikometrik</h1>
+                    
+                    ${tId}
+
+                    <h2>A. ANALISIS PENYERAPAN MATERI (Klasikal / Kelas)</h2>
+                    <div class="box">
+                        ${hk}
+                        <table class="compact-table" style="margin-top:5px;">
+                            <thead>
+                                <tr>
+                                    <th>Total Populasi (Peserta Didik)</th>
+                                    <th>Rata-rata Nilai (Tendensi Sentral)</th>
+                                    <th>Frekuensi Tuntas (<i>Mastery</i>)</th>
+                                    <th>Frekuensi Tidak Tuntas (Remedial)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="center"><b>${AppState.students.length} Subjek</b></td>
+                                    <td class="center"><b>${av}</b></td>
+                                    <td class="center text-green">${AppState.students.filter(s=>s.isTuntas).length} Peserta Didik</td>
+                                    <td class="center text-red">${AppState.students.length - AppState.students.filter(s=>s.isTuntas).length} Peserta Didik</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h3>1. Laporan Diagnostik Kendala Kelas (Sistem Peringatan Dini / <i>Early-Warning</i>)</h3>
+                    ${hm}
+
+                    <h3>2. Tabel Tabulasi Distribusi Frekuensi Keseluruhan</h3>
+                    ${tD}
+
+                    <h3>3. Tabel Konversi Persentase Ketepatan Respon Berdasarkan Kompetensi Dasar / BAB</h3>
+                    ${tB}
+
+                    <h2>B. PEMETAAN DIAGNOSTIK INDIVIDU PESERTA DIDIK</h2>
+                    <div class="box">
+                        ${hs}
+                        <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 6px 0;">
+                        <p style="text-align: left; margin: 0 0 2px 0;"><b>Top 10 Materi Remedial Prioritas (<i>Learning Gaps Target</i>):</b></p>
+                        ${hr}
+                    </div>
+
+                    <h2>C. EVALUASI KUALITAS SOAL UJIAN (Analisis Butir Instrumen)</h2>
+                    <div class="box">
+                        ${hSo}
+                        ${hP}
+                    </div>
+
+                    <h3>Tabel Pembedahan Validitas Konstruk Per Butir Soal (<i>Item Analysis Table</i>)</h3>
+                    ${tS}
+
+                    ${kA}
+                    
+                    <br clear="all" />
+                    <div style="border-top: 1px solid #ccc; margin-top: 20px; padding-top: 10px; font-size: 8.5pt; color: #555; text-align: justify;">
+                        <b>Pernyataan Validitas Sistem:</b> Seluruh kalkulasi statistik (Tingkat Kesukaran, Daya Pembeda, Reliabilitas KR-20, dan Deteksi Miskonsepsi) dalam dokumen ini di-generate secara otomatis melalui algoritma pemrosesan data psikometrik terpadu. Hasil analisis divalidasi sebagai indikator akademik yang akurat dan sah digunakan untuk landasan pengambilan keputusan dan perbaikan mutu kurikulum institusi.
+                    </div>
+
+                </div>
+                </body>
+                </html>
+            `;
 
             let bFn = `${AppState.gradeLevel} ${AppState.subject} ${AppState.examType} ${AppState.teacherName} ${new Date().toISOString().slice(0,10)}`;
             if (bFn.trim() === '- - - -' || bFn.trim() === '') bFn = `Analisis_Soal_${new Date().toISOString().slice(0,10)}`; else bFn = `Analisis Soal_${bFn.replace(/[\\/:*?"<>|]/g, '').trim()}`;
-            const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob(['\ufeff', hc], { type: 'application/msword' })); link.download = `${bFn}.doc`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob(['\ufeff', htmlContent], { type: 'application/msword' })); link.download = `${bFn}.doc`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
     </script>
 </body>
