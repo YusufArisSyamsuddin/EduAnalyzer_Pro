@@ -214,14 +214,17 @@
                                 <strong>Kamus Indikator Klinis:</strong><br>
                                 <span class="bg-yellow-100 text-yellow-800 px-1 rounded">Keraguan Tingkat Tinggi</span> = Rasio pengosongan jawaban &gt; 10% | 
                                 <span class="bg-red-100 text-red-800 px-1 rounded">Anomali Input</span> = Terdeteksi pengisian ganda (*) | 
-                                <span class="bg-purple-100 text-purple-800 px-1 rounded">Pseudo-guessing (Tebakan)</span> = Akurasi &le; 50% di soal termudah, namun &ge; 50% di soal tersulit. |
-                                <span class="bg-gray-800 text-white px-1 rounded mt-1 inline-block">Indikasi Mencontek</span> = WIC Index (Kesamaan pola kesalahan spesifik &ge; 60%) ATAU Tingkat Kesamaan Jawaban Absolut &ge; 85% dengan siswa lain.
+                                <span class="bg-purple-100 text-purple-800 px-1 rounded">Guttman Misfit (Anomali Skalogram)</span> = Akurasi rendah di soal termudah, namun akurasi tinggi di soal tersulit (Anomali IRT). <br>
+                                <span class="bg-gray-800 text-white px-1 rounded mt-1 inline-block">Indikasi Kolusi (Mencontek)</span> = Kedekatan radius tempat duduk (Grid 4x4) + Kesamaan Error (WIC Index) / Kesamaan Soal Sulit (Harpp-Hogan Index) ekstrem.
                             </div>
                         </div>
                         <div class="custom-scroll overflow-x-auto border rounded-lg max-h-[500px] w-full">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-100 sticky top-0 z-10">
                                     <tr>
+                                        <th onclick="sortTableSiswa('no')" class="cursor-pointer hover:bg-gray-200 transition-colors px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase w-12">
+                                            No <span id="sort-icon-no"><i class="fas fa-sort-numeric-down ml-1 text-blue-600"></i></span>
+                                        </th>
                                         <th onclick="sortTableSiswa('nama')" class="cursor-pointer hover:bg-gray-200 transition-colors px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold text-gray-600 uppercase">
                                             Nama Peserta Didik <span id="sort-icon-nama"><i class="fas fa-sort text-gray-300 ml-1"></i></span>
                                         </th>
@@ -329,15 +332,15 @@
         let chartDistribusiInst = null;
         let chartBabInst = null;
         
-        let sortColSiswa = 'nilai';
-        let sortAscSiswa = false;
+        let sortColSiswa = 'no';
+        let sortAscSiswa = true;
 
         window.sortTableSiswa = function(col) {
             if (sortColSiswa === col) {
                 sortAscSiswa = !sortAscSiswa;
             } else {
                 sortColSiswa = col;
-                sortAscSiswa = (col === 'nama'); // Default asc untuk nama, desc untuk nilai/ketuntasan
+                sortAscSiswa = (col === 'nama' || col === 'no'); 
             }
             renderStudentTable();
         };
@@ -583,7 +586,6 @@
                 else AppState.distData[4]++;
             });
 
-            // Menyimpan urutan aslinya agar logika upper/lower sesuai
             const sortedStudents = [...AppState.students].sort((a, b) => b.score - a.score);
             const n30 = Math.max(1, Math.round(totS * 0.30));
             const upperGroup = sortedStudents.slice(0, n30);
@@ -620,40 +622,69 @@
                 }
             });
 
-            // WIC Index / Error Similarity Cheating Analysis (Diperketat)
+            const sortedQ = [...AppState.questions].sort((a,b) => b.p - a.p);
+            const qN25 = Math.max(1, Math.round(maxQ * 0.25));
+            const easiestQs = sortedQ.slice(0, qN25).map(q=>q.id);
+            const hardestQs = sortedQ.slice(-qN25).map(q=>q.id);
+
             AppState.students.forEach(s1 => {
+                s1.raguRagu = s1.kosong > (maxQ * 0.1);
+                s1.jawabanGanda = (s1.jawaban.match(/\*/g) || []).length;
+                
+                let easyCorrect = s1.detailBenar.filter(x => easiestQs.includes(x)).length;
+                let hardCorrect = s1.detailBenar.filter(x => hardestQs.includes(x)).length;
+                let easyRate = easyCorrect / qN25;
+                let hardRate = hardCorrect / qN25;
+                
+                s1.isTebakan = (easyRate <= 0.5 && hardRate >= 0.5);
                 s1.isMencontek = false;
-                if (s1.salah >= 3 || s1.benar > 0) {
+
+                if (s1.salah >= 2 || s1.benar > 0) {
                     let maxWIC = 0;
                     let maxIdenticalRate = 0;
+                    let maxHarppHogan = 0;
+
                     AppState.students.forEach(s2 => {
                         if (s1.no !== s2.no && s1.kelas === s2.kelas) {
-                            let wicCount = 0;
-                            let identicalCount = 0;
-                            let answeredQuestions = 0;
-                            
-                            for(let i=0; i<AppState.totalQuestions; i++) {
-                                const ans1 = s1.jawaban.charAt(i);
-                                const ans2 = s2.jawaban.charAt(i);
-                                if(ans1 && ans2 && ans1 !== '-' && ans1 !== ' ') {
-                                    answeredQuestions++;
-                                    if(ans1 === ans2) identicalCount++;
-                                    if(s1.detailSalah.includes(i+1) && s2.detailSalah.includes(i+1) && ans1 === ans2) {
-                                        wicCount++;
+                            let r1 = Math.floor((s1.no - 1) / 4), c1 = (s1.no - 1) % 4;
+                            let r2 = Math.floor((s2.no - 1) / 4), c2 = (s2.no - 1) % 4;
+                            let isAdjacent = Math.abs(r1 - r2) <= 1 && Math.abs(c1 - c2) <= 1;
+
+                            if (isAdjacent) {
+                                let wicCount = 0;
+                                let identicalCount = 0;
+                                let answeredQuestions = 0;
+                                let hardIdenticalCorrect = 0;
+
+                                for(let i=0; i<AppState.totalQuestions; i++) {
+                                    const qId = i + 1;
+                                    const ans1 = s1.jawaban.charAt(i);
+                                    const ans2 = s2.jawaban.charAt(i);
+                                    
+                                    if(ans1 && ans2 && ans1 !== '-' && ans1 !== ' ') {
+                                        answeredQuestions++;
+                                        if(ans1 === ans2) {
+                                            identicalCount++;
+                                            if(s1.detailSalah.includes(qId) && s2.detailSalah.includes(qId)) wicCount++;
+                                            if(s1.detailBenar.includes(qId) && s2.detailBenar.includes(qId) && hardestQs.includes(qId)) hardIdenticalCorrect++;
+                                        }
                                     }
                                 }
+                                
+                                let identicalRate = answeredQuestions > 0 ? (identicalCount / answeredQuestions) : 0;
+                                if (wicCount > maxWIC) maxWIC = wicCount;
+                                if (identicalRate > maxIdenticalRate) maxIdenticalRate = identicalRate;
+                                
+                                let hardCorrectCount = s1.detailBenar.filter(x => hardestQs.includes(x)).length;
+                                let harppHoganRate = hardCorrectCount > 0 ? hardIdenticalCorrect / hardCorrectCount : 0;
+                                if (harppHoganRate > maxHarppHogan && hardIdenticalCorrect >= 3) maxHarppHogan = harppHoganRate;
                             }
-                            
-                            let identicalRate = answeredQuestions > 0 ? (identicalCount / answeredQuestions) : 0;
-                            if (wicCount > maxWIC) maxWIC = wicCount;
-                            if (identicalRate > maxIdenticalRate) maxIdenticalRate = identicalRate;
                         }
                     });
                     
-                    // Kriteria Indikasi Mencontek Diperketat:
-                    // WIC Index Ekstrem (WIC >= 5 dan WIC adalah 60%+ dari total kesalahan) 
-                    // ATAU Tingkat Kesamaan Jawaban Absolut > 85% dengan catatan punya min. 3 salah (mencegah false positive karena sama-sama pintar/nilai sempurna)
-                    if ((maxWIC >= 5 && (maxWIC / s1.salah) >= 0.6) || (maxIdenticalRate >= 0.85 && s1.salah >= 3)) {
+                    if ((maxWIC >= 4 && (maxWIC / s1.salah) >= 0.6) || 
+                        (maxIdenticalRate >= 0.90 && s1.salah >= 3) || 
+                        (maxHarppHogan >= 0.85)) { 
                         s1.isMencontek = true;
                     }
                 }
@@ -664,19 +695,8 @@
             } else {
                 AppState.reliabilitas = 0;
             }
-            
-            const sortedQ = [...AppState.questions].sort((a,b) => b.p - a.p);
-            const qN25 = Math.max(1, Math.round(maxQ * 0.25));
-            const easiestQs = sortedQ.slice(0, qN25).map(q=>q.id);
-            const hardestQs = sortedQ.slice(-qN25).map(q=>q.id);
 
-            AppState.students.forEach(s => {
-                s.raguRagu = s.kosong > (maxQ * 0.1);
-                s.jawabanGanda = (s.jawaban.match(/\*/g) || []).length;
-                let easyRate = s.detailBenar.filter(x => easiestQs.includes(x)).length / qN25;
-                let hardRate = s.detailBenar.filter(x => hardestQs.includes(x)).length / qN25;
-                s.isTebakan = (easyRate <= 0.5 && hardRate >= 0.5);
-            });
+            AppState.students.sort((a, b) => a.no - b.no);
             
             renderBabInputs(); 
         }
@@ -706,7 +726,7 @@
                         <label class="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Nomor Soal (Gunakan - dan , )</label>
                         <input type="text" value="${bab.qs}" onchange="AppState.babConfig[${idx}].qs=this.value; saveState();" class="w-full text-xs sm:text-sm border border-gray-300 rounded-md px-2 sm:px-3 py-1.5 sm:py-2 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono" placeholder="Cth: 1-7 atau 18-24, 31-34">
                     </div>
-                    <button onclick="removeBabRow(${idx})" class="bg-red-50 text-red-500 hover:bg-red-100 border border-red-100 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md font-bold transition-colors mb-px"><i class="fas fa-trash-alt"></i></button>
+                    <button onclick="removeBabRow(${idx})" class="bg-red-50 text-red-500 hover:bg-red-100 border border-red-100 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md font-bold transition-colors mb-px" title="Hapus baris ini"><i class="fas fa-trash-alt"></i></button>
                 </div>
             </div>`).join('');
         }
@@ -893,7 +913,7 @@
             document.getElementById('summary-klasikal-text').innerHTML = kTxt;
 
             const sRagu = AppState.students.filter(s => s.raguRagu).length, sTebak = AppState.students.filter(s => s.isTebakan).length, sErr = AppState.students.filter(s => s.jawabanGanda > 0).length, sCont = AppState.students.filter(s => s.isMencontek).length;
-            document.getElementById('summary-siswa-text').innerHTML = `<p><b>Deskripsi Psikologis Perilaku Asesmen:</b> Terdeteksi fenomena <b>${sRagu} responden</b> yang mendemonstrasikan keraguan kognitif (tingkat peninggalan jawaban/<i>omission</i> tinggi), anomali <b>${sTebak} responden</b> terdeteksi melancarkan taktik <i>pseudo-guessing</i> (asimetri hasil ekstrem antara soal termudah & tersulit), <b>${sErr} responden</b> melakukan kecerobohan birokratis pengisian ganda, dan terdiagnosis <b>${sCont} responden</b> dengan tingkat kesamaan pola error absolut (WIC Index) yang mengindikasikan tindakan curang.</p><p class="mt-2"><b>Rekomendasi Tindak Lanjut:</b> Lakukan wawancara singkat untuk siswa dengan keraguan, tebakan tinggi, maupun anomali kesamaan pola jawaban. Gunakan <b>Top 10 Modul Remedial Prioritas</b> di bawah ini sebagai fokus utama pembahasan intervensi klinis (remedial).</p>`;
+            document.getElementById('summary-siswa-text').innerHTML = `<p><b>Deskripsi Psikologis Perilaku Asesmen:</b> Terdeteksi fenomena <b>${sRagu} responden</b> yang mendemonstrasikan keraguan kognitif (tingkat peninggalan jawaban/<i>omission</i> tinggi), anomali <b>${sTebak} responden</b> mengalami <i>Guttman Misfit</i> (Anomali Skalogram IRT: benar di soal sukar namun salah di dasar), <b>${sErr} responden</b> melakukan kecerobohan birokratis pengisian ganda, dan terdiagnosis <b>${sCont} responden</b> terindikasi melakukan kolusi/mencontek berdasarkan analisis radius tempat duduk berdasar matriks WIC & Harpp-Hogan Index.</p><p class="mt-2"><b>Rekomendasi Tindak Lanjut:</b> Lakukan pendampingan atau evaluasi lisan bagi siswa yang terindikasi anomali klinis tersebut untuk memvalidasi ketepatan kompetensinya.</p>`;
 
             const top10 = [...AppState.questions].sort((a,b) => a.p - b.p).slice(0, 10).sort((a,b) => a.id - b.id);
             document.getElementById('rekomendasi-remedial-container').innerHTML = top10.map(q => `<div class="bg-white border border-red-200 px-2 py-1 sm:px-3 sm:py-1.5 rounded-md shadow-sm text-xs sm:text-sm"><b>Soal No. ${q.id}</b> <span class="text-[10px] sm:text-xs text-gray-500">(${((1 - q.p) * 100).toFixed(0)}% Gagal)</span></div>`).join('');
@@ -932,10 +952,12 @@
         }
 
         function renderStudentTable() {
+            const iconNo = document.getElementById('sort-icon-no');
             const iconNama = document.getElementById('sort-icon-nama');
             const iconNilai = document.getElementById('sort-icon-nilai');
             const iconKetuntasan = document.getElementById('sort-icon-ketuntasan');
             
+            if(iconNo) iconNo.innerHTML = sortColSiswa === 'no' ? (sortAscSiswa ? '<i class="fas fa-sort-numeric-down ml-1 text-blue-600"></i>' : '<i class="fas fa-sort-numeric-up ml-1 text-blue-600"></i>') : '<i class="fas fa-sort text-gray-300 ml-1"></i>';
             if(iconNama) iconNama.innerHTML = sortColSiswa === 'nama' ? (sortAscSiswa ? '<i class="fas fa-sort-alpha-down ml-1 text-blue-600"></i>' : '<i class="fas fa-sort-alpha-up ml-1 text-blue-600"></i>') : '<i class="fas fa-sort text-gray-300 ml-1"></i>';
             if(iconNilai) iconNilai.innerHTML = sortColSiswa === 'nilai' ? (sortAscSiswa ? '<i class="fas fa-sort-numeric-up ml-1 text-blue-600"></i>' : '<i class="fas fa-sort-numeric-down ml-1 text-blue-600"></i>') : '<i class="fas fa-sort text-gray-300 ml-1"></i>';
             if(iconKetuntasan) iconKetuntasan.innerHTML = sortColSiswa === 'ketuntasan' ? (sortAscSiswa ? '<i class="fas fa-sort-amount-up ml-1 text-blue-600"></i>' : '<i class="fas fa-sort-amount-down ml-1 text-blue-600"></i>') : '<i class="fas fa-sort text-gray-300 ml-1"></i>';
@@ -945,10 +967,11 @@
 
             filtered.sort((a, b) => {
                 let valA, valB;
-                if (sortColSiswa === 'nama') { valA = a.nama.toLowerCase(); valB = b.nama.toLowerCase(); }
+                if (sortColSiswa === 'no') { valA = a.no; valB = b.no; }
+                else if (sortColSiswa === 'nama') { valA = a.nama.toLowerCase(); valB = b.nama.toLowerCase(); }
                 else if (sortColSiswa === 'nilai') { valA = a.score; valB = b.score; }
                 else if (sortColSiswa === 'ketuntasan') { valA = a.isTuntas ? 1 : 0; valB = b.isTuntas ? 1 : 0; }
-                else { valA = a.score; valB = b.score; }
+                else { valA = a.no; valB = b.no; }
                 
                 if (valA < valB) return sortAscSiswa ? -1 : 1;
                 if (valA > valB) return sortAscSiswa ? 1 : -1;
@@ -959,14 +982,15 @@
                 let d = []; 
                 if(s.raguRagu) d.push(`<span class="bg-yellow-100 text-yellow-800 text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-yellow-200">Omission Rate Tinggi (${s.kosong} kosong)</span>`);
                 if(s.jawabanGanda > 0) d.push(`<span class="bg-red-100 text-red-800 text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-red-200">Anomali Input (${s.jawabanGanda} butir)</span>`);
-                if(s.isTebakan) d.push(`<span class="bg-purple-100 text-purple-800 text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-purple-200">Indikasi Pseudo-Guessing</span>`);
-                if(s.isMencontek) d.push(`<span class="bg-gray-800 text-white text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-gray-900" title="Analisis Kesamaan Kesalahan (WIC Index) tinggi">Indikasi Mencontek</span>`);
+                if(s.isTebakan) d.push(`<span class="bg-purple-100 text-purple-800 text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-purple-200">Guttman Misfit (Anomali IRT)</span>`);
+                if(s.isMencontek) d.push(`<span class="bg-gray-800 text-white text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-gray-900" title="Analisis Spasial: WIC / Harpp-Hogan ekstrem">Indikasi Kolusi</span>`);
                 
                 return `<tr class="hover:bg-slate-50 transition-colors border-b border-gray-100">
-                    <td class="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap"><div class="font-semibold text-xs sm:text-sm text-gray-800">${s.nama}</div><div class="text-[9px] sm:text-xs text-gray-500">Kelas ${s.kelas} | No. ${s.no}</div></td>
-                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-center font-bold text-xs sm:text-sm ${s.isTuntas?'text-green-600':'text-red-600'}">${s.score.toFixed(1)}</td>
-                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-center">${s.isTuntas?'<span class="bg-green-100 text-green-800 text-[9px] sm:text-xs px-2 py-1 rounded font-bold">Tuntas</span>':'<span class="bg-red-100 text-red-800 text-[9px] sm:text-xs px-2 py-1 rounded font-bold">Remedial</span>'}</td>
-                    <td class="px-2 sm:px-4 py-2 sm:py-3"><div class="flex flex-wrap gap-1 mb-1">${d.join('')}</div><div class="text-[9px] sm:text-xs text-gray-500 font-mono bg-gray-50 inline-block px-1 rounded break-words max-w-[150px] sm:max-w-xs whitespace-normal">${s.detailSalah.length>0?`Defisit di No: ${s.detailSalah.slice(0,5).join(',')}${s.detailSalah.length>5?'...':''}`:'Penguasaan Penuh'}</div></td>
+                    <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-bold text-gray-800 align-middle">${s.no}</td>
+                    <td class="px-3 sm:px-4 py-2 sm:py-3 whitespace-nowrap"><div class="font-semibold text-xs sm:text-sm text-gray-800">${s.nama}</div><div class="text-[9px] sm:text-xs text-gray-500">Kelas ${s.kelas}</div></td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-center font-bold text-xs sm:text-sm ${s.isTuntas?'text-green-600':'text-red-600'} align-middle">${s.score.toFixed(1)}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-center align-middle">${s.isTuntas?'<span class="bg-green-100 text-green-800 text-[9px] sm:text-xs px-2 py-1 rounded font-bold">Tuntas</span>':'<span class="bg-red-100 text-red-800 text-[9px] sm:text-xs px-2 py-1 rounded font-bold">Remedial</span>'}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 align-middle"><div class="flex flex-wrap gap-1 mb-1">${d.join('')}</div><div class="text-[9px] sm:text-xs text-gray-500 font-mono bg-gray-50 inline-block px-1 rounded break-words max-w-[150px] sm:max-w-xs whitespace-normal">${s.detailSalah.length>0?`Defisit di No: ${s.detailSalah.slice(0,5).join(',')}${s.detailSalah.length>5?'...':''}`:'Penguasaan Penuh'}</div></td>
                 </tr>`;
             }).join('');
         }
@@ -1031,7 +1055,7 @@
             let tB = AppState.babLabels.length > 0 ? `<table class="compact-table"><thead><tr><th>Pemetaan Kompetensi / Topik Dasar</th><th>Persentase Ketercapaian (Benar)</th><th>Persentase Defisit (Salah)</th></tr></thead><tbody>${AppState.babLabels.map((l,i)=>`<tr><td><b>${l}</b></td><td class="center text-green">${AppState.babDataBenar[i]}%</td><td class="center text-red">${AppState.babDataSalah[i]}%</td></tr>`).join('')}</tbody></table>` : `<p style="margin:0; font-style:italic;">Konfigurasi agregasi per kompetensi dasar (BAB) belum diinisialisasi dalam kerangka aplikasi.</p>`;
 
             const sRa = AppState.students.filter(s=>s.raguRagu).length, sTe = AppState.students.filter(s=>s.isTebakan).length, sEr = AppState.students.filter(s=>s.jawabanGanda > 0).length, sCo = AppState.students.filter(s=>s.isMencontek).length;
-            let hs = `<p style="text-align:justify; margin:0 0 5px 0;"><b>Deskripsi Psikologis Perilaku Asesmen Individu:</b> Terdeteksi fenomena <b>${sRa} responden</b> yang mendemonstrasikan keraguan kognitif parah (tingkat peninggalan/<i>omission</i> jawaban tak rasional), <b>${sTe} responden</b> terdeteksi melancarkan taktik <i>pseudo-guessing</i> (asimetri hasil ekstrem), <b>${sEr} responden</b> melakukan kecerobohan birokratis pada media isian (error pengisian ganda), dan terdeteksi <b>${sCo} responden</b> dengan tingkat kesamaan pola error absolut (WIC Index) yang mengindikasikan tindakan curang menyalin jawaban.</p>`;
+            let hs = `<p style="text-align:justify; margin:0 0 5px 0;"><b>Deskripsi Psikologis Perilaku Asesmen Individu:</b> Terdeteksi fenomena <b>${sRa} responden</b> yang mendemonstrasikan keraguan kognitif parah (tingkat peninggalan/<i>omission</i> jawaban tak rasional), <b>${sTe} responden</b> mengalami anomali Skalogram <i>Guttman Misfit</i> (berhasil menjawab soal sukar namun salah pada soal dasar/mudah), <b>${sEr} responden</b> melakukan kecerobohan birokratis pada media isian (error pengisian ganda), dan terdiagnosis kuat <b>${sCo} responden</b> terindikasi melakukan kolusi/mencontek berdasarkan triangulasi matriks spasial (radius kedekatan tempat duduk Grid 4x4) yang divalidasi silang menggunakan <i>Wrong-In-Common (WIC) Index</i> dan <i>Harpp-Hogan Index</i> (anomali kecocokan jawaban pada kuartil soal tersulit).</p>`;
             
             const hardestQuestionsExport = [...AppState.questions].sort((a,b) => a.p - b.p).slice(0, 10).sort((a,b) => a.id - b.id);
             let hr = `<ul style="margin: 0; padding-left: 20px; text-align: left;">`;
@@ -1107,7 +1131,7 @@
             if (pt < 50) {
                 poinTindakLanjut = `<b>3. Strategi Intervensi & Remedial Ekstensif (Kebijakan Pengajaran):</b> Menyikapi tingkat ketuntasan agregat yang sangat defisit (${pt}%), pendekatan perbaikan secara individual dinilai membuang waktu dan tidak efisien. Guru pengampu diinstruksikan mendedikasikan waktu alokasi khusus guna melaksanakan <b>pengajaran ulang (<i>re-teaching</i>) secara klasikal massal</b>. Silakan fokus murni pada daftar <b>"Top 10 Materi Remedial Prioritas"</b> di atas sebagai acuan utama perbaikan sebelum memaksakan perpindahan kompetensi dasar.`;
             } else if (pt < 80) {
-                poinTindakLanjut = `<b>3. Optimalisasi Tutor Sebaya & Remedial Klinis (Kebijakan Pengajaran):</b> Dengan proporsi ketuntasan ${pt}%, metode pembelajaran kooperatif menjadi solusi manajerial paling efektif. Kami merekomendasikan pendayagunaan ${AppState.students.filter(s=>s.isTuntas).length} siswa yang telah melampaui KKM agar ditugaskan bertindak sebagai fasilitator (tutor sebaya) bagi rekan sejawatnya. Sementara itu, atensi khusus dan intervensi tatap muka dari guru dapat difokuskan eksklusif hanya kepada siswa yang memiliki rekam jejak "Keraguan" dan "Pseudo-guessing" tingkat tinggi.`;
+                poinTindakLanjut = `<b>3. Optimalisasi Tutor Sebaya & Remedial Klinis (Kebijakan Pengajaran):</b> Dengan proporsi ketuntasan ${pt}%, metode pembelajaran kooperatif menjadi solusi manajerial paling efektif. Kami merekomendasikan pendayagunaan ${AppState.students.filter(s=>s.isTuntas).length} siswa yang telah melampaui KKM agar ditugaskan bertindak sebagai fasilitator (tutor sebaya) bagi rekan sejawatnya. Sementara itu, atensi khusus dan intervensi tatap muka dari guru dapat difokuskan eksklusif hanya kepada siswa yang memiliki rekam jejak "Keraguan" dan "Guttman Misfit" tingkat tinggi.`;
             } else {
                 poinTindakLanjut = `<b>3. Akselerasi Silabus & Pengayaan Lanjutan (Kebijakan Pengajaran):</b> Tingkat ketuntasan tercapai dengan persentase sangat memuaskan (${pt}%). Alokasi waktu dan birokrasi untuk program remedial klasikal dapat dieliminasi. Guru pengampu diberikan keleluasaan (diskresi) untuk mengakselerasi proses penyelesaian silabus, serta dipersilakan menginjeksikan matriks penugasan pengayaan berbasis <i>High Order Thinking Skills (HOTS)</i> agar potensi kognitif dan nalar analitis kelompok superior dapat terekspansi secara maksimal.`;
             }
