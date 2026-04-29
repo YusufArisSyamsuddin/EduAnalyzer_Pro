@@ -4,13 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aplikasi Analisis Hasil Evaluasi Belajar</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- SheetJS for Excel Parsing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- Chart.js for Visualizations -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- FontAwesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -18,43 +14,36 @@
         .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: 600; }
         .tab-inactive { color: #64748b; font-weight: 500; }
         .tab-inactive:hover { color: #1e293b; border-bottom: 2px solid #cbd5e1; }
-        
-        /* Custom Scrollbar */
-        .custom-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scroll::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
         .insight-card { border-left: 4px solid; }
         .insight-danger { border-color: #ef4444; background: #fef2f2; }
         .insight-warning { border-color: #f59e0b; background: #fffbeb; }
-        .insight-info { border-color: #3b82f6; background: #eff6ff; }
-        .insight-success { border-color: #10b981; background: #ecfdf5; }
     </style>
 </head>
 <body class="text-gray-800 antialiased h-screen flex flex-col overflow-hidden">
-
-    <!-- Navbar -->
     <header class="bg-white shadow-sm z-20 flex-shrink-0">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16 items-center">
+            <div class="flex flex-col sm:flex-row justify-between items-center py-3 sm:h-16 gap-3">
                 <div class="flex items-center gap-3">
                     <div class="bg-blue-600 text-white p-2 rounded-lg"><i class="fas fa-microscope text-xl"></i></div>
                     <div>
-                        <h1 class="text-xl font-bold text-gray-900 leading-tight">EduAnalyzer <span class="text-blue-600">Pro</span></h1>
-                        <p class="text-xs text-gray-500">Sistem Analisis Evaluasi Pintar</p>
+                        <h1 class="text-lg sm:text-xl font-bold text-gray-900 leading-tight">EduAnalyzer <span class="text-blue-600">Pro</span></h1>
+                        <p class="text-[10px] sm:text-xs text-gray-500">Sistem Analisis Evaluasi Pintar</p>
                     </div>
                 </div>
-                <div id="nav-actions" class="hidden">
-                    <div class="flex items-center gap-4">
-                        <div class="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border">
-                            <label class="text-sm font-medium text-gray-600">Target KKM:</label>
-                            <input type="number" id="input-kkm" value="75" class="w-16 px-2 py-1 border rounded-md text-sm text-center focus:ring-2 focus:ring-blue-500">
+                <div id="nav-actions" class="hidden w-full sm:w-auto">
+                    <div class="flex flex-wrap justify-center sm:justify-end items-center gap-2 sm:gap-4">
+                        <div class="flex items-center gap-2 bg-gray-50 px-2 py-1.5 rounded-lg border">
+                            <label class="text-xs sm:text-sm font-medium text-gray-600">KKM:</label>
+                            <input type="number" id="input-kkm" value="75" class="w-14 sm:w-16 px-1 sm:px-2 py-1 border rounded-md text-xs sm:text-sm text-center focus:ring-2 focus:ring-blue-500">
                         </div>
-                        <button onclick="exportToWord()" class="text-sm text-white bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded-md flex items-center gap-2 shadow-sm transition-colors">
+                        <button onclick="exportToWord()" class="text-xs sm:text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 sm:px-4 py-1.5 rounded-md flex items-center gap-2 shadow-sm transition-colors">
                             <i class="fas fa-file-word"></i> Ekspor Laporan
                         </button>
-                        <button onclick="resetApp()" class="text-sm text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-md flex items-center gap-2 transition-colors">
+                        <button onclick="resetApp()" class="text-xs sm:text-sm text-red-600 hover:bg-red-50 px-2 sm:px-3 py-1.5 rounded-md flex items-center gap-2 transition-colors">
                             <i class="fas fa-sign-out-alt"></i> Tutup File
                         </button>
                     </div>
@@ -63,308 +52,228 @@
         </div>
     </header>
 
-    <!-- Main Content -->
     <main class="flex-grow overflow-auto custom-scroll bg-slate-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            
-            <!-- Upload Section -->
-            <div id="view-upload" class="flex flex-col items-center justify-center mt-10">
-                <div class="bg-white p-10 rounded-2xl shadow-xl max-w-2xl w-full text-center border border-gray-100">
-                    <div class="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <i class="fas fa-file-excel text-4xl text-blue-600"></i>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+            <div id="view-upload" class="flex flex-col items-center justify-center mt-4 sm:mt-10">
+                <div class="bg-white p-6 sm:p-10 rounded-2xl shadow-xl max-w-3xl w-full text-center border border-gray-100">
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                        <i class="fas fa-file-excel text-3xl sm:text-4xl text-blue-600"></i>
                     </div>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-2">Unggah Data LJK</h2>
-                    <p class="text-gray-500 mb-6">Format didukung: <strong>.xlsx / .xls</strong></p>
+                    <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mb-2">Unggah Data LJK</h2>
+                    <p class="text-sm sm:text-base text-gray-500 mb-6">Format didukung: <strong>.xlsx / .xls</strong></p>
                     
-                    <div class="bg-blue-50 text-blue-800 text-sm p-4 rounded-xl text-left mb-6 border border-blue-100">
-                        <p class="font-bold mb-1"><i class="fas fa-info-circle"></i> Pastikan urutan kolom Sheet 1:</p>
-                        <p class="font-mono text-xs bg-white p-2 rounded border border-blue-200">A:No | B:Nama | C:Kelas | D:Benar | E:Salah | F:Kosong | G:Det.Benar | H:Det.Salah | I:Jawaban</p>
+                    <div class="bg-blue-50 text-blue-800 text-xs sm:text-sm p-3 sm:p-4 rounded-xl text-left mb-6 border border-blue-100">
+                        <p class="font-bold mb-2"><i class="fas fa-info-circle"></i> Pastikan urutan kolom Sheet 1:</p>
+                        <div class="flex flex-wrap gap-2 font-mono text-[10px] sm:text-xs">
+                            <span class="bg-white px-2 py-1 rounded border border-blue-200 shadow-sm">A: No</span>
+                            <span class="bg-white px-2 py-1 rounded border border-blue-200 shadow-sm">B: Nama</span>
+                            <span class="bg-white px-2 py-1 rounded border border-blue-200 shadow-sm">C: Kelas</span>
+                            <span class="bg-white px-2 py-1 rounded border border-blue-200 shadow-sm">D: Benar</span>
+                            <span class="bg-white px-2 py-1 rounded border border-blue-200 shadow-sm">E: Salah</span>
+                            <span class="bg-white px-2 py-1 rounded border border-blue-200 shadow-sm">F: Kosong</span>
+                            <span class="bg-white px-2 py-1 rounded border border-blue-200 shadow-sm">G: Det.Benar</span>
+                            <span class="bg-white px-2 py-1 rounded border border-blue-200 shadow-sm">H: Det.Salah</span>
+                            <span class="bg-white px-2 py-1 rounded border border-blue-200 shadow-sm">I: Jawaban</span>
+                        </div>
                     </div>
 
-                    <!-- Identitas Guru -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-left bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 text-left bg-gray-50 p-4 rounded-xl border border-gray-200">
                         <div>
-                            <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">Nama Pendidik</label>
-                            <input type="text" id="input-nama-guru" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Cth: Yusuf Aris S, S.Pd.">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nama Pendidik</label>
+                            <input type="text" id="input-nama-guru" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Cth: Budi Santoso, S.Pd.">
                         </div>
                         <div>
-                            <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">Mata Pelajaran</label>
-                            <select id="input-mapel" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                                <option value="">-- Pilih Mapel --</option>
-                                <option value="Pendidikan Agama">Pendidikan Agama</option>
-                                <option value="PPKn">PPKn</option>
-                                <option value="Bahasa Indonesia">Bahasa Indonesia</option>
-                                <option value="Matematika">Matematika</option>
-                                <option value="Ilmu Pengetahuan Alam (IPA)">IPA</option>
-                                <option value="Ilmu Pengetahuan Sosial (IPS)">IPS</option>
-                                <option value="Bahasa Inggris">Bahasa Inggris</option>
-                                <option value="Seni Budaya">Seni Budaya</option>
-                                <option value="PJOK">PJOK</option>
-                                <option value="Prakarya / Informatika">Prakarya / Informatika</option>
-                                <option value="Muatan Lokal">Muatan Lokal</option>
-                                <option value="Lainnya">Lainnya</option>
-                            </select>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Mata Pelajaran</label>
+                            <input type="text" id="input-mapel" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Cth: Matematika / IPA">
                         </div>
                         <div>
-                            <label class="block text-[11px] font-bold text-gray-500 uppercase mb-1">Kelas / Fase</label>
-                            <select id="input-kelas-guru" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                                <option value="">-- Pilih Kelas --</option>
-                                <option value="Kelas 7">Kelas 7</option>
-                                <option value="Kelas 8">Kelas 8</option>
-                                <option value="Kelas 9">Kelas 9</option>
-                                <option value="Fase D">Fase D</option>
-                                <option value="Semua Kelas">Semua Kelas</option>
-                            </select>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Jenis Ulangan</label>
+                            <input type="text" id="input-jenis-ulangan" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Cth: UH BAB 1, PTS, PAS">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Kelas / Fase</label>
+                            <input type="text" id="input-kelas-guru" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Cth: Kelas 8 / Fase D">
                         </div>
                     </div>
                     
-                    <div class="border-2 border-dashed border-gray-300 rounded-xl p-8 hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer group" onclick="document.getElementById('excel-file').click()">
+                    <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 sm:p-8 hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer group" onclick="document.getElementById('excel-file').click()">
                         <input type="file" id="excel-file" accept=".xlsx, .xls" class="hidden" onchange="handleFileSelect(event)">
-                        <div class="flex flex-col items-center gap-3">
-                            <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 group-hover:text-blue-500 transition-colors"></i>
-                            <span class="text-gray-600 font-medium group-hover:text-blue-600">Pilih file Excel dari perangkat Anda</span>
-                            <span class="text-sm text-gray-400 font-mono bg-gray-100 px-2 py-1 rounded" id="file-name-display">Tidak ada file</span>
+                        <div class="flex flex-col items-center gap-2 sm:gap-3">
+                            <i class="fas fa-cloud-upload-alt text-3xl sm:text-4xl text-gray-400 group-hover:text-blue-500 transition-colors"></i>
+                            <span class="text-sm sm:text-base text-gray-600 font-medium group-hover:text-blue-600">Pilih file Excel dari perangkat Anda</span>
+                            <span class="text-xs text-gray-400 font-mono bg-gray-100 px-2 py-1 rounded break-all text-center" id="file-name-display">Tidak ada file</span>
                         </div>
                     </div>
-                    <button id="btn-process" onclick="processData()" class="mt-8 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors opacity-50 cursor-not-allowed shadow-lg shadow-blue-200" disabled>
+                    <button id="btn-process" onclick="processData()" class="mt-6 sm:mt-8 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors opacity-50 cursor-not-allowed shadow-lg shadow-blue-200 text-sm sm:text-base" disabled>
                         <i class="fas fa-cog mr-2"></i> Eksekusi Analisis Lengkap
                     </button>
                 </div>
             </div>
 
-            <!-- Dashboard Section -->
             <div id="view-dashboard" class="hidden flex flex-col h-full">
-                <!-- Header Identitas Guru -->
-                <div class="bg-white border-b border-gray-200 px-6 py-3 flex flex-wrap gap-x-6 gap-y-2 items-center text-sm mb-4 rounded-xl shadow-sm border">
-                    <div class="flex items-center gap-2"><i class="fas fa-user-tie text-blue-500"></i><span class="text-gray-500">Guru:</span> <span id="display-nama-guru" class="font-bold text-gray-800">-</span></div>
-                    <div class="flex items-center gap-2"><i class="fas fa-book text-blue-500"></i><span class="text-gray-500">Mapel:</span> <span id="display-mapel" class="font-bold text-gray-800">-</span></div>
-                    <div class="flex items-center gap-2"><i class="fas fa-chalkboard text-blue-500"></i><span class="text-gray-500">Kelas:</span> <span id="display-kelas-guru" class="font-bold text-gray-800">-</span></div>
+                <div class="bg-white border-b border-gray-200 px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 items-center text-xs sm:text-sm mb-4 rounded-xl shadow-sm border">
+                    <div class="flex items-center gap-2"><i class="fas fa-user-tie text-blue-500"></i><span class="text-gray-500">Guru:</span> <span id="display-nama-guru" class="font-bold text-gray-800 break-words line-clamp-1">-</span></div>
+                    <div class="flex items-center gap-2"><i class="fas fa-book text-blue-500"></i><span class="text-gray-500">Mapel:</span> <span id="display-mapel" class="font-bold text-gray-800 break-words line-clamp-1">-</span></div>
+                    <div class="flex items-center gap-2"><i class="fas fa-file-alt text-blue-500"></i><span class="text-gray-500">Ujian:</span> <span id="display-jenis-ulangan" class="font-bold text-gray-800 break-words line-clamp-1">-</span></div>
+                    <div class="flex items-center gap-2"><i class="fas fa-chalkboard text-blue-500"></i><span class="text-gray-500">Kelas:</span> <span id="display-kelas-guru" class="font-bold text-gray-800 break-words line-clamp-1">-</span></div>
                 </div>
 
-                <!-- Tab Navigation -->
-                <div class="border-b border-gray-200 mb-6">
-                    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-                        <button onclick="switchTab('klasikal')" id="btn-tab-klasikal" class="tab-active whitespace-nowrap py-4 px-1 flex items-center gap-2">
+                <div class="border-b border-gray-200 mb-6 w-full overflow-x-auto custom-scroll">
+                    <nav class="-mb-px flex space-x-6 sm:space-x-8 whitespace-nowrap min-w-max px-1" aria-label="Tabs">
+                        <button onclick="switchTab('klasikal')" id="btn-tab-klasikal" class="tab-active py-4 flex items-center gap-2 text-sm sm:text-base">
                             <i class="fas fa-chalkboard-teacher"></i> C. Analisis Klasikal (Kelas)
                         </button>
-                        <button onclick="switchTab('siswa')" id="btn-tab-siswa" class="tab-inactive whitespace-nowrap py-4 px-1 flex items-center gap-2">
+                        <button onclick="switchTab('siswa')" id="btn-tab-siswa" class="tab-inactive py-4 flex items-center gap-2 text-sm sm:text-base">
                             <i class="fas fa-user-graduate"></i> A. Analisis Tingkat Siswa
                         </button>
-                        <button onclick="switchTab('soal')" id="btn-tab-soal" class="tab-inactive whitespace-nowrap py-4 px-1 flex items-center gap-2">
+                        <button onclick="switchTab('soal')" id="btn-tab-soal" class="tab-inactive py-4 flex items-center gap-2 text-sm sm:text-base">
                             <i class="fas fa-list-ol"></i> B. Analisis Kualitas Soal
                         </button>
                     </nav>
                 </div>
 
-                <!-- ==================== TAB C: ANALISIS KLASIKAL ==================== -->
                 <div id="tab-klasikal" class="space-y-6">
-                    <!-- SUMMARY KLASIKAL -->
-                    <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-l-blue-500 border-y border-r border-gray-100">
+                    <div class="bg-white p-4 sm:p-5 rounded-xl shadow-sm border-l-4 border-l-blue-500 border-y border-r border-gray-100">
                         <h3 class="font-bold text-gray-800 mb-2"><i class="fas fa-clipboard-check text-blue-500 mr-2"></i>Ringkasan & Saran Tindak Lanjut (Klasikal)</h3>
-                        <div id="summary-klasikal-text" class="text-sm text-gray-700 space-y-2 leading-relaxed text-justify">
-                            <!-- Diisi oleh JS -->
+                        <div id="summary-klasikal-text" class="text-xs sm:text-sm text-gray-700 space-y-2 leading-relaxed text-justify"></div>
+                    </div>
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                        <div class="bg-white rounded-xl shadow-sm p-3 sm:p-5 border border-gray-100 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                            <div class="bg-blue-50 p-2 sm:p-4 rounded-full text-blue-600"><i class="fas fa-users text-lg sm:text-2xl"></i></div>
+                            <div><p class="text-[10px] sm:text-sm text-gray-500 font-medium">Total Siswa</p><p class="text-lg sm:text-3xl font-bold text-gray-800" id="stat-total-siswa">0</p></div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm p-3 sm:p-5 border border-gray-100 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                            <div class="bg-indigo-50 p-2 sm:p-4 rounded-full text-indigo-600"><i class="fas fa-chart-line text-lg sm:text-2xl"></i></div>
+                            <div><p class="text-[10px] sm:text-sm text-gray-500 font-medium">Rata-rata Kelas</p><p class="text-lg sm:text-3xl font-bold text-gray-800" id="stat-rata-rata">0</p></div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm p-3 sm:p-5 border border-gray-100 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                            <div class="bg-green-50 p-2 sm:p-4 rounded-full text-green-600"><i class="fas fa-check text-lg sm:text-2xl"></i></div>
+                            <div><p class="text-[10px] sm:text-sm text-gray-500 font-medium">Tuntas KKM</p><p class="text-lg sm:text-3xl font-bold text-gray-800" id="stat-tuntas">0</p></div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm p-3 sm:p-5 border border-gray-100 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                            <div class="bg-red-50 p-2 sm:p-4 rounded-full text-red-600"><i class="fas fa-exclamation-triangle text-lg sm:text-2xl"></i></div>
+                            <div><p class="text-[10px] sm:text-sm text-gray-500 font-medium">Remedial</p><p class="text-lg sm:text-3xl font-bold text-gray-800" id="stat-remedial">0</p></div>
                         </div>
                     </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 flex items-center gap-4">
-                            <div class="bg-blue-50 p-4 rounded-full text-blue-600"><i class="fas fa-users text-2xl"></i></div>
-                            <div><p class="text-sm text-gray-500 font-medium">Total Siswa</p><p class="text-3xl font-bold text-gray-800" id="stat-total-siswa">0</p></div>
-                        </div>
-                        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 flex items-center gap-4">
-                            <div class="bg-indigo-50 p-4 rounded-full text-indigo-600"><i class="fas fa-chart-line text-2xl"></i></div>
-                            <div><p class="text-sm text-gray-500 font-medium">Rata-rata Kelas</p><p class="text-3xl font-bold text-gray-800" id="stat-rata-rata">0</p></div>
-                        </div>
-                        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 flex items-center gap-4">
-                            <div class="bg-green-50 p-4 rounded-full text-green-600"><i class="fas fa-check text-2xl"></i></div>
-                            <div><p class="text-sm text-gray-500 font-medium">Tuntas KKM</p><p class="text-3xl font-bold text-gray-800" id="stat-tuntas">0</p></div>
-                        </div>
-                        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 flex items-center gap-4">
-                            <div class="bg-red-50 p-4 rounded-full text-red-600"><i class="fas fa-exclamation-triangle text-2xl"></i></div>
-                            <div><p class="text-sm text-gray-500 font-medium">Remedial</p><p class="text-3xl font-bold text-gray-800" id="stat-remedial">0</p></div>
-                        </div>
-                    </div>
-
-                    <!-- Distribusi Umum dan Peringatan -->
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <!-- AI Insights Box -->
-                        <div class="col-span-1 lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                            <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2"><i class="fas fa-lightbulb text-yellow-500 mr-2"></i> Laporan Detail (Diagnostik Miskonsepsi & Kesulitan)</h3>
-                            <div id="insight-klasikal-container" class="space-y-3 custom-scroll max-h-[300px] overflow-auto pr-2">
-                                <!-- Injected by JS -->
-                            </div>
+                        <div class="col-span-1 lg:col-span-2 bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
+                            <h3 class="text-base sm:text-lg font-bold text-gray-800 mb-4 border-b pb-2"><i class="fas fa-lightbulb text-yellow-500 mr-2"></i> Laporan Detail (Diagnostik Miskonsepsi & Kesulitan)</h3>
+                            <div id="insight-klasikal-container" class="space-y-3 custom-scroll max-h-[300px] overflow-auto pr-2"></div>
                         </div>
-
-                        <!-- Distribution Default Chart -->
-                        <div class="col-span-1 bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col">
+                        <div class="col-span-1 bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col">
                             <div class="flex justify-between items-start border-b pb-2 mb-1">
-                                <h3 class="text-lg font-bold text-gray-800">Distribusi Frekuensi</h3>
-                                <button onclick="downloadChart('chartDistribusi', 'Grafik_Distribusi')" class="text-xs text-blue-600 hover:text-blue-800" title="Unduh Gambar Grafik"><i class="fas fa-download"></i> Unduh</button>
+                                <h3 class="text-sm sm:text-lg font-bold text-gray-800">Distribusi Frekuensi</h3>
+                                <button onclick="downloadChart('chartDistribusi', 'Grafik_Distribusi')" class="text-[10px] sm:text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-download"></i> Unduh</button>
                             </div>
-                            <p class="text-xs text-gray-500 mt-1 mb-4">*Sumbu X = Rentang Skor (Jumlah Benar)</p>
-                            <div class="relative w-full flex-grow min-h-[220px]">
-                                <canvas id="chartDistribusi"></canvas>
-                            </div>
+                            <p class="text-[10px] sm:text-xs text-gray-500 mt-1 mb-4">*Sumbu X = Rentang Skor (Jumlah Benar)</p>
+                            <div class="relative w-full flex-grow min-h-[220px]"><canvas id="chartDistribusi"></canvas></div>
                         </div>
                     </div>
-
-                    <!-- KARTU BESAR: ANALISIS BAB UNTUK GURU -->
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mt-8 mb-4 border-t-4 border-t-indigo-500">
-                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
-                            <div>
-                                <h3 class="text-xl font-bold text-gray-800"><i class="fas fa-layer-group text-indigo-500 mr-2"></i> Analisis Pemetaan Daya Serap per Kompetensi Dasar/BAB</h3>
-                                <p class="text-sm text-gray-600 mt-1">Gunakan panel ini untuk mengelompokkan butir soal berdasar Kompetensi Dasar (KD) guna memetakan defisit pemahaman spesifik.</p>
+                    <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-200 mt-8 mb-4 border-t-4 border-t-indigo-500">
+                        <div class="flex flex-col mb-4">
+                            <h3 class="text-lg sm:text-xl font-bold text-gray-800"><i class="fas fa-layer-group text-indigo-500 mr-2"></i> Analisis Pemetaan Daya Serap per KD/BAB</h3>
+                            <p class="text-xs sm:text-sm text-gray-600 mt-1">Gunakan panel ini untuk mengelompokkan butir soal berdasar Kompetensi Dasar (KD) guna memetakan defisit pemahaman spesifik.</p>
+                        </div>
+                        <div class="bg-indigo-50 p-3 sm:p-5 rounded-xl border border-indigo-100 mb-6">
+                            <p class="text-xs sm:text-sm font-semibold text-indigo-900 mb-3"><i class="fas fa-edit"></i> Matriks Pemetaan Soal:</p>
+                            <div id="bab-inputs-container" class="space-y-3 mb-4"></div>
+                            <div class="flex flex-wrap gap-2 sm:gap-3 mt-4 border-t border-indigo-200 pt-4">
+                                <button onclick="addBabRow()" class="text-xs sm:text-sm bg-white border-2 border-indigo-300 text-indigo-700 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg hover:bg-indigo-100 font-bold shadow-sm transition-colors flex items-center gap-2"><i class="fas fa-plus-circle"></i> Tambah KD</button>
+                                <button onclick="applyBabAnalysis()" class="text-xs sm:text-sm bg-indigo-600 text-white px-3 py-1.5 sm:px-6 sm:py-2 rounded-lg hover:bg-indigo-700 font-bold shadow-md transition-colors flex items-center gap-2"><i class="fas fa-chart-bar"></i> Proses Pemetaan</button>
                             </div>
                         </div>
-                        
-                        <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-100 mb-6">
-                            <p class="text-sm font-semibold text-indigo-900 mb-3"><i class="fas fa-edit"></i> Matriks Pemetaan Soal:</p>
-                            
-                            <div id="bab-inputs-container" class="space-y-3 mb-4">
-                                <!-- Inputs dinamis -->
-                            </div>
-                            
-                            <div class="flex flex-wrap gap-3 mt-4 border-t border-indigo-200 pt-4">
-                                <button onclick="addBabRow()" class="bg-white border-2 border-indigo-300 text-indigo-700 px-4 py-2 rounded-lg hover:bg-indigo-100 font-bold shadow-sm transition-colors flex items-center gap-2">
-                                    <i class="fas fa-plus-circle"></i> Tambah Kompetensi Dasar
-                                </button>
-                                <button onclick="applyBabAnalysis()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 font-bold shadow-md transition-colors flex items-center gap-2">
-                                    <i class="fas fa-chart-bar"></i> Proses Pemetaan & Validasi
-                                </button>
-                            </div>
-                        </div>
-
                         <div id="bab-chart-wrapper" class="hidden">
-                            <div class="flex justify-center items-center gap-4 mb-2">
-                                <h4 class="font-bold text-gray-800">Visualisasi Persentase Ketepatan Respons Klasikal per KD</h4>
-                                <button onclick="downloadChart('chartBab', 'Grafik_Bab')" class="text-xs bg-gray-100 border border-gray-300 text-gray-700 px-2 py-1 rounded hover:bg-gray-200"><i class="fas fa-download"></i> Unduh Grafik</button>
+                            <div class="flex flex-col sm:flex-row justify-between sm:justify-center items-center gap-2 sm:gap-4 mb-2">
+                                <h4 class="text-sm sm:text-base font-bold text-gray-800 text-center">Visualisasi Ketepatan Respons Klasikal per KD</h4>
+                                <button onclick="downloadChart('chartBab', 'Grafik_Bab')" class="text-[10px] sm:text-xs bg-gray-100 border border-gray-300 text-gray-700 px-2 py-1 rounded hover:bg-gray-200"><i class="fas fa-download"></i> Unduh Grafik</button>
                             </div>
-                            <p class="text-center text-xs text-gray-500 mb-4">*Grafik Hijau (Serapan Kompetensi Terpenuhi), Grafik Merah (Defisit Kompetensi/Perlu Pengajaran Ulang).</p>
-                            <div class="relative w-full h-[350px]">
-                                <canvas id="chartBab"></canvas>
-                            </div>
+                            <p class="text-center text-[10px] sm:text-xs text-gray-500 mb-4">*Grafik Hijau (Serapan Kompetensi Terpenuhi), Grafik Merah (Defisit Kompetensi/Perlu Pengajaran Ulang).</p>
+                            <div class="relative w-full h-[300px] sm:h-[350px]"><canvas id="chartBab"></canvas></div>
                         </div>
                     </div>
-
                 </div>
 
-                <!-- ==================== TAB A: ANALISIS TINGKAT SISWA ==================== -->
                 <div id="tab-siswa" class="hidden space-y-6">
-                    <!-- SUMMARY SISWA -->
-                    <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-l-purple-500 border-y border-r border-gray-100">
+                    <div class="bg-white p-4 sm:p-5 rounded-xl shadow-sm border-l-4 border-l-purple-500 border-y border-r border-gray-100">
                         <h3 class="font-bold text-gray-800 mb-2"><i class="fas fa-user-check text-purple-500 mr-2"></i>Diagnosis Profil Kognitif dan Perilaku Peserta Didik</h3>
-                        <div id="summary-siswa-text" class="text-sm text-gray-700 space-y-2 mb-4 leading-relaxed text-justify">
-                            <!-- Diisi oleh JS -->
-                        </div>
-                        <!-- Rekomendasi Remedial Spesifik -->
-                        <div class="bg-red-50 p-4 rounded-lg border border-red-100">
-                            <h4 class="text-sm font-bold text-red-800 mb-1"><i class="fas fa-exclamation-circle"></i> Rekomendasi Modul Remedial Prioritas (Top 10 Learning Gaps)</h4>
-                            <p class="text-xs text-red-700 mb-3">Distribusi defisit kompetensi tertinggi ditemukan pada butir-butir asesmen berikut. Instuksikan tenaga pendidik untuk menyusun ulang pendekatan pedagogis pada materi yang berkesesuaian dengan nomor soal ini:</p>
-                            <div id="rekomendasi-remedial-container" class="flex flex-wrap gap-2">
-                                <!-- Diisi JS -->
-                            </div>
+                        <div id="summary-siswa-text" class="text-xs sm:text-sm text-gray-700 space-y-2 mb-4 leading-relaxed text-justify"></div>
+                        <div class="bg-red-50 p-3 sm:p-4 rounded-lg border border-red-100">
+                            <h4 class="text-xs sm:text-sm font-bold text-red-800 mb-1"><i class="fas fa-exclamation-circle"></i> Rekomendasi Modul Remedial Prioritas (Top 10 Learning Gaps)</h4>
+                            <p class="text-[10px] sm:text-xs text-red-700 mb-3">Distribusi defisit kompetensi tertinggi ditemukan pada butir asesmen berikut. Instuksikan pendidik untuk merancang ulang pendekatan pedagogis:</p>
+                            <div id="rekomendasi-remedial-container" class="flex flex-wrap gap-2"></div>
                         </div>
                     </div>
-
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
-                            <h3 class="text-lg font-bold text-gray-800">Tabel Performa Individu & Catatan Diagnostik</h3>
-                            <div class="flex gap-2">
-                                <select id="filter-kelas" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                                    <option value="all">Semua Kelas</option>
-                                </select>
-                            </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 w-full">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+                            <h3 class="text-base sm:text-lg font-bold text-gray-800">Tabel Performa Individu & Catatan Diagnostik</h3>
+                            <select id="filter-kelas" class="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-1.5 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 outline-none"><option value="all">Semua Kelas</option></select>
                         </div>
-                        
-                        <div class="bg-blue-50 p-3 rounded-lg mb-4 text-sm text-blue-800 flex gap-2 items-start">
+                        <div class="bg-blue-50 p-3 rounded-lg mb-4 text-[10px] sm:text-xs text-blue-800 flex gap-2 items-start">
                             <i class="fas fa-info-circle mt-0.5"></i>
-                            <div>
-                                <strong>Kamus Indikator Klinis:</strong><br>
-                                <span class="bg-yellow-100 text-yellow-800 px-1 rounded text-xs">Keraguan Tingkat Tinggi</span> = Rasio pengosongan jawaban (omission) &gt; 10% | 
-                                <span class="bg-red-100 text-red-800 px-1 rounded text-xs">Anomali/Error Input</span> = Terdeteksi pengisian ganda (*) pada LJK |
-                                <span class="bg-purple-100 text-purple-800 px-1 rounded text-xs">Pseudo-guessing (Tebakan)</span> = Akurasi &le; 50% pada kuartil soal termudah, namun akurasi &ge; 50% pada kuartil tersulit.
-                            </div>
+                            <div><strong>Kamus Indikator Klinis:</strong><br><span class="bg-yellow-100 text-yellow-800 px-1 rounded">Keraguan Tingkat Tinggi</span> = Rasio pengosongan jawaban &gt; 10% | <span class="bg-red-100 text-red-800 px-1 rounded">Anomali Input</span> = Terdeteksi pengisian ganda (*) | <span class="bg-purple-100 text-purple-800 px-1 rounded">Pseudo-guessing (Tebakan)</span> = Akurasi &le; 50% di soal termudah, namun &ge; 50% di soal tersulit.</div>
                         </div>
-
-                        <div class="custom-scroll overflow-auto border rounded-lg max-h-[500px]">
+                        <div class="custom-scroll overflow-x-auto border rounded-lg max-h-[500px] w-full">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-100 sticky top-0 z-10">
                                     <tr>
-                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Nama Peserta Didik</th>
-                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Nilai Akhir</th>
-                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Ketuntasan</th>
-                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Identifikasi Profil Respons (Learning Path)</th>
+                                        <th class="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold text-gray-600 uppercase">Nama Peserta Didik</th>
+                                        <th class="px-2 sm:px-4 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">Nilai Akhir</th>
+                                        <th class="px-2 sm:px-4 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">Ketuntasan</th>
+                                        <th class="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold text-gray-600 uppercase">Identifikasi Profil Respons (Learning Path)</th>
                                     </tr>
                                 </thead>
-                                <tbody id="table-body-siswa" class="bg-white divide-y divide-gray-200">
-                                    <!-- Data via JS -->
-                                </tbody>
+                                <tbody id="table-body-siswa" class="bg-white divide-y divide-gray-200"></tbody>
                             </table>
                         </div>
                     </div>
                 </div>
 
-                <!-- ==================== TAB B: ANALISIS KUALITAS SOAL ==================== -->
+                <!-- TAB B: ANALISIS KUALITAS SOAL -->
                 <div id="tab-soal" class="hidden space-y-6">
-                    <!-- SUMMARY SOAL -->
-                    <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-l-orange-500 border-y border-r border-gray-100">
+                    <div class="bg-white p-4 sm:p-5 rounded-xl shadow-sm border-l-4 border-l-orange-500 border-y border-r border-gray-100">
                         <h3 class="font-bold text-gray-800 mb-2"><i class="fas fa-file-signature text-orange-500 mr-2"></i>Evaluasi Psikometrik & Standardisasi Instrumen Ujian</h3>
-                        <div id="summary-soal-text" class="text-sm text-gray-700 space-y-2 leading-relaxed text-justify">
-                            <!-- Diisi oleh JS -->
-                        </div>
+                        <div id="summary-soal-text" class="text-xs sm:text-sm text-gray-700 space-y-2 leading-relaxed text-justify"></div>
                     </div>
-
-                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                        
+                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
                         <div class="lg:col-span-1 space-y-4">
-                            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-                                <h3 class="font-bold text-gray-800 border-b pb-2 mb-3">Sortasi Kriteria Klinis</h3>
-                                <div class="space-y-2 text-sm">
-                                    <label class="flex items-center gap-2 cursor-pointer">
-                                        <input type="checkbox" id="chk-zonking" checked class="rounded text-blue-600" onchange="renderQuestionTable()"> 
-                                        Indikasi Zonking (P &lt; 0.20)
-                                    </label>
-                                    <label class="flex items-center gap-2 cursor-pointer">
-                                        <input type="checkbox" id="chk-miskonsepsi" checked class="rounded text-blue-600" onchange="renderQuestionTable()"> 
-                                        Terdeteksi Miskonsepsi
-                                    </label>
-                                    <label class="flex items-center gap-2 cursor-pointer">
-                                        <input type="checkbox" id="chk-tidakvalid" checked class="rounded text-blue-600" onchange="renderQuestionTable()"> 
-                                        Tidak Valid (D &lt; 0.20)
-                                    </label>
+                            <div class="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100">
+                                <h3 class="text-sm sm:text-base font-bold text-gray-800 border-b pb-2 mb-3">Filter Tampilan Soal Bermasalah</h3>
+                                <div class="space-y-2 text-xs sm:text-sm">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="chk-zonking" checked class="rounded text-blue-600" onchange="renderQuestionTable()"> Indikasi Zonking (P &lt; 0.20)</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="chk-miskonsepsi" checked class="rounded text-blue-600" onchange="renderQuestionTable()"> Terdeteksi Miskonsepsi</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="chk-tidakvalid" checked class="rounded text-blue-600" onchange="renderQuestionTable()"> Tidak Valid (D &lt; 0.20)</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="chk-normal" checked class="rounded text-blue-600" onchange="renderQuestionTable()"> Soal Normal / Baik</label>
                                 </div>
                             </div>
-                            
-                            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-                                <h3 class="font-bold text-gray-800 border-b pb-2 mb-3">Terminologi Evaluasi</h3>
-                                <ul class="text-xs space-y-2 text-gray-600 text-justify">
-                                    <li><strong>Indeks Diskriminasi (Daya Beda):</strong> Kapabilitas butir soal secara empiris dalam mendiferensiasi kelompok probandus berkapasitas tinggi (<i>upper 30%</i>) dan kelompok berkapasitas rendah (<i>lower 30%</i>). Kriteria penerimaan ideal: &ge; 0.20.</li>
-                                    <li><strong>Indikasi Zonking:</strong> Rasio ketepatan instrumen terlampau ekstrem (&lt;20%). Mengindikasikan misalokasi silabus, disonansi penyusunan soal, atau eror kunci jawaban.</li>
-                                    <li><strong>Distraktor Tidak Efektif:</strong> Opsi (pengecoh) yang bersifat <i>non-functioning</i> (dipilih oleh 0 responden) sehingga tidak memenuhi validitas isi yang ideal.</li>
+                            <div class="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100">
+                                <h3 class="text-sm sm:text-base font-bold text-gray-800 border-b pb-2 mb-3">Terminologi Evaluasi</h3>
+                                <ul class="text-[10px] sm:text-xs space-y-2 text-gray-600 text-justify">
+                                    <li><strong>Indeks Diskriminasi (D):</strong> Kapabilitas butir membedakan kelompok probandus tinggi (<i>upper 30%</i>) dan rendah (<i>lower 30%</i>). Kriteria ideal: &ge; 0.20.</li>
+                                    <li><strong>Zonking:</strong> Ketepatan &lt;20%. Mengindikasikan misalokasi silabus, disonansi penyusunan soal, atau eror kunci.</li>
+                                    <li><strong>Distraktor Tidak Efektif:</strong> Opsi <i>non-functioning</i> (dipilih 0 responden) sehingga tidak memenuhi validitas isi.</li>
                                 </ul>
                             </div>
                         </div>
-
-                        <div class="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col">
-                            <h3 class="text-lg font-bold text-gray-800 mb-4">Tabel Analisis Karakteristik Butir Soal (Item Analysis)</h3>
-                            <div class="custom-scroll overflow-auto border rounded-lg flex-grow max-h-[600px]">
+                        <div class="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 flex flex-col w-full">
+                            <h3 class="text-base sm:text-lg font-bold text-gray-800 mb-3">Tabel Analisis Karakteristik Butir Soal</h3>
+                            <div class="bg-blue-50 text-blue-700 text-[10px] sm:text-xs p-2 rounded mb-3 border border-blue-100 italic">
+                                <i class="fas fa-edit"></i> <b>Catatan:</b> Jika kunci jawaban otomatis kurang akurat, Anda dapat mengeklik dan mengubah huruf di kolom <b>"Kunci"</b> secara manual. Sistem akan seketika mengkalkulasi ulang data Miskonsepsi, Distraktor, dan Nilai Siswa.
+                            </div>
+                            <div class="custom-scroll overflow-x-auto border rounded-lg flex-grow max-h-[600px] w-full">
                                 <table class="min-w-full divide-y divide-gray-200">
                                     <thead class="bg-gray-100 sticky top-0 z-10">
                                         <tr>
-                                            <th class="px-3 py-3 text-center text-xs font-bold text-gray-600 uppercase">No</th>
-                                            <th class="px-3 py-3 text-center text-xs font-bold text-gray-600 uppercase">Kunci</th>
-                                            <th class="px-3 py-3 text-center text-xs font-bold text-gray-600 uppercase">Derajat Kesukaran (P)</th>
-                                            <th class="px-3 py-3 text-center text-xs font-bold text-gray-600 uppercase">Daya Diskriminasi (D)</th>
-                                            <th class="px-3 py-3 text-left text-xs font-bold text-gray-600 uppercase">Rekomendasi Revisi & Validasi Distraktor</th>
+                                            <th class="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">No</th>
+                                            <th class="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">Kunci</th>
+                                            <th class="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">P (Kesukaran)</th>
+                                            <th class="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">D (Daya Beda)</th>
+                                            <th class="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold text-gray-600 uppercase">Rekomendasi Revisi & Distraktor</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="table-body-soal" class="bg-white divide-y divide-gray-200 text-sm">
-                                        <!-- Data via JS -->
-                                    </tbody>
+                                    <tbody id="table-body-soal" class="bg-white divide-y divide-gray-200 text-xs sm:text-sm"></tbody>
                                 </table>
                             </div>
                         </div>
-
                     </div>
                 </div>
 
@@ -372,19 +281,7 @@
         </div>
     </main>
 
-    <!-- Footer Profil (Hanya Tampil di UI Aplikasi) -->
-    <footer class="bg-white border-t border-gray-200 py-3 flex-shrink-0 relative z-20">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-gray-500 flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-3">
-            <span class="font-bold text-gray-700">YUSUF ARIS SYAMSUDDIN</span>
-            <span class="hidden sm:inline text-gray-300">|</span>
-            <span>ID: 0762773674130202</span>
-            <span class="hidden sm:inline text-gray-300">|</span>
-            <span class="font-medium">Guru IPA & Informatika - SMPN 2 Secang</span>
-        </div>
-    </footer>
-
     <script>
-        // --- Plugin Chart.js: Latar Belakang Putih saat Diekspor ---
         Chart.register({
             id: 'bgWhite',
             beforeDraw: (chart) => {
@@ -397,71 +294,39 @@
             }
         });
 
-        // --- Core State ---
         const AppState = {
-            students: [],
-            questions: [],
-            classes: [],
-            totalQuestions: 0,
-            kkm: 75,
-            fileName: '',
-            teacherName: '',
-            subject: '',
-            gradeLevel: '',
-            
-            // Psychometric Stats
-            reliabilitas: 0,
-            heterogenitas: 0,
-            standarDeviasi: 0,
-            proporsiKesukaran: { mudah: 0, sedang: 0, sukar: 0 },
-            
-            // Default Distribution Mode Data
-            distLabels: [],
-            distData: [0,0,0,0,0],
-            optionsList: ['A','B','C','D'], // Default
-            
-            // Bab Mode Data
+            students: [], questions: [], classes: [], totalQuestions: 0, kkm: 75, fileName: '', teacherName: '', subject: '', gradeLevel: '', examType: '',
+            reliabilitas: 0, heterogenitas: 0, standarDeviasi: 0, proporsiKesukaran: { mudah: 0, sedang: 0, sukar: 0 },
+            distLabels: [], distData: [0,0,0,0,0], optionsList: ['A','B','C','D'],
             babConfig: [
-                { name: 'BAB 1', qs: '1-7' },
-                { name: 'BAB 2', qs: '8-12' },
-                { name: 'BAB 3', qs: '13-17' },
-                { name: 'BAB 4', qs: '18-24, 31-34' },
-                { name: 'BAB 5', qs: '25-30, 35' }
+                { name: 'BAB 1', qs: '1-7' }, { name: 'BAB 2', qs: '8-12' }, { name: 'BAB 3', qs: '13-17' }, { name: 'BAB 4', qs: '18-24, 31-34' }, { name: 'BAB 5', qs: '25-30, 35' }
             ],
-            babLabels: [],
-            babDataBenar: [],
-            babDataSalah: []
+            babLabels: [], babDataBenar: [], babDataSalah: []
         };
 
         let chartDistribusiInst = null;
         let chartBabInst = null;
 
-        // --- LocalStorage Save & Load Functions ---
         function saveState() {
-            const stateToSave = Object.assign({}, AppState);
-            localStorage.setItem('eduAnalyzerState', JSON.stringify(stateToSave));
+            localStorage.setItem('eduAnalyzerState', JSON.stringify(AppState));
         }
 
         function loadState() {
             const saved = localStorage.getItem('eduAnalyzerState');
             if (saved) {
                 try {
-                    const parsed = JSON.parse(saved);
-                    Object.assign(AppState, parsed);
-                    
+                    Object.assign(AppState, JSON.parse(saved));
                     if (AppState.students && AppState.students.length > 0) {
-                        ui.kkmInput.value = AppState.kkm;
-                        
+                        document.getElementById('input-kkm').value = AppState.kkm;
                         document.getElementById('input-nama-guru').value = AppState.teacherName !== '-' ? AppState.teacherName : '';
                         document.getElementById('input-mapel').value = AppState.subject !== '-' ? AppState.subject : '';
                         document.getElementById('input-kelas-guru').value = AppState.gradeLevel !== '-' ? AppState.gradeLevel : '';
-
+                        document.getElementById('input-jenis-ulangan').value = AppState.examType !== '-' ? AppState.examType : '';
+                        
                         if (AppState.fileName) {
                             document.getElementById('file-name-display').textContent = AppState.fileName + " (Disimpan)";
-                            const btn = document.getElementById('btn-process');
-                            btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                            btn.removeAttribute('disabled');
                         }
+                        checkFormValidity();
                         switchToDashboard();
                         updateUI();
                         renderBabInputs();
@@ -471,34 +336,47 @@
                         }
                     }
                 } catch (e) {
-                    console.error('Error loading state from localStorage:', e);
                     localStorage.removeItem('eduAnalyzerState');
                 }
             }
         }
 
-        // --- DOM Elements ---
-        const ui = {
-            kkmInput: document.getElementById('input-kkm'),
-            filterKelas: document.getElementById('filter-kelas')
-        };
+        function checkFormValidity() {
+            const nama = document.getElementById('input-nama-guru').value.trim();
+            const mapel = document.getElementById('input-mapel').value.trim();
+            const jenis = document.getElementById('input-jenis-ulangan').value.trim();
+            const kelas = document.getElementById('input-kelas-guru').value.trim();
+            const fileDisplay = document.getElementById('file-name-display').textContent;
+            const hasFile = fileDisplay !== "Tidak ada file";
+            const btn = document.getElementById('btn-process');
 
-        // --- Events ---
-        ui.kkmInput.addEventListener('change', (e) => {
+            if (nama && mapel && jenis && kelas && hasFile) {
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                btn.removeAttribute('disabled');
+            } else {
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+                btn.setAttribute('disabled', 'true');
+            }
+        }
+
+        ['input-nama-guru', 'input-mapel', 'input-jenis-ulangan', 'input-kelas-guru'].forEach(id => {
+            document.getElementById(id).addEventListener('input', checkFormValidity);
+            document.getElementById(id).addEventListener('change', checkFormValidity);
+        });
+
+        document.getElementById('input-kkm').addEventListener('change', (e) => {
             AppState.kkm = parseFloat(e.target.value) || 75;
             if(AppState.students.length > 0) {
-                analyzeData(); 
+                analyzeData(false);
                 updateUI();
-                if(chartBabInst) applyBabAnalysis(false); 
+                if(chartBabInst) applyBabAnalysis(false);
                 saveState();
             }
         });
 
-        ui.filterKelas.addEventListener('change', renderStudentTable);
-        
+        document.getElementById('filter-kelas').addEventListener('change', renderStudentTable);
         window.addEventListener('DOMContentLoaded', loadState);
 
-        // --- File Processing ---
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -509,19 +387,16 @@
             }
             AppState.fileName = file.name;
             document.getElementById('file-name-display').textContent = file.name;
-            const btn = document.getElementById('btn-process');
-            btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            btn.removeAttribute('disabled');
+            checkFormValidity();
         }
 
         function processData() {
-            const fileInput = document.getElementById('excel-file');
-            const file = fileInput.files[0];
-            
+            const file = document.getElementById('excel-file').files[0];
             AppState.teacherName = document.getElementById('input-nama-guru').value || '-';
             AppState.subject = document.getElementById('input-mapel').value || '-';
             AppState.gradeLevel = document.getElementById('input-kelas-guru').value || '-';
-
+            AppState.examType = document.getElementById('input-jenis-ulangan').value || '-';
+            
             if (!file && AppState.students.length > 0) {
                 updateUI();
                 switchToDashboard();
@@ -529,20 +404,13 @@
                 return;
             }
             if (!file) return;
-            
+
             const reader = new FileReader();
-            
             reader.onload = function(e) {
                 try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, {type: 'array'});
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                    
-                    parseStudents(jsonData);
+                    const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+                    parseStudents(XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 }));
                 } catch (error) {
-                    console.error("Excel Error:", error);
                     alert('Terjadi kesalahan membaca file. Pastikan format sesuai.');
                 }
             };
@@ -553,14 +421,12 @@
             AppState.students = [];
             let maxQ = 0;
             const classSet = new Set();
-
             for (let i = 0; i < data.length; i++) {
                 const row = data[i];
                 if (!row || !Array.isArray(row) || row.length === 0) continue;
-                
                 const namaData = row[1];
                 if (!namaData || String(namaData).trim() === '' || String(namaData).toLowerCase().trim() === 'nama') continue;
-
+                
                 const no = row[0] || (AppState.students.length + 1);
                 const nama = String(namaData).trim();
                 const kelas = row[2] ? String(row[2]).trim() : 'Umum';
@@ -568,130 +434,129 @@
                 const salah = parseInt(row[4]) || 0;
                 const kosong = parseInt(row[5]) || 0;
                 
-                const detailBenarStr = row[6] ? String(row[6]) : "";
-                const detailSalahStr = row[7] ? String(row[7]) : "";
+                const strArr = (str) => str ? String(str).replace(/["']/g, '').split(',').map(s=>parseInt(s.trim())).filter(n=>!isNaN(n)) : [];
+                const detailBenar = strArr(row[6]);
+                const detailSalah = strArr(row[7]);
                 const jawaban = row[8] ? String(row[8]) : "";
-
-                let detailBenar = [];
-                if (detailBenarStr) {
-                    detailBenar = detailBenarStr.replace(/["']/g, '').split(',')
-                        .map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-                }
                 
-                let detailSalah = [];
-                if (detailSalahStr) {
-                    detailSalah = detailSalahStr.replace(/["']/g, '').split(',')
-                        .map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-                }
-
-                const totalQStudent = benar + salah + kosong;
-                if (totalQStudent > maxQ) maxQ = totalQStudent;
-
+                if (benar + salah + kosong > maxQ) maxQ = benar + salah + kosong;
                 classSet.add(kelas);
-
-                AppState.students.push({
-                    no, nama, kelas, benar, salah, kosong, detailBenar, detailSalah, jawaban, score: 0
-                });
+                AppState.students.push({ no, nama, kelas, benar, salah, kosong, detailBenar, detailSalah, jawaban, score: 0 });
             }
-
             if (AppState.students.length === 0) {
-                alert('Tidak ada data siswa ditemukan.'); return;
+                alert('Tidak ada data siswa ditemukan.');
+                return;
             }
-
             AppState.totalQuestions = maxQ;
             AppState.classes = Array.from(classSet).sort();
             
-            analyzeData();
+            analyzeData(false);
             switchToDashboard();
             updateUI();
             saveState();
         }
 
-        function analyzeData() {
-            const totalSiswa = AppState.students.length;
+        function analyzeData(isRegrade = false) {
+            const totS = AppState.students.length;
             const maxQ = AppState.totalQuestions;
-            AppState.questions = [];
             
-            const hasOptionE = AppState.students.some(s => s.jawaban && s.jawaban.toUpperCase().includes('E'));
-            AppState.optionsList = hasOptionE ? ['A','B','C','D','E'] : ['A','B','C','D'];
+            if (AppState.questions.length === 0) {
+                AppState.optionsList = AppState.students.some(s => s.jawaban && s.jawaban.toUpperCase().includes('E')) ? ['A','B','C','D','E'] : ['A','B','C','D'];
+                for (let i = 1; i <= maxQ; i++) {
+                    AppState.questions.push({ id: i, correctCount: 0, choices: {'A':0,'B':0,'C':0,'D':0,'E':0,'-':0,'*':0, 'Other':0}, kunci: '?' });
+                }
+            }
 
-            for (let i = 1; i <= maxQ; i++) {
-                AppState.questions.push({
-                    id: i, correctCount: 0, 
-                    choices: {'A':0,'B':0,'C':0,'D':0,'E':0,'-':0,'*':0, 'Other':0},
-                    kunci: '?'
+            if (!isRegrade) {
+                AppState.students.forEach(s => {
+                    for(let i=0; i < maxQ; i++) {
+                        const char = s.jawaban.length > i ? s.jawaban.charAt(i).toUpperCase() : '-';
+                        if(AppState.questions[i] && AppState.questions[i].choices[char] !== undefined) {
+                            AppState.questions[i].choices[char]++;
+                        } else if (AppState.questions[i]) {
+                            AppState.questions[i].choices['Other']++;
+                        }
+                    }
+                });
+                AppState.questions.forEach(q => {
+                    const sampleStudent = AppState.students.find(s => s.detailBenar.includes(q.id));
+                    q.kunci = (sampleStudent && sampleStudent.jawaban.length >= q.id) ? sampleStudent.jawaban.charAt(q.id - 1).toUpperCase() : '?';
                 });
             }
 
-            const t1 = Math.floor(maxQ * 0.2);
-            const t2 = Math.floor(maxQ * 0.4);
-            const t3 = Math.floor(maxQ * 0.6);
-            const t4 = Math.floor(maxQ * 0.8);
-            
-            AppState.distLabels = [
-                `0 - ${t1}`,
-                `${t1 + 1} - ${t2}`,
-                `${t2 + 1} - ${t3}`,
-                `${t3 + 1} - ${t4}`,
-                `${t4 + 1} - ${maxQ}`
-            ];
-            AppState.distData = [0, 0, 0, 0, 0];
+            if (isRegrade) {
+                AppState.questions.forEach(q => q.correctCount = 0);
+                AppState.students.forEach(s => {
+                    if (s.jawaban && s.jawaban.trim() !== '') {
+                        s.benar = 0; s.salah = 0; s.kosong = 0;
+                        s.detailBenar = []; s.detailSalah = [];
+                        for(let i=0; i<maxQ; i++) {
+                            const q = AppState.questions[i];
+                            const ans = i < s.jawaban.length ? s.jawaban.charAt(i).toUpperCase() : '-';
+                            if (ans === '-' || ans === ' ') {
+                                s.kosong++;
+                            } else if (ans === '*' || ans === 'X') {
+                                s.salah++; s.detailSalah.push(q.id);
+                            } else if (q.kunci && q.kunci !== '?') {
+                                if (ans === q.kunci) {
+                                    s.benar++; s.detailBenar.push(q.id); q.correctCount++;
+                                } else {
+                                    s.salah++; s.detailSalah.push(q.id);
+                                }
+                            } else {
+                                s.salah++; s.detailSalah.push(q.id);
+                            }
+                        }
+                    } else {
+                        s.detailBenar.forEach(qNum => {
+                            const q = AppState.questions.find(x => x.id === qNum);
+                            if (q) q.correctCount++;
+                        });
+                    }
+                    s.score = (s.benar / maxQ) * 100;
+                    s.isTuntas = s.score >= AppState.kkm;
+                });
+            } else {
+                AppState.students.forEach(s => {
+                    s.score = (s.benar / maxQ) * 100;
+                    s.isTuntas = s.score >= AppState.kkm;
+                    s.detailBenar.forEach(qNum => {
+                        const q = AppState.questions.find(x => x.id === qNum);
+                        if (q) q.correctCount++;
+                    });
+                });
+            }
 
-            let avgRaw = AppState.students.reduce((sum, s) => sum + s.benar, 0) / totalSiswa;
-            let varRaw = AppState.students.reduce((sum, s) => sum + Math.pow(s.benar - avgRaw, 2), 0) / totalSiswa;
+            const t1 = Math.floor(maxQ * 0.2), t2 = Math.floor(maxQ * 0.4), t3 = Math.floor(maxQ * 0.6), t4 = Math.floor(maxQ * 0.8);
+            AppState.distLabels = [`0 - ${t1}`, `${t1 + 1} - ${t2}`, `${t2 + 1} - ${t3}`, `${t3 + 1} - ${t4}`, `${t4 + 1} - ${maxQ}`];
+            AppState.distData = [0, 0, 0, 0, 0];
             
-            let avgScore = AppState.students.reduce((sum, s) => sum + ((s.benar/maxQ)*100), 0) / totalSiswa;
-            let varScore = AppState.students.reduce((sum, s) => sum + Math.pow(((s.benar/maxQ)*100) - avgScore, 2), 0) / totalSiswa;
+            let avgRaw = AppState.students.reduce((s, x) => s + x.benar, 0) / totS;
+            let varRaw = AppState.students.reduce((s, x) => s + Math.pow(x.benar - avgRaw, 2), 0) / totS;
+            let avgScore = AppState.students.reduce((s, x) => s + ((x.benar/maxQ)*100), 0) / totS;
+            let varScore = AppState.students.reduce((s, x) => s + Math.pow(((x.benar/maxQ)*100) - avgScore, 2), 0) / totS;
+            
             AppState.standarDeviasi = Math.sqrt(varScore);
             AppState.heterogenitas = avgScore > 0 ? (AppState.standarDeviasi / avgScore) * 100 : 0;
 
-            // Student Scoring & Distrubution
             AppState.students.forEach(s => {
-                s.score = (s.benar / maxQ) * 100;
-                s.isTuntas = s.score >= AppState.kkm;
-                
                 if(s.benar <= t1) AppState.distData[0]++;
                 else if(s.benar <= t2) AppState.distData[1]++;
                 else if(s.benar <= t3) AppState.distData[2]++;
                 else if(s.benar <= t4) AppState.distData[3]++;
                 else AppState.distData[4]++;
-
-                for(let i=0; i < maxQ; i++) {
-                    const qId = i+1;
-                    const char = s.jawaban.length > i ? s.jawaban.charAt(i).toUpperCase() : '-';
-                    if(AppState.questions[i].choices[char] !== undefined) {
-                        AppState.questions[i].choices[char]++;
-                    } else {
-                        AppState.questions[i].choices['Other']++;
-                    }
-                }
-                s.detailBenar.forEach(qNum => {
-                    const q = AppState.questions.find(x => x.id === qNum);
-                    if (q) q.correctCount++;
-                });
             });
 
-            // Determine Answer Key
-            AppState.questions.forEach(q => {
-                const sampleStudent = AppState.students.find(s => s.detailBenar.includes(q.id));
-                if(sampleStudent && sampleStudent.jawaban.length >= q.id) {
-                    q.kunci = sampleStudent.jawaban.charAt(q.id - 1).toUpperCase();
-                } else {
-                    q.kunci = '?';
-                }
-            });
-
-            // Item Analysis Calculation
             AppState.students.sort((a, b) => b.score - a.score);
-            const n30 = Math.max(1, Math.round(totalSiswa * 0.30));
+            const n30 = Math.max(1, Math.round(totS * 0.30));
             const upperGroup = AppState.students.slice(0, n30);
             const lowerGroup = AppState.students.slice(-n30);
-
+            
             let sumPQ = 0;
             AppState.proporsiKesukaran = { mudah: 0, sedang: 0, sukar: 0 };
 
             AppState.questions.forEach(q => {
-                q.p = q.correctCount / totalSiswa;
+                q.p = q.correctCount / totS;
                 sumPQ += (q.p * (1 - q.p));
                 
                 if (q.p > 0.7) AppState.proporsiKesukaran.mudah++;
@@ -704,72 +569,70 @@
                 
                 q.pengecohKosong = [];
                 q.miskonsepsi = null;
-                let maxWrongChoiceCount = 0;
-                let maxWrongChoice = '';
-
+                let maxWrong = 0, maxOpt = '';
+                
                 AppState.optionsList.forEach(opt => {
-                    if(opt === q.kunci) return; 
-                    const count = q.choices[opt] || 0;
-                    if(count === 0) q.pengecohKosong.push(opt);
-                    if(count > maxWrongChoiceCount) {
-                        maxWrongChoiceCount = count;
-                        maxWrongChoice = opt;
-                    }
+                    if(opt === q.kunci) return;
+                    const c = q.choices[opt] || 0;
+                    if(c === 0) q.pengecohKosong.push(opt);
+                    if(c > maxWrong) { maxWrong = c; maxOpt = opt; }
                 });
-
-                if(maxWrongChoiceCount > q.correctCount || (maxWrongChoiceCount/totalSiswa) >= 0.30) {
-                    if(maxWrongChoice !== '') {
-                        q.miskonsepsi = { opt: maxWrongChoice, count: maxWrongChoiceCount };
-                    }
+                
+                if(maxWrong > q.correctCount || (maxWrong/totS) >= 0.30) {
+                    if(maxOpt !== '') q.miskonsepsi = { opt: maxOpt, count: maxWrong };
                 }
             });
 
-            // Hitung Reliabilitas KR-20
             if(varRaw > 0 && maxQ > 1) {
                 AppState.reliabilitas = (maxQ / (maxQ - 1)) * (1 - (sumPQ / varRaw));
             } else {
                 AppState.reliabilitas = 0;
             }
-
-            // Student Advanced Analytics
+            
             const sortedQ = [...AppState.questions].sort((a,b) => b.p - a.p);
             const qN25 = Math.max(1, Math.round(maxQ * 0.25));
             const easiestQs = sortedQ.slice(0, qN25).map(q=>q.id);
             const hardestQs = sortedQ.slice(-qN25).map(q=>q.id);
 
             AppState.students.forEach(s => {
-                s.raguRagu = s.kosong > (maxQ * 0.1); 
+                s.raguRagu = s.kosong > (maxQ * 0.1);
                 s.jawabanGanda = (s.jawaban.match(/\*/g) || []).length;
-                
-                let easyCorrect = s.detailBenar.filter(x => easiestQs.includes(x)).length;
-                let hardCorrect = s.detailBenar.filter(x => hardestQs.includes(x)).length;
-                let easyRate = easyCorrect / qN25;
-                let hardRate = hardCorrect / qN25;
-                
+                let easyRate = s.detailBenar.filter(x => easiestQs.includes(x)).length / qN25;
+                let hardRate = s.detailBenar.filter(x => hardestQs.includes(x)).length / qN25;
                 s.isTebakan = (easyRate <= 0.5 && hardRate >= 0.5);
             });
             
             renderBabInputs(); 
         }
 
-        // --- Logika Analisis Pemetaan BAB ---
+        window.updateKunci = function(qId, newKunci) {
+            newKunci = newKunci.toUpperCase().trim();
+            const q = AppState.questions.find(x => x.id === qId);
+            if(q) {
+                q.kunci = newKunci;
+                analyzeData(true); 
+                saveState();
+                renderQuestionTable();
+                updateUI();
+                if(chartBabInst) applyBabAnalysis(false);
+            }
+        };
+
         function renderBabInputs() {
-            const container = document.getElementById('bab-inputs-container');
-            container.innerHTML = AppState.babConfig.map((bab, idx) => `
-                <div class="flex flex-col sm:flex-row gap-3 items-center bg-white p-3 rounded-lg border border-indigo-100 shadow-sm">
-                    <div class="w-full sm:w-1/3">
-                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Nama Topik / Kompetensi</label>
-                        <input type="text" value="${bab.name}" onchange="AppState.babConfig[${idx}].name=this.value; saveState();" class="w-full text-sm border border-gray-300 rounded-md px-3 py-2 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-semibold text-indigo-900" placeholder="Cth: BAB 1">
-                    </div>
-                    <div class="w-full sm:w-2/3 flex gap-2 items-end">
-                        <div class="flex-grow">
-                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Nomor Soal (Bisa gunakan tanda - dan , )</label>
-                            <input type="text" value="${bab.qs}" onchange="AppState.babConfig[${idx}].qs=this.value; saveState();" class="w-full text-sm border border-gray-300 rounded-md px-3 py-2 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono" placeholder="Cth: 1-7 atau 18-24, 31-34">
-                        </div>
-                        <button onclick="removeBabRow(${idx})" class="bg-red-50 text-red-500 hover:bg-red-100 border border-red-100 px-3 py-2 rounded-md font-bold transition-colors mb-px" title="Hapus baris ini"><i class="fas fa-trash-alt"></i></button>
-                    </div>
+            document.getElementById('bab-inputs-container').innerHTML = AppState.babConfig.map((bab, idx) => `
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 items-start sm:items-center bg-white p-2 sm:p-3 rounded-lg border border-indigo-100 shadow-sm">
+                <div class="w-full sm:w-1/3">
+                    <label class="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Nama Topik / Kompetensi</label>
+                    <input type="text" value="${bab.name}" onchange="AppState.babConfig[${idx}].name=this.value; saveState();" class="w-full text-xs sm:text-sm border border-gray-300 rounded-md px-2 sm:px-3 py-1.5 sm:py-2 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-semibold text-indigo-900" placeholder="Cth: BAB 1">
                 </div>
-            `).join('');
+                <div class="w-full sm:w-2/3 flex gap-2 items-end">
+                    <div class="flex-grow">
+                        <label class="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 block">Nomor Soal (Gunakan - dan , )</label>
+                        <input type="text" value="${bab.qs}" onchange="AppState.babConfig[${idx}].qs=this.value; saveState();" class="w-full text-xs sm:text-sm border border-gray-300 rounded-md px-2 sm:px-3 py-1.5 sm:py-2 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono" placeholder="Cth: 1-7 atau 18-24, 31-34">
+                    </div>
+                    <button onclick="removeBabRow(${idx})" class="bg-red-50 text-red-500 hover:bg-red-100 border border-red-100 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md font-bold transition-colors mb-px"><i class="fas fa-trash-alt"></i></button>
+                </div>
+            </div>`).join('');
         }
 
         function addBabRow() {
@@ -786,8 +649,7 @@
 
         function parseQStr(str) {
             let qs = new Set();
-            let parts = str.split(',').map(s => s.trim());
-            parts.forEach(p => {
+            str.split(',').map(s => s.trim()).forEach(p => {
                 if (p.includes('-')) {
                     let [start, end] = p.split('-').map(Number);
                     if (!isNaN(start) && !isNaN(end)) {
@@ -811,43 +673,35 @@
                 let qNums = parseQStr(bab.qs);
                 if(qNums.length === 0) return;
 
-                let totalPossible = qNums.length * AppState.students.length;
-                let totalCorrect = 0;
-                let totalIncorrect = 0;
-
-                AppState.students.forEach(student => {
-                    let correctInBab = student.detailBenar.filter(q => qNums.includes(q)).length;
-                    let incorrectInBab = student.detailSalah.filter(q => qNums.includes(q)).length;
-                    totalCorrect += correctInBab;
-                    totalIncorrect += incorrectInBab;
+                let totP = qNums.length * AppState.students.length, totC = 0, totI = 0;
+                AppState.students.forEach(s => {
+                    totC += s.detailBenar.filter(q => qNums.includes(q)).length;
+                    totI += s.detailSalah.filter(q => qNums.includes(q)).length;
                 });
-
-                let avgBenar = (totalCorrect / totalPossible) * 100;
-                let avgSalah = (totalIncorrect / totalPossible) * 100;
                 
                 AppState.babLabels.push(bab.name);
-                AppState.babDataBenar.push(avgBenar.toFixed(1));
-                AppState.babDataSalah.push(avgSalah.toFixed(1));
+                AppState.babDataBenar.push(((totC / totP) * 100).toFixed(1));
+                AppState.babDataSalah.push(((totI / totP) * 100).toFixed(1));
             });
-
+            
             document.getElementById('bab-chart-wrapper').classList.remove('hidden');
             if (draw) drawBabChart();
             saveState();
         }
 
-        function downloadChart(canvasId, fileName) {
-            const canvas = document.getElementById(canvasId);
-            if (!canvas) return;
-            const link = document.createElement('a');
-            link.download = fileName + '.png';
-            link.href = canvas.toDataURL('image/png', 1.0);
-            link.click();
+        function downloadChart(id, name) {
+            const c = document.getElementById(id);
+            if (c) {
+                const a = document.createElement('a');
+                a.download = name + '.png';
+                a.href = c.toDataURL('image/png', 1.0);
+                a.click();
+            }
         }
 
         function drawDistChart() {
             const ctx = document.getElementById('chartDistribusi').getContext('2d');
             if (chartDistribusiInst) chartDistribusiInst.destroy();
-
             chartDistribusiInst = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -862,12 +716,8 @@
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { beginAtZero: true, ticks: { stepSize: 1 } },
-                        x: { grid: { display: false } }
-                    },
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false } } },
                     plugins: { legend: { display: false } }
                 }
             });
@@ -876,46 +726,19 @@
         function drawBabChart() {
             const ctx = document.getElementById('chartBab').getContext('2d');
             if (chartBabInst) chartBabInst.destroy();
-
             chartBabInst = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: AppState.babLabels,
                     datasets: [
-                        {
-                            label: 'Persentase Benar',
-                            data: AppState.babDataBenar,
-                            backgroundColor: 'rgba(16, 185, 129, 0.85)',
-                            borderColor: 'rgb(5, 150, 105)',
-                            borderWidth: 1,
-                            borderRadius: 4
-                        },
-                        {
-                            label: 'Persentase Salah',
-                            data: AppState.babDataSalah,
-                            backgroundColor: 'rgba(239, 68, 68, 0.85)',
-                            borderColor: 'rgb(220, 38, 38)',
-                            borderWidth: 1,
-                            borderRadius: 4
-                        }
+                        { label: 'Persentase Benar', data: AppState.babDataBenar, backgroundColor: 'rgba(16, 185, 129, 0.85)', borderColor: 'rgb(5, 150, 105)', borderWidth: 1, borderRadius: 4 },
+                        { label: 'Persentase Salah', data: AppState.babDataSalah, backgroundColor: 'rgba(239, 68, 68, 0.85)', borderColor: 'rgb(220, 38, 38)', borderWidth: 1, borderRadius: 4 }
                     ]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    indexAxis: 'y', 
-                    scales: {
-                        x: { beginAtZero: true, max: 100, ticks: { callback: function(v) { return v + '%' } } },
-                        y: { grid: { display: false } }
-                    },
-                    plugins: {
-                        legend: { position: 'top' },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) { return ' ' + context.dataset.label + ': ' + context.parsed.x.toFixed(1) + '%'; }
-                            }
-                        }
-                    }
+                    responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+                    scales: { x: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } }, y: { grid: { display: false } } },
+                    plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: c => ' ' + c.dataset.label + ': ' + c.parsed.x.toFixed(1) + '%' } } }
                 }
             });
         }
@@ -925,9 +748,9 @@
             document.getElementById('view-dashboard').classList.remove('hidden');
             document.getElementById('nav-actions').classList.remove('hidden');
             
-            const filterKelas = document.getElementById('filter-kelas');
-            filterKelas.innerHTML = '<option value="all">Semua Kelas</option>';
-            AppState.classes.forEach(c => filterKelas.innerHTML += `<option value="${c}">${c}</option>`);
+            const fk = document.getElementById('filter-kelas');
+            fk.innerHTML = '<option value="all">Semua Kelas</option>';
+            AppState.classes.forEach(c => fk.innerHTML += `<option value="${c}">${c}</option>`);
         }
 
         function resetApp() {
@@ -935,15 +758,14 @@
             document.getElementById('view-upload').classList.remove('hidden');
             document.getElementById('view-dashboard').classList.add('hidden');
             document.getElementById('nav-actions').classList.add('hidden');
+            
             document.getElementById('excel-file').value = "";
             document.getElementById('file-name-display').textContent = "Tidak ada file";
-            
-            document.getElementById('input-nama-guru').value = "";
-            document.getElementById('input-mapel').value = "";
-            document.getElementById('input-kelas-guru').value = "";
+            ['input-nama-guru','input-mapel','input-kelas-guru','input-jenis-ulangan'].forEach(id => document.getElementById(id).value = "");
             
             document.getElementById('btn-process').classList.add('opacity-50', 'cursor-not-allowed');
             document.getElementById('btn-process').setAttribute('disabled', 'true');
+            
             if (chartDistribusiInst) chartDistribusiInst.destroy();
             if (chartBabInst) chartBabInst.destroy();
             
@@ -952,19 +774,14 @@
             AppState.teacherName = '';
             AppState.subject = '';
             AppState.gradeLevel = '';
+            AppState.examType = '';
         }
 
-        function switchTab(tabName) {
-            ['klasikal', 'siswa', 'soal'].forEach(t => {
-                const btn = document.getElementById(`btn-tab-${t}`);
-                const content = document.getElementById(`tab-${t}`);
-                if(t === tabName) {
-                    btn.classList.add('tab-active'); btn.classList.remove('tab-inactive');
-                    content.classList.remove('hidden');
-                } else {
-                    btn.classList.remove('tab-active'); btn.classList.add('tab-inactive');
-                    content.classList.add('hidden');
-                }
+        function switchTab(t) {
+            ['klasikal', 'siswa', 'soal'].forEach(n => {
+                const b = document.getElementById(`btn-tab-${n}`), c = document.getElementById(`tab-${n}`);
+                if(n===t) { b.classList.add('tab-active'); b.classList.remove('tab-inactive'); c.classList.remove('hidden'); }
+                else { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); c.classList.add('hidden'); }
             });
         }
 
@@ -972,507 +789,173 @@
             document.getElementById('display-nama-guru').textContent = AppState.teacherName;
             document.getElementById('display-mapel').textContent = AppState.subject;
             document.getElementById('display-kelas-guru').textContent = AppState.gradeLevel;
-
-            const total = AppState.students.length;
-            const tuntas = AppState.students.filter(s => s.isTuntas).length;
-            const avg = AppState.students.reduce((sum, s) => sum + s.score, 0) / total;
+            document.getElementById('display-jenis-ulangan').textContent = AppState.examType;
             
-            document.getElementById('stat-total-siswa').textContent = total;
+            const tot = AppState.students.length;
+            const tuntas = AppState.students.filter(s => s.isTuntas).length;
+            const avg = AppState.students.reduce((s, x) => s + x.score, 0) / tot;
+            
+            document.getElementById('stat-total-siswa').textContent = tot;
             document.getElementById('stat-rata-rata').textContent = avg.toFixed(1);
             document.getElementById('stat-tuntas').textContent = tuntas;
-            document.getElementById('stat-remedial').textContent = total - tuntas;
-
-            generateSummaries(total, tuntas, avg);
+            document.getElementById('stat-remedial').textContent = tot - tuntas;
+            
+            generateSummaries(tot, tuntas, avg);
             renderKlasikalInsights();
-            drawDistChart(); 
+            drawDistChart();
             renderStudentTable();
             renderQuestionTable();
         }
 
-        function generateSummaries(totalSiswa, totalTuntas, avgScore) {
-            const pctTuntas = ((totalTuntas / totalSiswa) * 100).toFixed(1);
-            let klasikalText = `<p><b>Interpretasi Capaian Klasikal:</b> Berdasarkan hasil evaluasi, diperoleh rerata skor klasikal sebesar <b>${avgScore.toFixed(1)}</b> dengan tingkat ketuntasan penguasaan kompetensi (<i>mastery learning</i>) mencapai <b>${pctTuntas}%</b> (${totalTuntas} dari ${totalSiswa} peserta didik melampaui ambang batas KKM ${AppState.kkm}). `;
+        function generateSummaries(totS, totT, avg) {
+            const pctT = ((totT / totS) * 100).toFixed(1);
+            let kTxt = `<p><b>Interpretasi Capaian Klasikal:</b> Berdasarkan hasil evaluasi empiris, diperoleh rerata agregat klasikal (tendensi sentral) berada pada koefisien <b>${avg.toFixed(1)}</b> dengan rasio perolehan penguasaan kompetensi (<i>mastery learning</i>) sebesar <b>${pctT}%</b> (${totT} dari ${totS} peserta didik melampaui ambang batas KKM ${AppState.kkm}). Koefisien variasi kelas (indeks disparitas) berada di angka <b>${AppState.heterogenitas.toFixed(1)}%</b>, menandakan bahwa profil kognitif subjek bersifat <b>${AppState.heterogenitas > 15 ? "Heterogen (Kesenjangan kompetensi tinggi)" : "Homogen (Kemampuan merata)"}</b>.</p>`;
             
-            let ketHeterogenitas = AppState.heterogenitas > 15 ? "Heterogen (Kesenjangan tinggi)" : "Homogen (Kemampuan merata)";
-            klasikalText += `Koefisien Variasi kelas (heterogenitas) berada di angka <b>${AppState.heterogenitas.toFixed(1)}%</b>, menandakan bahwa kompetensi siswa bersifat <b>${ketHeterogenitas}</b>. </p>`;
+            if (pctT < 50) kTxt += `<p class="mt-2"><span class="text-red-600 font-bold">Asimilasi kompetensi klasikal tergolong krusial (Defisit).</span><br><b>Rekomendasi Tindak Lanjut:</b> Penyelenggaraan pengajaran ulang (<i>re-teaching</i>) massal menggunakan pendekatan pedagogik alternatif teramat direkomendasikan pada indikator materi dengan kelemahan kolektif sebelum melanjutkan konstruksi silabus.</p>`;
+            else if (pctT < 80) kTxt += `<p class="mt-2"><span class="text-orange-600 font-bold">Asimilasi kompetensi klasikal dikategorikan Moderat/Dalam Tahap Berkembang.</span><br><b>Rekomendasi Tindak Lanjut:</b> Optimalisasi program tutor sebaya (<i>peer tutoring</i>) berbasis kolaboratif. Peserta didik dengan pencapaian tuntas difungsikan sebagai agen pembimbing bagi rekannya yang mengalami deselerasi akademik.</p>`;
+            else kTxt += `<p class="mt-2"><span class="text-green-600 font-bold">Asimilasi kompetensi klasikal terkategori Sangat Optimal.</span><br><b>Rekomendasi Tindak Lanjut:</b> Eksekusi instruksional dapat diakselerasi menuju tahapan silabus berikutnya. Fasilitasi program pengayaan (<i>enrichment</i>) sangat disarankan untuk merangsang eskalasi nalar tinggi siswa.</p>`;
+            document.getElementById('summary-klasikal-text').innerHTML = kTxt;
 
-            if (pctTuntas < 50) {
-                klasikalText += `<p class="mt-2"><span class="text-red-600 font-bold">Tingkat serapan kurikulum secara klasikal teridentifikasi Rendah.</span><br><b>Rekomendasi Tindak Lanjut:</b> Diperlukan intervensi pedagogik berupa pembelajaran remedial secara klasikal (<i>re-teaching</i>) dengan penyesuaian strategi instruksional, khususnya pada indikator materi dengan daya serap terendah sebelum memajukan proses pembelajaran.</p>`;
-            } else if (pctTuntas < 80) {
-                klasikalText += `<p class="mt-2"><span class="text-orange-600 font-bold">Tingkat serapan kurikulum secara klasikal teridentifikasi Moderat/Berkembang.</span><br><b>Rekomendasi Tindak Lanjut:</b> Direkomendasikan implementasi metode tutor sebaya (<i>peer tutoring</i>) yang berkelanjutan. Peserta didik yang telah tuntas direkomendasikan menjadi fasilitator bagi rekan yang memerlukan pengulangan kognitif.</p>`;
-            } else {
-                klasikalText += `<p class="mt-2"><span class="text-green-600 font-bold">Tingkat serapan kurikulum secara klasikal teridentifikasi Optimal.</span><br><b>Rekomendasi Tindak Lanjut:</b> Proses instruksional dapat diakselerasi ke Kompetensi Dasar selanjutnya. Penyelenggaraan program pengayaan (<i>enrichment</i>) sangat dianjurkan bagi kelompok superior.</p>`;
-            }
-            document.getElementById('summary-klasikal-text').innerHTML = klasikalText;
+            const sRagu = AppState.students.filter(s => s.raguRagu).length, sTebak = AppState.students.filter(s => s.isTebakan).length, sErr = AppState.students.filter(s => s.jawabanGanda > 0).length;
+            document.getElementById('summary-siswa-text').innerHTML = `<p><b>Deskripsi Psikologis Perilaku Asesmen:</b> Terdeteksi fenomena <b>${sRagu} responden</b> yang mendemonstrasikan keraguan kognitif (tingkat peninggalan jawaban/<i>omission</i> tinggi), anomali <b>${sTebak} responden</b> terdeteksi melancarkan taktik <i>pseudo-guessing</i> (asimetri hasil ekstrem antara soal termudah & tersulit), serta <b>${sErr} responden</b> melakukan kecerobohan birokratis pengisian ganda.</p><p class="mt-2"><b>Rekomendasi Tindak Lanjut:</b> Lakukan wawancara singkat untuk siswa dengan keraguan dan tebakan tinggi. Gunakan <b>Top 10 Modul Remedial Prioritas</b> di bawah ini sebagai fokus utama pembahasan intervensi klinis (remedial).</p>`;
 
-            const siswaRagu = AppState.students.filter(s => s.raguRagu).length;
-            const siswaTebak = AppState.students.filter(s => s.isTebakan).length;
-            const siswaError = AppState.students.filter(s => s.jawabanGanda > 0).length;
-            
-            let siswaText = `<p><b>Diagnosis Pola Respons Peserta Didik:</b> Eksplorasi data mengindikasikan adanya anomali pengisian meliputi <b>${siswaRagu} peserta didik</b> terdiagnosis dengan hambatan resolusi kognitif (rasio pengosongan tinggi), <b>${siswaTebak} peserta didik</b> yang terindikasi melakukan <i>pseudo-guessing</i> atau tebakan spekulatif (asimetri hasil antar kuartil tingkat kesukaran soal), serta <b>${siswaError} peserta didik</b> dengan galat administratif pada instrumen fisik (<i>double-marking</i>).</p>`;
-            siswaText += `<p class="mt-2"><b>Strategi Mitigasi Berbasis Individu:</b> Sangat direkomendasikan penyelenggaraan sesi asesmen wawancara singkat bagi peserta didik yang terdiagnosis anomali kognitif. Bagi subjek yang terjaring program remedial, silakan integrasikan modul ajar pada daftar <b>Top 10 Rekomendasi Modul Remedial Prioritas</b> di bawah ini.</p>`;
-            document.getElementById('summary-siswa-text').innerHTML = siswaText;
+            const top10 = [...AppState.questions].sort((a,b) => a.p - b.p).slice(0, 10).sort((a,b) => a.id - b.id);
+            document.getElementById('rekomendasi-remedial-container').innerHTML = top10.map(q => `<div class="bg-white border border-red-200 px-2 py-1 sm:px-3 sm:py-1.5 rounded-md shadow-sm text-xs sm:text-sm"><b>Soal No. ${q.id}</b> <span class="text-[10px] sm:text-xs text-gray-500">(${((1 - q.p) * 100).toFixed(0)}% Gagal)</span></div>`).join('');
 
-            const hardestQuestions = [...AppState.questions].sort((a,b) => a.p - b.p).slice(0, 10); 
-            let recHtml = '';
-            hardestQuestions.forEach(q => {
-                let pSalah = ((1 - q.p) * 100).toFixed(0);
-                recHtml += `<div class="bg-white border border-red-200 px-3 py-1.5 rounded-md shadow-sm text-sm"><b>Butir No. ${q.id}</b> <span class="text-xs text-gray-500">(${pSalah}% Kelas Gagal)</span></div>`;
-            });
-            document.getElementById('rekomendasi-remedial-container').innerHTML = recHtml;
-
-            const soalZonk = AppState.questions.filter(q => q.p < 0.2);
-            const soalInvalid = AppState.questions.filter(q => q.dayaBeda < 0.2);
-            const soalMiskonsepsi = AppState.questions.filter(q => q.miskonsepsi !== null);
-            
-            let infoReliabilitas = AppState.reliabilitas > 0.7 ? "Konsistensi Tinggi (Sangat Reliabel)" : "Konsistensi Rendah (Butuh Revisi)";
-            let soalText = `<p><b>Evaluasi Validitas & Reliabilitas Instrumen:</b> Berdasarkan pengujian psikometrik atas ${AppState.totalQuestions} butir soal, diperoleh <b>Indeks Reliabilitas (KR-20) sebesar ${AppState.reliabilitas.toFixed(2)}</b> yang menandakan <b>${infoReliabilitas}</b>. Adapun komposisi tingkat kesukaran tes adalah: <b>${AppState.proporsiKesukaran.mudah} Mudah, ${AppState.proporsiKesukaran.sedang} Sedang, ${AppState.proporsiKesukaran.sukar} Sukar</b>.</p>`;
-            soalText += `<ul class="list-disc ml-5 mt-1 mb-2">`;
-            soalText += `<li><b>${soalInvalid.length} Butir Diskriminasi Rendah (Tidak Valid):</b> ${soalInvalid.length > 0 ? `Nomor ${soalInvalid.map(q=>q.id).join(', ')}` : '-'} <span class="text-xs text-gray-500">(Daya Beda &lt; 0.20, tidak mampu mendistingsi kemampuan tinggi/rendah peserta didik)</span>.</li>`;
-            soalText += `<li><b>${soalZonk.length} Butir Derajat Kesukaran Ekstrem:</b> ${soalZonk.length > 0 ? `Nomor ${soalZonk.map(q=>q.id).join(', ')}` : '-'} <span class="text-xs text-gray-500">(<i>Zonking Ratio</i> &lt; 20%)</span>.</li>`;
-            soalText += `<li><b>${soalMiskonsepsi.length} Butir Terindikasi Distraktor Miskonsepsi:</b> ${soalMiskonsepsi.length > 0 ? `Nomor ${soalMiskonsepsi.map(q=>q.id).join(', ')}` : '-'} <span class="text-xs text-gray-500">(Pengecoh menyerap atensi populasi dalam kadar masif)</span>.</li>`;
-            soalText += `</ul>`;
-            soalText += `<p><b>Rekomendasi Pemeliharaan Instrumen:</b> <br>1. Melakukan penyusutan (<i>drop</i>) terhadap butir tak-valid untuk perhitungan komposit nilai mentah.<br>2. Verifikasi triangulasi antara silabus dan validitas kunci jawaban bagi soal indeks kesukaran ekstrem (Zonking).<br>3. Menganulir atau meredaksional ulang pengecoh tidak berfungsi (<i>non-functioning distractors</i>) sebagaimana tabel rincian di bawah.</p>`;
-            document.getElementById('summary-soal-text').innerHTML = soalText;
+            const sZonk = AppState.questions.filter(q => q.p < 0.2), sInv = AppState.questions.filter(q => q.dayaBeda < 0.2), sMis = AppState.questions.filter(q => q.miskonsepsi !== null);
+            let sTxt = `<p><b>Evaluasi Validitas & Reliabilitas Instrumen:</b> Berdasarkan postulat pengukuran statistik atas ${AppState.totalQuestions} butir soal, diperoleh <b>Indeks Reliabilitas (KR-20) sebesar ${AppState.reliabilitas.toFixed(2)}</b> (<b>${AppState.reliabilitas >= 0.7 ? "Konsistensi Tinggi/Sangat Reliabel" : "Konsistensi Kurang/Butuh Revisi"}</b>). Komposisi tingkat kesukaran tes: <b>${AppState.proporsiKesukaran.mudah} Mudah, ${AppState.proporsiKesukaran.sedang} Sedang, ${AppState.proporsiKesukaran.sukar} Sukar</b>.</p>`;
+            sTxt += `<ul class="list-disc ml-5 mt-1 mb-2 text-xs sm:text-sm">`;
+            sTxt += `<li><b>${sInv.length} Mendegradasi Validitas:</b> ${sInv.length > 0 ? sInv.map(q=>q.id).join(', ') : '-'} (Daya Diskriminasi/Pembeda &lt; 0.20, tidak mampu mendistingsi kemampuan tinggi/rendah peserta didik).</li>`;
+            sTxt += `<li><b>${sZonk.length} Kesukaran Ekstrem (Zonking):</b> ${sZonk.length > 0 ? sZonk.map(q=>q.id).join(', ') : '-'} (Rasio kebenaran &lt; 20%).</li>`;
+            sTxt += `<li><b>${sMis.length} Indikasi Miskonsepsi:</b> ${sMis.length > 0 ? sMis.map(q=>q.id).join(', ') : '-'} (Kehadiran distraktor/pengecoh salah yang menyerap atensi populasi dalam kadar masif).</li>`;
+            sTxt += `</ul>`;
+            sTxt += `<p class="text-[10px] sm:text-xs"><b>Rekomendasi Pemeliharaan Instrumen:</b> <br>1. Melakukan penyusutan (<i>drop</i>) terhadap butir tak-valid dari perhitungan komposit.<br>2. Verifikasi triangulasi silabus dan kunci jawaban bagi soal Zonking.<br>3. Menganulir atau meredaksional ulang pengecoh tidak berfungsi (<i>non-functioning distractors</i>) sebagaimana rincian tabel di bawah.</p>`;
+            document.getElementById('summary-soal-text').innerHTML = sTxt;
         }
 
         function renderKlasikalInsights() {
-            const container = document.getElementById('insight-klasikal-container');
+            const h = [...AppState.questions].sort((a,b) => a.p - b.p).filter(q => q.p < 0.2);
+            const m = AppState.questions.filter(q => q.miskonsepsi && (q.miskonsepsi.count / AppState.students.length) > 0.4);
             let html = '';
-
-            const hardest = [...AppState.questions].sort((a,b) => a.p - b.p).filter(q => q.p < 0.2);
-            if(hardest.length > 0) {
-                let detailZonk = hardest.slice(0, 3).map(q => `Butir ${q.id} (Ketepatan ${(q.p*100).toFixed(0)}%)`).join(', ');
-                html += `
-                <div class="insight-card insight-danger p-3 rounded-r-lg border border-red-200">
-                    <p class="font-bold text-red-800 text-sm"><i class="fas fa-radiation-alt"></i> Peringatan Kesukaran Ekstrem (Zonking) / Anomali Kunci Jawaban</p>
-                    <p class="text-xs text-red-700 mt-1"><b>${detailZonk}</b> memiliki utilitas keberhasilan yang sangat minim secara statistik. Diinstruksikan untuk segera memvalidasi akurasi rujukan kunci jawaban atau relevansi kedalaman sub-bab yang diujikan secara taksonomi.</p>
+            
+            if(h.length > 0) {
+                html += `<div class="insight-card insight-danger p-2 sm:p-3 rounded-r-lg border border-red-200">
+                    <p class="font-bold text-red-800 text-[11px] sm:text-sm"><i class="fas fa-radiation-alt"></i> Peringatan Kesukaran Ekstrem (<i>Zonking Case</i>) / Anomali Kunci Jawaban</p>
+                    <p class="text-[10px] sm:text-xs text-red-700 mt-1"><b>${h.slice(0,3).map(q => `Soal ${q.id} (Kebenaran ${(q.p*100).toFixed(0)}%)`).join(', ')}</b> dijawab benar oleh sangat sedikit populasi. Wajib dilakukan verifikasi keabsahan kunci rujukan atau kesesuaian materi.</p>
                 </div>`;
             }
-
-            const massMisconception = AppState.questions.filter(q => q.miskonsepsi && (q.miskonsepsi.count / AppState.students.length) > 0.4);
-            if(massMisconception.length > 0) {
-                let qStr = massMisconception.map(q => {
-                    let pctSiswa = ((q.miskonsepsi.count / AppState.students.length) * 100).toFixed(0);
-                    return `<br>• <b>Butir No. ${q.id}</b>: Kunci Rujukan <b>[${q.kunci}]</b> → Terdistraksi massal ke Opsi <b>[${q.miskonsepsi.opt}]</b> oleh <b>${pctSiswa}% probabilitas (n=${q.miskonsepsi.count})</b>.`;
-                }).join('');
-                html += `
-                <div class="insight-card insight-warning p-3 rounded-r-lg border border-yellow-200">
-                    <p class="font-bold text-yellow-800 text-sm"><i class="fas fa-exclamation-circle"></i> Indikasi Miskonsepsi Kognitif Massal Tersistematis</p>
-                    <p class="text-xs text-yellow-800 mt-1 leading-relaxed">Algoritma analitik menemukan penyimpangan konseptual secara terstruktur pada elemen berikut: ${qStr} <br><br><span class="italic text-yellow-700">Adanya pemusatan distribusi jawaban keliru pada satu opsi pengecoh secara masif mencerminkan miskonsepsi pembelajaran terinternalisasi klasikal yang perlu mendapatkan pelurusan (<i>debiasing</i>).</span></p>
+            if(m.length > 0) {
+                html += `<div class="insight-card insight-warning p-2 sm:p-3 rounded-r-lg border border-yellow-200">
+                    <p class="font-bold text-yellow-800 text-[11px] sm:text-sm"><i class="fas fa-exclamation-circle"></i> Indikasi Miskonsepsi Kognitif Massal Tersistematis</p>
+                    <p class="text-[10px] sm:text-xs text-yellow-800 mt-1">Algoritma analitik menemukan penyimpangan konseptual terstruktur pada: ${m.map(q => `<br>• <b>Butir No. ${q.id}</b>: Kunci Rujukan [${q.kunci}] → <b>${((q.miskonsepsi.count / AppState.students.length)*100).toFixed(0)}% responden terdistraksi menuju Opsi [${q.miskonsepsi.opt}]</b> secara konstan.`).join('')}</p>
                 </div>`;
             }
-
-            if(html === '') {
-                html = '<p class="text-sm text-gray-500 italic p-3 bg-gray-50 rounded border border-gray-200">Tidak terekam preseden anomali yang mencolok secara statistika klasikal.</p>';
-            }
-            container.innerHTML = html;
+            document.getElementById('insight-klasikal-container').innerHTML = html || '<p class="text-xs sm:text-sm text-gray-500 italic p-2 bg-gray-50 rounded border border-gray-200">Tidak terdiagnosis preseden anomali yang mencolok dari representasi data klasikal.</p>';
         }
 
         function renderStudentTable() {
-            const tbody = document.getElementById('table-body-siswa');
-            const kFilter = ui.filterKelas.value;
-            let filtered = AppState.students;
-            
-            if(kFilter !== 'all') filtered = filtered.filter(s => s.kelas === kFilter);
-
-            let html = '';
-            filtered.forEach(s => {
-                const statusStr = s.isTuntas 
-                    ? `<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">Tuntas</span>`
-                    : `<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-bold">Remedial</span>`;
+            const fk = document.getElementById('filter-kelas').value;
+            document.getElementById('table-body-siswa').innerHTML = AppState.students.filter(s => fk === 'all' || s.kelas === fk).map(s => {
+                let d = []; 
+                if(s.raguRagu) d.push(`<span class="bg-yellow-100 text-yellow-800 text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-yellow-200">Omission Rate Tinggi (${s.kosong} kosong)</span>`);
+                if(s.jawabanGanda > 0) d.push(`<span class="bg-red-100 text-red-800 text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-red-200">Anomali Input (${s.jawabanGanda} butir)</span>`);
+                if(s.isTebakan) d.push(`<span class="bg-purple-100 text-purple-800 text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-purple-200">Indikasi Pseudo-Guessing</span>`);
                 
-                let diagHtml = [];
-                if(s.raguRagu) diagHtml.push(`<span class="bg-yellow-100 text-yellow-800 text-[10px] px-1.5 py-0.5 rounded border border-yellow-200" title="Tingkat kekosongan respon tinggi">Omission Rate Tinggi (${s.kosong} kosong)</span>`);
-                if(s.jawabanGanda > 0) diagHtml.push(`<span class="bg-red-100 text-red-800 text-[10px] px-1.5 py-0.5 rounded border border-red-200">Anomali Input (${s.jawabanGanda} butir)</span>`);
-                if(s.isTebakan) diagHtml.push(`<span class="bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0.5 rounded border border-purple-200" title="Signifikansi asimetris butir sukar/mudah">Indikasi Pseudo-Guessing</span>`);
-                
-                let patternTxt = s.detailSalah.length > 0 
-                    ? `Defisit di: ${s.detailSalah.slice(0,5).join(',')}${s.detailSalah.length > 5 ? '...' : ''}` 
-                    : 'Penguasaan Penuh';
-
-                html += `
-                    <tr class="hover:bg-slate-50 transition-colors border-b border-gray-100">
-                        <td class="px-4 py-3 whitespace-nowrap">
-                            <div class="font-semibold text-sm text-gray-800">${s.nama}</div>
-                            <div class="text-xs text-gray-500">Kelas ${s.kelas} | No. ${s.no}</div>
-                        </td>
-                        <td class="px-4 py-3 text-center font-bold text-sm ${s.isTuntas?'text-green-600':'text-red-600'}">${s.score.toFixed(1)}</td>
-                        <td class="px-4 py-3 text-center">${statusStr}</td>
-                        <td class="px-4 py-3">
-                            <div class="flex flex-wrap gap-1 mb-1">${diagHtml.join('')}</div>
-                            <div class="text-xs text-gray-500 font-mono bg-gray-50 inline-block px-1 rounded">${patternTxt}</div>
-                        </td>
-                    </tr>
-                `;
-            });
-            tbody.innerHTML = html;
+                return `<tr class="hover:bg-slate-50 transition-colors border-b border-gray-100">
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 whitespace-nowrap"><div class="font-semibold text-xs sm:text-sm text-gray-800">${s.nama}</div><div class="text-[9px] sm:text-xs text-gray-500">Kelas ${s.kelas} | No. ${s.no}</div></td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-center font-bold text-xs sm:text-sm ${s.isTuntas?'text-green-600':'text-red-600'}">${s.score.toFixed(1)}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 text-center">${s.isTuntas?'<span class="bg-green-100 text-green-800 text-[9px] sm:text-xs px-2 py-1 rounded font-bold">Tuntas</span>':'<span class="bg-red-100 text-red-800 text-[9px] sm:text-xs px-2 py-1 rounded font-bold">Remedial</span>'}</td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3"><div class="flex flex-wrap gap-1 mb-1">${d.join('')}</div><div class="text-[9px] sm:text-xs text-gray-500 font-mono bg-gray-50 inline-block px-1 rounded break-words max-w-[150px] sm:max-w-xs whitespace-normal">${s.detailSalah.length>0?`Defisit di No: ${s.detailSalah.slice(0,5).join(',')}${s.detailSalah.length>5?'...':''}`:'Penguasaan Penuh'}</div></td>
+                </tr>`;
+            }).join('');
         }
 
         function renderQuestionTable() {
-            const tbody = document.getElementById('table-body-soal');
-            const showZonk = document.getElementById('chk-zonking').checked;
-            const showMiskon = document.getElementById('chk-miskonsepsi').checked;
-            const showInvalid = document.getElementById('chk-tidakvalid').checked;
+            const z = document.getElementById('chk-zonking').checked, m = document.getElementById('chk-miskonsepsi').checked, inv = document.getElementById('chk-tidakvalid').checked, norm = document.getElementById('chk-normal').checked;
+            document.getElementById('table-body-soal').innerHTML = AppState.questions.filter(q => {
+                const isZ = q.p < 0.2, isI = q.dayaBeda < 0.2, hasM = q.miskonsepsi !== null;
+                let show = false;
+                if (!isZ && !hasM && !isI && norm) show = true;
+                if (isZ && z) show = true;
+                if (hasM && m) show = true;
+                if (isI && inv) show = true;
+                return show;
+            }).map(q => {
+                let a = []; 
+                if(q.p < 0.2) a.push(`<div class="text-[9px] sm:text-xs text-red-600 font-semibold mb-1"><i class="fas fa-radiation-alt"></i> Tindaklanjuti Validasi Konsep/Kunci!</div>`);
+                if(q.miskonsepsi) a.push(`<div class="text-[9px] sm:text-xs text-yellow-600 mb-1"><i class="fas fa-exclamation-triangle"></i> Indikasi Miskonsepsi: Terdistraksi ke opsi <b>${q.miskonsepsi.opt}</b> (${q.miskonsepsi.count} peserta)</div>`);
+                if(q.pengecohKosong.length > 0) a.push(`<div class="text-[8px] sm:text-[10px] text-gray-500">Modifikasi Non-Functioning Distractor: ${q.pengecohKosong.join(', ')}</div>`);
+                if(a.length === 0) a.push(`<div class="text-[9px] sm:text-xs text-green-600"><i class="fas fa-check"></i> Validitas Fungsi Instrumen Optimal</div>`);
 
-            let html = '';
-            AppState.questions.forEach(q => {
-                let diffLabel = q.p > 0.7 ? 'Mudah' : (q.p >= 0.3 ? 'Sedang' : 'Sukar');
-                let diffColor = q.p > 0.7 ? 'text-green-600' : (q.p >= 0.3 ? 'text-yellow-600' : 'text-red-600');
-                
-                let isZonk = q.p < 0.2;
-                let isInvalid = q.dayaBeda < 0.2;
-                let hasMiscon = q.miskonsepsi !== null;
-
-                let visible = true;
-                if(!showZonk && isZonk) visible = false;
-                if(!showMiskon && hasMiscon && !isZonk && !isInvalid) visible = false; 
-                if(!showInvalid && isInvalid && !isZonk && !hasMiscon) visible = false;
-                
-                if(!visible) return;
-
-                let actionHtml = [];
-                if(isZonk) actionHtml.push(`<div class="text-xs text-red-600 font-semibold mb-1"><i class="fas fa-radiation-alt"></i> Tindaklanjuti Validasi Konsep/Kunci Jawaban!</div>`);
-                if(hasMiscon) actionHtml.push(`<div class="text-xs text-yellow-600 mb-1"><i class="fas fa-exclamation-triangle"></i> Indikasi Miskonsepsi: Terdistraksi ke Opsi <b>${q.miskonsepsi.opt}</b> (${q.miskonsepsi.count} peserta)</div>`);
-                if(q.pengecohKosong.length > 0) actionHtml.push(`<div class="text-[10px] text-gray-500">Modifikasi Non-Functioning Distractor: ${q.pengecohKosong.join(', ')}</div>`);
-                
-                if(actionHtml.length === 0) actionHtml.push(`<div class="text-xs text-green-600"><i class="fas fa-check"></i> Validitas Fungsi Instrumen Optimal</div>`);
-
-                html += `
-                    <tr class="hover:bg-slate-50 border-b border-gray-100">
-                        <td class="px-3 py-3 text-center font-bold text-gray-800">${q.id}</td>
-                        <td class="px-3 py-3 text-center font-mono font-bold text-blue-600 bg-blue-50">${q.kunci}</td>
-                        <td class="px-3 py-3 text-center">
-                            <div class="font-bold ${diffColor}">${(q.p*100).toFixed(0)}%</div>
-                            <div class="text-[10px] text-gray-500">${diffLabel}</div>
-                        </td>
-                        <td class="px-3 py-3 text-center">
-                            <div class="font-bold ${isInvalid ? 'text-red-600' : 'text-green-600'}">${q.dayaBeda.toFixed(2)}</div>
-                            <div class="text-[10px] text-gray-500">${isInvalid ? 'Tidak Valid / Revisi' : 'Valid / Ideal'}</div>
-                        </td>
-                        <td class="px-3 py-3">
-                            ${actionHtml.join('')}
-                        </td>
-                    </tr>
-                `;
-            });
-            tbody.innerHTML = html;
+                return `<tr class="hover:bg-slate-50 border-b border-gray-100">
+                    <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-bold text-gray-800 align-middle">${q.id}</td>
+                    <td class="px-2 sm:px-3 py-2 sm:py-3 text-center align-middle bg-blue-50">
+                        <input type="text" maxlength="1" value="${q.kunci}" onchange="updateKunci(${q.id}, this.value)" class="w-6 text-center font-mono font-bold text-blue-600 bg-transparent border-b border-blue-400 focus:outline-none focus:border-blue-700 uppercase cursor-pointer" title="Edit Kunci Jawaban">
+                    </td>
+                    <td class="px-2 sm:px-3 py-2 sm:py-3 text-center align-middle"><div class="font-bold ${q.p>0.7?'text-green-600':q.p>=0.3?'text-yellow-600':'text-red-600'}">${(q.p*100).toFixed(0)}%</div><div class="text-[8px] sm:text-[10px] text-gray-500">${q.p>0.7?'Mudah':q.p>=0.3?'Sedang':'Sukar'}</div></td>
+                    <td class="px-2 sm:px-3 py-2 sm:py-3 text-center align-middle"><div class="font-bold ${q.dayaBeda<0.2?'text-red-600':'text-green-600'}">${q.dayaBeda.toFixed(2)}</div><div class="text-[8px] sm:text-[10px] text-gray-500">${q.dayaBeda<0.2?'Revisi':'Ideal'}</div></td>
+                    <td class="px-2 sm:px-3 py-2 sm:py-3 align-middle">${a.join('')}</td>
+                </tr>`;
+            }).join('');
         }
 
-        // ==========================================
-        // EKSPOR KE WORD (Perataan Kiri, Tabel Repeat Header, Kesimpulan Dinamis Berdiferensiasi)
-        // ==========================================
         function exportToWord() {
-            if(AppState.students.length === 0) {
-                alert("Tidak ada data untuk diekspor!"); return;
-            }
-
-            // IDENTITAS GURU
-            let tableIdentitasHTML = `
-            <table border="0" cellspacing="0" cellpadding="0" style="width: 100%; border: none; margin-bottom: 15px; margin-top: 5px;">
-                <tr style="line-height: 1.2;">
-                    <td style="border: none; padding: 0; width: 130px;"><b>Nama Pendidik</b></td>
-                    <td style="border: none; padding: 0; width: 15px;">:</td>
-                    <td style="border: none; padding: 0;">${AppState.teacherName}</td>
+            if(AppState.students.length === 0) { alert("Tidak ada data untuk diekspor!"); return; }
+            
+            const tId = `<table border="0" cellspacing="0" cellpadding="0" style="width:100%; border:none; margin-bottom:15px; margin-top:5px;">
+                <tr style="line-height:1.5;">
+                    <td style="border:none; padding:0; width:110px;"><b>Nama Pendidik</b></td><td style="border:none; padding:0; width:15px;">:</td><td style="border:none; padding:0; width:240px;">${AppState.teacherName}</td>
+                    <td style="border:none; padding:0; width:100px;"><b>Jenis Ulangan</b></td><td style="border:none; padding:0; width:15px;">:</td><td style="border:none; padding:0;">${AppState.examType}</td>
                 </tr>
-                <tr style="line-height: 1.2;">
-                    <td style="border: none; padding: 0;"><b>Mata Pelajaran</b></td>
-                    <td style="border: none; padding: 0;">:</td>
-                    <td style="border: none; padding: 0;">${AppState.subject}</td>
-                </tr>
-                <tr style="line-height: 1.2;">
-                    <td style="border: none; padding: 0;"><b>Kelas / Fase</b></td>
-                    <td style="border: none; padding: 0;">:</td>
-                    <td style="border: none; padding: 0;">${AppState.gradeLevel}</td>
+                <tr style="line-height:1.5;">
+                    <td style="border:none; padding:0;"><b>Mata Pelajaran</b></td><td style="border:none; padding:0;">:</td><td style="border:none; padding:0;">${AppState.subject}</td>
+                    <td style="border:none; padding:0;"><b>Kelas / Fase</b></td><td style="border:none; padding:0;">:</td><td style="border:none; padding:0;">${AppState.gradeLevel}</td>
                 </tr>
             </table>`;
-
-            // A. KLASIKAL
-            const pctTuntas = ((AppState.students.filter(s=>s.isTuntas).length / AppState.students.length) * 100).toFixed(1);
-            const avgClass = (AppState.students.reduce((a,b)=>a+b.score,0)/AppState.students.length).toFixed(1);
             
-            let htmlKlasikalText = `<p style="text-align: justify; margin: 0 0 5px 0;"><b>Interpretasi Capaian Klasikal:</b> Berdasarkan evaluasi empiris, terdata rerata agregat klasikal berada pada koefisien <b>${avgClass}</b> dengan rasio perolehan <i>mastery learning</i> sebesar <b>${pctTuntas}%</b> (${AppState.students.filter(s=>s.isTuntas).length} dari ${AppState.students.length} peserta didik melampaui ambang batas KKM ${AppState.kkm}). `;
-            let ketHeterogenitas = AppState.heterogenitas > 15 ? "Heterogen (Kesenjangan kompentensi tinggi)" : "Homogen (Kemampuan kompentensi merata)";
-            htmlKlasikalText += `Koefisien Variasi kelas (indeks disparitas) berada di angka <b>${AppState.heterogenitas.toFixed(1)}%</b>, menandakan bahwa profil kognitif subjek bersifat <b>${ketHeterogenitas}</b>. </p>`;
-
-            if (pctTuntas < 50) {
-                htmlKlasikalText += `<p style="text-align: justify; margin: 0;"><span class="text-red">Asimilasi kompetensi klasikal tergolong krusial (Defisit).</span><br><b>Rekomendasi Manajerial:</b> Penyelenggaraan <i>re-teaching</i> secara masif menggunakan pendekatan pedagogik alternatif teramat direkomendasikan pada KD yang menjadi kelemahan kolektif sebelum melanjutkan konstruksi materi berikutnya.</p>`;
-            } else if (pctTuntas < 80) {
-                htmlKlasikalText += `<p style="text-align: justify; margin: 0;"><span class="text-orange">Asimilasi kompetensi klasikal dikategorikan Moderat/Dalam Tahap Berkembang.</span><br><b>Rekomendasi Manajerial:</b> Optimalisasi program tutor sebaya (<i>peer-tutoring</i>) berbasis kolaboratif. Peserta didik dengan pencapaian tuntas difungsikan sebagai agen pembimbing bagi rekannya yang mengalami deselerasi akademik.</p>`;
-            } else {
-                htmlKlasikalText += `<p style="text-align: justify; margin: 0;"><span class="text-green">Asimilasi kompetensi klasikal terkategori Sangat Optimal.</span><br><b>Rekomendasi Manajerial:</b> Eksekusi instruksional dapat diakselerasi menuju tahapan silabus berikutnya. Fasilitasi <i>enrichment module</i> (Pengayaan) sangat disarankan untuk merangsang eskalasi kognitif High Order Thinking Skills (HOTS).</p>`;
-            }
-
-            let htmlMiskonsepsi = ``;
-            const hardest = [...AppState.questions].sort((a,b) => a.p - b.p).filter(q => q.p < 0.2);
-            if(hardest.length > 0) {
-                let detailZonk = hardest.slice(0, 3).map(q => `Butir ${q.id} (Akurasi ${(q.p*100).toFixed(0)}%)`).join(', ');
-                htmlMiskonsepsi += `<div class="box alert-danger"><b class="text-red">Peringatan Kesukaran Ekstrem (<i>Zonking Case</i>) / Anomali Kunci Jawaban:</b><br><b>${detailZonk}</b> dijawab benar oleh sangat sedikit populasi. Wajib dilakukan verifikasi keabsahan kunci rujukan atau kesesuaian domain kognitif tes dengan kedalaman materi yang telah didistribusikan.</div>`;
-            }
-            const massMisconception = AppState.questions.filter(q => q.miskonsepsi && (q.miskonsepsi.count / AppState.students.length) > 0.4);
-            if(massMisconception.length > 0) {
-                let qStr = massMisconception.map(q => {
-                    let pctSiswa = ((q.miskonsepsi.count / AppState.students.length) * 100).toFixed(0);
-                    return `<li style="margin-bottom: 2px;"><b>Butir ${q.id}</b>: Dari rujukan [${q.kunci}], <b>${pctSiswa}% responden terdistraksi menuju Opsi ${q.miskonsepsi.opt}</b> secara konstan.</li>`;
-                }).join('');
-                htmlMiskonsepsi += `<div class="box alert-warning"><b class="text-orange">Indikasi Miskonsepsi Kognitif Massal Tersistematis:</b><p style="margin: 4px 0 2px 0;">Algoritma analitik menemukan penyimpangan konseptual secara terstruktur pada elemen berikut:</p><ul style="margin: 0 0 4px 20px; padding: 0;">${qStr}</ul><p style="margin: 0;">Pemilihan distraktor secara terkonsentrasi mendemonstrasikan miskonsepsi pembelajaran terinternalisasi klasikal yang perlu mendapatkan pelurusan (<i>debiasing</i>).</p></div>`;
-            }
-            if(htmlMiskonsepsi === '') htmlMiskonsepsi = `<p style="margin:0;"><i>Tidak terdiagnosis preseden anomali yang mencolok dari representasi data klasikal.</i></p>`;
-
-            // TABEL DISTRIBUSI
-            let tableDistribusiHTML = `
-            <table class="compact-table">
-                <thead>
-                    <tr><th>Rentang Frekuensi Jawaban Benar</th><th>Jumlah Probandus (Peserta Didik)</th></tr>
-                </thead>
-                <tbody>`;
-            AppState.distLabels.forEach((lbl, i) => {
-                tableDistribusiHTML += `<tr><td class="center">${lbl}</td><td class="center"><b>${AppState.distData[i]}</b></td></tr>`;
-            });
-            tableDistribusiHTML += `</tbody></table>`;
-
-            // TABEL BAB
-            let tableBabHTML = '';
-            if(AppState.babLabels.length > 0) {
-                tableBabHTML = `
-                <table class="compact-table">
-                    <thead>
-                        <tr><th>Pemetaan Kompetensi / Topik Dasar</th><th>Persentase Ketercapaian (Benar)</th><th>Persentase Defisit (Salah)</th></tr>
-                    </thead>
-                    <tbody>`;
-                AppState.babLabels.forEach((lbl, i) => {
-                    tableBabHTML += `<tr>
-                        <td><b>${lbl}</b></td>
-                        <td class="center text-green">${AppState.babDataBenar[i]}%</td>
-                        <td class="center text-red">${AppState.babDataSalah[i]}%</td>
-                    </tr>`;
-                });
-                tableBabHTML += `</tbody></table>`;
-            } else {
-                tableBabHTML = `<p style="margin:0; font-style:italic;">Konfigurasi agregasi per kompetensi dasar (BAB) belum diinisialisasi dalam kerangka aplikasi.</p>`;
-            }
-
-            // B. SISWA
-            const siswaRagu = AppState.students.filter(s => s.raguRagu).length;
-            const siswaTebak = AppState.students.filter(s => s.isTebakan).length;
-            const siswaError = AppState.students.filter(s => s.jawabanGanda > 0).length;
-            let htmlSiswaText = `<p style="text-align: justify; margin: 0 0 5px 0;"><b>Deskripsi Psikologis Perilaku Asesmen Individu:</b> Terdeteksi fenomena <b>${siswaRagu} responden</b> yang mendemonstrasikan keraguan kognitif parah (tingkat peninggalan/<i>omission</i> jawaban tak rasional), lalu terdapat anomali <b>${siswaTebak} responden</b> terdeteksi melancarkan taktik <i>pseudo-guessing</i> (asimetri hasil ekstrem), disusul <b>${siswaError} responden</b> melakukan kecerobohan birokratis pada media isian (error pengisian ganda).</p>`;
+            const pt = ((AppState.students.filter(s=>s.isTuntas).length / AppState.students.length) * 100).toFixed(1), av = (AppState.students.reduce((a,b)=>a+b.score,0)/AppState.students.length).toFixed(1);
+            let hk = `<p style="text-align:justify; margin:0 0 5px 0;"><b>Interpretasi Capaian Klasikal:</b> Berdasarkan evaluasi empiris, terdata rerata agregat klasikal berada pada koefisien <b>${av}</b> dengan rasio perolehan <i>mastery learning</i> sebesar <b>${pt}%</b> (${AppState.students.filter(s=>s.isTuntas).length} dari ${AppState.students.length} peserta didik melampaui ambang batas KKM ${AppState.kkm}). Koefisien Variasi kelas (indeks disparitas) berada di angka <b>${AppState.heterogenitas.toFixed(1)}%</b>, menandakan bahwa profil kognitif subjek bersifat <b>${AppState.heterogenitas > 15 ? "Heterogen (Kesenjangan kompetensi tinggi)" : "Homogen (Kemampuan kompetensi merata)"}</b>.</p>`;
             
-            // Rekomendasi Remedial TOP 10
-            const hardestQuestionsExport = [...AppState.questions].sort((a,b) => a.p - b.p).slice(0, 10);
-            let htmlRekomendasiSoal = `<ul style="margin: 0; padding-left: 20px; text-align: left;">`;
-            hardestQuestionsExport.forEach(q => {
-                let pSalah = ((1 - q.p) * 100).toFixed(0);
-                htmlRekomendasiSoal += `<li style="margin-bottom: 2px;"><b>Instrumen No. ${q.id}</b> dengan indeks kegagalan kolektif hingga ${pSalah}% populasi.</li>`;
-            });
-            htmlRekomendasiSoal += `</ul>`;
+            if (pt < 50) hk += `<p style="text-align:justify; margin:0;"><span class="text-red">Asimilasi kompetensi klasikal tergolong krusial (Defisit).</span><br><b>Rekomendasi Manajerial:</b> Penyelenggaraan <i>re-teaching</i> secara masif menggunakan pendekatan pedagogik alternatif teramat direkomendasikan pada KD yang menjadi kelemahan kolektif sebelum melanjutkan konstruksi materi berikutnya.</p>`;
+            else if (pt < 80) hk += `<p style="text-align:justify; margin:0;"><span class="text-orange">Asimilasi kompetensi klasikal dikategorikan Moderat/Dalam Tahap Berkembang.</span><br><b>Rekomendasi Manajerial:</b> Optimalisasi program tutor sebaya (<i>peer-tutoring</i>) berbasis kolaboratif. Peserta didik dengan pencapaian tuntas difungsikan sebagai agen pembimbing bagi rekannya yang mengalami deselerasi akademik.</p>`;
+            else hk += `<p style="text-align:justify; margin:0;"><span class="text-green">Asimilasi kompetensi klasikal terkategori Sangat Optimal.</span><br><b>Rekomendasi Manajerial:</b> Eksekusi instruksional dapat diakselerasi menuju tahapan silabus berikutnya. Fasilitasi <i>enrichment module</i> (Pengayaan) sangat disarankan untuk merangsang eskalasi kognitif High Order Thinking Skills (HOTS).</p>`;
 
-            // C. SOAL
-            const soalZonk = AppState.questions.filter(q => q.p < 0.2);
-            const soalInvalid = AppState.questions.filter(q => q.dayaBeda < 0.2);
-            const soalMiskonsepsi = AppState.questions.filter(q => q.miskonsepsi !== null);
-            const infoReliabilitas = AppState.reliabilitas >= 0.70 ? "Konsistensi Tinggi / Sangat Reliabel" : "Konsistensi Kurang / Butuh Penyesuaian";
+            let hm = ``; const hQ = [...AppState.questions].sort((a,b) => a.p - b.p).filter(q => q.p < 0.2);
+            if(hQ.length > 0) hm += `<div class="box alert-danger"><b class="text-red">Peringatan Kesukaran Ekstrem (<i>Zonking Case</i>) / Anomali Kunci Jawaban:</b><br><b>${hQ.slice(0,3).map(q=>`Butir ${q.id} (Akurasi ${(q.p*100).toFixed(0)}%)`).join(', ')}</b> dijawab benar oleh sangat sedikit populasi. Wajib dilakukan verifikasi keabsahan kunci rujukan atau kesesuaian domain kognitif tes dengan kedalaman materi yang telah didistribusikan.</div>`;
+            const mM = AppState.questions.filter(q => q.miskonsepsi && (q.miskonsepsi.count / AppState.students.length) > 0.4);
+            if(mM.length > 0) hm += `<div class="box alert-warning"><b class="text-orange">Indikasi Miskonsepsi Kognitif Massal Tersistematis:</b><p style="margin:4px 0 2px 0;">Algoritma analitik menemukan penyimpangan konseptual secara terstruktur pada elemen berikut:</p><ul style="margin:0 0 4px 20px; padding:0;">${mM.map(q=>`<li style="margin-bottom:2px;"><b>Butir ${q.id}</b>: Dari rujukan [${q.kunci}], <b>${((q.miskonsepsi.count/AppState.students.length)*100).toFixed(0)}% responden terdistraksi menuju Opsi ${q.miskonsepsi.opt}</b> secara konstan.</li>`).join('')}</ul><p style="margin:0;">Pemilihan distraktor secara terkonsentrasi mendemonstrasikan miskonsepsi pembelajaran terinternalisasi klasikal yang perlu mendapatkan pelurusan (<i>debiasing</i>).</p></div>`;
+            if(hm === '') hm = `<p style="margin:0;"><i>Tidak terdiagnosis preseden anomali yang mencolok dari representasi data klasikal.</i></p>`;
+
+            let tD = `<table class="compact-table"><thead><tr><th>Rentang Frekuensi Jawaban Benar</th><th>Jumlah Probandus (Peserta Didik)</th></tr></thead><tbody>${AppState.distLabels.map((l,i)=>`<tr><td class="center">${l}</td><td class="center"><b>${AppState.distData[i]}</b></td></tr>`).join('')}</tbody></table>`;
+            let tB = AppState.babLabels.length > 0 ? `<table class="compact-table"><thead><tr><th>Pemetaan Kompetensi / Topik Dasar</th><th>Persentase Ketercapaian (Benar)</th><th>Persentase Defisit (Salah)</th></tr></thead><tbody>${AppState.babLabels.map((l,i)=>`<tr><td><b>${l}</b></td><td class="center text-green">${AppState.babDataBenar[i]}%</td><td class="center text-red">${AppState.babDataSalah[i]}%</td></tr>`).join('')}</tbody></table>` : `<p style="margin:0; font-style:italic;">Konfigurasi agregasi per kompetensi dasar (BAB) belum diinisialisasi dalam kerangka aplikasi.</p>`;
+
+            const sRa = AppState.students.filter(s=>s.raguRagu).length, sTe = AppState.students.filter(s=>s.isTebakan).length, sEr = AppState.students.filter(s=>s.jawabanGanda > 0).length;
+            let hs = `<p style="text-align:justify; margin:0 0 5px 0;"><b>Deskripsi Psikologis Perilaku Asesmen Individu:</b> Terdeteksi fenomena <b>${sRa} responden</b> yang mendemonstrasikan keraguan kognitif parah (tingkat peninggalan/<i>omission</i> jawaban tak rasional), lalu terdapat anomali <b>${sTe} responden</b> terdeteksi melancarkan taktik <i>pseudo-guessing</i> (asimetri hasil ekstrem), disusul <b>${sEr} responden</b> melakukan kecerobohan birokratis pada media isian (error pengisian ganda).</p>`;
             
-            let htmlSoalText = `<p style="text-align: justify; margin: 0 0 5px 0;"><b>Evaluasi Reliabilitas & Karakteristik Instrumen:</b> Analisis psikometrik komprehensif mengkalkulasi <b>Indeks Reliabilitas (KR-20) instrumen ini pada angka ${AppState.reliabilitas.toFixed(2)}</b> yang merepresentasikan <b>${infoReliabilitas}</b>. Distribusi keseimbangan tingkat kesukaran tes terdiri atas: ${AppState.proporsiKesukaran.mudah} Mudah, ${AppState.proporsiKesukaran.sedang} Sedang, dan ${AppState.proporsiKesukaran.sukar} Sukar.</p>`;
-            htmlSoalText += `<ul style="margin: 0 0 5px 0; padding-left: 20px; text-align: left;">`;
-            htmlSoalText += `<li style="margin-bottom: 2px;"><b>${soalInvalid.length} Instrumen Mendegradasi Validitas:</b> ${soalInvalid.length > 0 ? `Item ${soalInvalid.map(q=>q.id).join(', ')}` : '-'} (Daya Diskriminasi/Pembeda &lt; 0.20, instrumen mandul dalam mengkategorisasikan kelompok siswa superordinat dan subordinat).</li>`;
-            htmlSoalText += `<li style="margin-bottom: 2px;"><b>${soalZonk.length} Instrumen Zonking:</b> ${soalZonk.length > 0 ? `Item ${soalZonk.map(q=>q.id).join(', ')}` : '-'} (Rasio kebenaran &lt; 20%).</li>`;
-            htmlSoalText += `<li style="margin-bottom: 2px;"><b>${soalMiskonsepsi.length} Instrumen Bermuatan Miskonsepsi:</b> ${soalMiskonsepsi.length > 0 ? `Item ${soalMiskonsepsi.map(q=>q.id).join(', ')}` : '-'} (Kehadiran distraktor yang sangat dominan).</li>`;
-            htmlSoalText += `</ul>`;
+            let hr = `<ul style="margin:0; padding-left:20px; text-align:left;">${[...AppState.questions].sort((a,b)=>a.p - b.p).slice(0,10).sort((a,b)=>a.id - b.id).map(q=>`<li style="margin-bottom:2px;"><b>Instrumen No. ${q.id}</b> dengan indeks kegagalan kolektif hingga ${((1-q.p)*100).toFixed(0)}% populasi.</li>`).join('')}</ul>`;
 
-            let htmlRekomendasiPemeliharaan = `<p style="text-align: left; margin: 5px 0 2px 0;"><b>Rekomendasi Pemeliharaan Instrumen:</b></p>
-            <ol style="text-align: left; padding-left: 20px; margin: 0;">
-                <li>Soal Tidak Valid (Daya Beda &lt; 0.20) sebaiknya <b>dieliminasi (<i>drop</i>)</b> dari penilaian akhir atau direvisi total kalimatnya.</li>
-                <li>Untuk soal sangat sulit (<i>Zonking</i>), harap periksa kembali kebenaran acuan kunci jawaban tes.</li>
-                <li>Pengecoh yang tak pernah dipilih (<i>non-functioning distractors</i>) sebagaimana dirinci di tabel bawah ini, wajib diganti opsinya pada ujian mendatang.</li>
-            </ol>`;
+            const sZ = AppState.questions.filter(q=>q.p<0.2), sI = AppState.questions.filter(q=>q.dayaBeda<0.2), sM = AppState.questions.filter(q=>q.miskonsepsi!==null), sMd = AppState.questions.filter(q=>q.p>0.85), iR = AppState.reliabilitas>=0.7?"Konsistensi Tinggi / Sangat Reliabel":"Konsistensi Kurang / Butuh Penyesuaian";
+            let hSo = `<p style="text-align:justify; margin:0 0 5px 0;"><b>Evaluasi Reliabilitas & Karakteristik Instrumen:</b> Analisis psikometrik komprehensif mengkalkulasi <b>Indeks Reliabilitas (KR-20) instrumen ini pada angka ${AppState.reliabilitas.toFixed(2)}</b> yang merepresentasikan <b>${iR}</b>. Distribusi keseimbangan tingkat kesukaran tes terdiri atas: ${AppState.proporsiKesukaran.mudah} Mudah, ${AppState.proporsiKesukaran.sedang} Sedang, dan ${AppState.proporsiKesukaran.sukar} Sukar.</p><ul style="margin:0 0 5px 0; padding-left:20px; text-align:left;"><li style="margin-bottom:2px;"><b>${sI.length} Instrumen Mendegradasi Validitas:</b> ${sI.length>0?sI.map(q=>q.id).join(', '):'-'} (Daya Diskriminasi/Pembeda &lt; 0.20, instrumen mandul dalam mengkategorisasikan kelompok siswa superordinat dan subordinat).</li><li style="margin-bottom:2px;"><b>${sZ.length} Instrumen Zonking:</b> ${sZ.length>0?sZ.map(q=>q.id).join(', '):'-'} (Rasio kebenaran &lt; 20%).</li><li style="margin-bottom:2px;"><b>${sM.length} Instrumen Bermuatan Miskonsepsi:</b> ${sM.length>0?sM.map(q=>q.id).join(', '):'-'} (Kehadiran distraktor yang sangat dominan).</li><li style="margin-bottom:2px;"><b>${sMd.length} Instrumen Kurang Kompetitif (Terlalu Mudah):</b> ${sMd.length>0?sMd.map(q=>q.id).join(', '):'-'} (Akurasi klasikal &gt; 85%).</li></ul>`;
+            let hP = `<p style="text-align:left; margin:5px 0 2px 0;"><b>Rekomendasi Pemeliharaan Instrumen:</b></p><ol style="text-align:left; padding-left:20px; margin:0;"><li>Soal Tidak Valid (Daya Beda &lt; 0.20) sebaiknya <b>dieliminasi (<i>drop</i>)</b> dari penilaian akhir atau direvisi total kalimatnya.</li><li>Untuk soal sangat sulit (<i>Zonking</i>), harap periksa kembali kebenaran acuan kunci jawaban tes.</li><li>Pengecoh yang tak pernah dipilih (<i>non-functioning distractors</i>) sebagaimana dirinci di tabel bawah ini, wajib diganti opsinya pada ujian mendatang.</li></ol>`;
+            
+            let tS = `<table class="compact-table"><thead><tr><th>No</th><th>Kunci</th><th>Tingkat Kesukaran (P)</th><th>Daya Diskriminasi (D)</th><th>Diagnostik & Preskripsi Distraktor</th></tr></thead><tbody>${AppState.questions.map(q=>{
+                let dL=q.p>0.7?'Mudah':q.p>=0.3?'Sedang':'Sukar', vL=q.dayaBeda<0.2?'<span class="text-red">Revisi</span>':'<span class="text-green">Ideal</span>', a='';
+                if(q.p<0.2) a+='<span class="badge badge-zonk">[Warning Zonking]</span> '; if(q.miskonsepsi) a+=`<span class="badge badge-mis">[Miskonsepsi di ${q.miskonsepsi.opt} - ${q.miskonsepsi.count} respons]</span> `; if(q.pengecohKosong.length>0) a+=`<span class="badge badge-kosong">[Drop distraktor: ${q.pengecohKosong.join(', ')}]</span>`; if(a==='') a='Utilitas Instrumen Seimbang & Baik';
+                return `<tr><td class="center"><b>${q.id}</b></td><td class="center"><b>${q.kunci}</b></td><td class="center">${(q.p*100).toFixed(0)}% (${dL})</td><td class="center">${q.dayaBeda.toFixed(2)} (${vL})</td><td style="font-size:8.5pt; text-align:left;">${a}</td></tr>`;
+            }).join('')}</tbody></table>`;
 
-            // TABEL SOAL (thead dan tbody untuk repeat header di word)
-            let tableSoalHTML = `
-            <table class="compact-table">
-                <thead>
-                    <tr>
-                        <th>No</th><th>Kunci</th><th>Tingkat Kesukaran (P)</th><th>Daya Diskriminasi (D)</th><th>Diagnostik & Preskripsi Distraktor</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-            AppState.questions.forEach(q => {
-                let diffLabel = q.p > 0.7 ? 'Mudah' : (q.p >= 0.3 ? 'Sedang' : 'Sukar');
-                let validLabel = q.dayaBeda < 0.2 ? '<span class="text-red">Revisi</span>' : '<span class="text-green">Ideal</span>';
-                
-                let actionHtml = '';
-                if(q.p < 0.2) actionHtml += '<span class="badge badge-zonk">[Warning Zonking]</span> ';
-                if(q.miskonsepsi) actionHtml += `<span class="badge badge-mis">[Miskonsepsi di ${q.miskonsepsi.opt} - ${q.miskonsepsi.count} respons]</span> `;
-                if(q.pengecohKosong.length > 0) actionHtml += `<span class="badge badge-kosong">[Drop distraktor: ${q.pengecohKosong.join(', ')}]</span>`;
-                if(actionHtml === '') actionHtml = 'Utilitas Instrumen Seimbang & Baik';
+            let pS = sI.length > 0 || sZ.length > 0 ? `<b>1. Evaluasi & Revisi Bank Soal (Kepada Tim Kurikulum & Pembuat Soal):</b> Ditemukan ${sI.length} soal tidak valid dan ${sZ.length} soal berkategori <i>Zonking</i>. Instrumen tes terbukti memiliki kecacatan fungsi secara metodologis dalam mengukur kompetensi siswa. Tim penyusun tes <b>diwajibkan</b> membedah dan merombak total diksi stimulus maupun opsi pengecoh pada butir-butir soal tersebut sebelum diujikan pada tahun ajaran berikutnya, atau menghapusnya sama sekali dari <i>Item Bank</i> sekolah.` : `<b>1. Preservasi Bank Soal (Kepada Tim Kurikulum & Pembuat Soal):</b> Secara keseluruhan, validitas empiris instrumen ujian sudah sangat prima dengan koefisien reliabilitas yang memuaskan. Konstruksi bahasa dan pengecoh soal telah berfungsi memadai. Sangat disarankan untuk mematenkan (meregistrasi) instrumen ini sebagai tes terstandar (<i>standardized test</i>) internal pada Bank Soal sekolah yang dapat diujikan berulang pada angkatan berikutnya.`;
+            let pM = sM.length > 0 ? `<b>2. Pelurusan Miskonsepsi Tersistematis (Kepada Guru Mata Pelajaran):</b> Kehadiran ${sM.length} butir soal dengan distraktor/pengecoh yang sangat dominan menjadi bukti empiris adanya sebuah konsep fundamental yang salah namun secara massal diyakini kebenarannya oleh mayoritas siswa di kelas ini. Guru mapel yang bersangkutan <b>diminta memprioritaskan pelurusan</b> materi (<i>debiasing</i>) terkait indikator soal tersebut pada jam tatap muka pertama setelah ujian.` : `<b>2. Pemantapan Konsep Akademik (Kepada Guru Mata Pelajaran):</b> Tidak terdeteksi adanya miskonsepsi massal (kesesatan pemahaman kolektif) yang fatal. Peserta didik secara umum telah memproses esensi materi secara akurat. Guru dipersilakan melanjutkan ekspansi materi dan memberikan variasi studi kasus guna memperkaya literasi analitis peserta didik.`;
+            let pT = pt < 50 ? `<b>3. Strategi Intervensi & Remedial Ekstensif (Kebijakan Pengajaran):</b> Menyikapi tingkat ketuntasan agregat yang sangat defisit (${pt}%), pendekatan perbaikan secara individual dinilai membuang waktu dan tidak efisien. Guru pengampu diinstruksikan mendedikasikan waktu alokasi khusus guna melaksanakan <b>pengajaran ulang (<i>re-teaching</i>) secara klasikal massal</b>. Silakan fokus murni pada daftar <b>"Top 10 Materi Remedial Prioritas"</b> di atas sebagai acuan utama perbaikan sebelum memaksakan perpindahan kompetensi dasar.` : pt < 80 ? `<b>3. Optimalisasi Tutor Sebaya & Remedial Klinis (Kebijakan Pengajaran):</b> Dengan proporsi ketuntasan ${pt}%, metode pembelajaran kooperatif menjadi solusi manajerial paling efektif. Kami merekomendasikan pendayagunaan ${AppState.students.filter(s=>s.isTuntas).length} siswa yang telah melampaui KKM agar ditugaskan bertindak sebagai fasilitator (tutor sebaya) bagi rekan sejawatnya. Sementara itu, atensi khusus dan intervensi tatap muka dari guru dapat difokuskan eksklusif hanya kepada ${sRa + sTe} siswa yang memiliki rekam jejak "Keraguan" dan "Pseudo-guessing" tingkat tinggi.` : `<b>3. Akselerasi Silabus & Pengayaan Lanjutan (Kebijakan Pengajaran):</b> Tingkat ketuntasan tercapai dengan persentase sangat memuaskan (${pt}%). Alokasi waktu dan birokrasi untuk program remedial klasikal dapat dieliminasi. Guru pengampu diberikan keleluasaan (diskresi) untuk mengakselerasi proses penyelesaian silabus, serta dipersilakan menginjeksikan matriks penugasan pengayaan berbasis <i>High Order Thinking Skills (HOTS)</i> agar potensi kognitif dan nalar analitis kelompok superior dapat terekspansi secara maksimal.`;
+            
+            let kA = `<div class="box" style="border-top:3px solid #1e3a8a; border-bottom:3px solid #1e3a8a; background-color:#f0f9ff; padding:12px; margin-top:20px;"><h2 style="text-align:center; color:#1e3a8a; border:none; margin:0 0 10px 0; font-size:12pt;">KESIMPULAN MANAJERIAL & REKOMENDASI KEBIJAKAN SEKOLAH</h2><p style="text-align:justify; margin-bottom:8px;">Berdasarkan kompilasi dan kalkulasi silang atas matriks ketuntasan daya serap, perilaku diagnostik ujian, dan parameter validitas butir tes (<i>Item Analysis</i>), maka Tim Pengembang Kurikulum serta Pimpinan Sekolah mensyaratkan tindak lanjut implementasi kebijakan akademik di lingkup instansi sebagai berikut:</p><div style="text-align:justify; padding-left:0; margin:0; display:flex; flex-direction:column; gap:6px;"><p style="margin:0 0 8px 0;">${pS}</p><p style="margin:0 0 8px 0;">${pM}</p><p style="margin:0 0 0 0;">${pT}</p></div></div>`;
 
-                tableSoalHTML += `
-                <tr>
-                    <td class="center"><b>${q.id}</b></td>
-                    <td class="center"><b>${q.kunci}</b></td>
-                    <td class="center">${(q.p*100).toFixed(0)}% (${diffLabel})</td>
-                    <td class="center">${q.dayaBeda.toFixed(2)} (${validLabel})</td>
-                    <td style="font-size:8.5pt; text-align: left;">${actionHtml}</td>
-                </tr>`;
-            });
-            tableSoalHTML += `</tbody></table>`;
+            const hc = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Laporan Evaluasi</title><style>@page WordSection1 { size:595.3pt 841.9pt; margin:28.35pt; } div.WordSection1 { page:WordSection1; } body { font-family:'Arial',sans-serif; font-size:9pt; color:#111; line-height:1.15; } h1 { font-size:13pt; text-align:center; border-bottom:2px solid #2563eb; padding-bottom:3px; margin-bottom:8px; color:#1e3a8a;} h2 { font-size:10.5pt; margin-top:12px; margin-bottom:5px; background-color:#dbeafe; padding:4px 6px; border-left:4px solid #2563eb; color:#1e3a8a;} h3 { font-size:9.5pt; margin-top:8px; margin-bottom:3px; color:#374151;} p { margin-top:0; margin-bottom:4px; } .box { border:1px solid #cbd5e1; padding:6px; margin-bottom:8px; background-color:#f8fafc; border-radius:3px;} .alert-danger { border-left:3px solid #dc2626; background-color:#fef2f2; } .alert-warning { border-left:3px solid #d97706; background-color:#fffbeb; } table.compact-table { width:100%; border-collapse:collapse; margin-bottom:8px; margin-top:2px; } .compact-table th, .compact-table td { border:1px solid #94a3b8; padding:2px 4px; vertical-align:middle; font-size:8.5pt;} .compact-table th { font-weight:bold; background-color:#e2e8f0; color:#0f172a; text-align:center;} .center { text-align:center; } .text-green { color:#16a34a; font-weight:bold;} .text-red { color:#dc2626; font-weight:bold;} .text-orange { color:#d97706; font-weight:bold;} .badge { display:inline-block; padding:0.5px 3px; font-size:7.5pt;} .badge-zonk { color:#b91c1c; font-weight:bold;} .badge-mis { color:#b45309; font-weight:bold;} .badge-kosong { color:#475569; font-style:italic; }</style></head><body><div class="WordSection1"><h1>Laporan Resume Analitik Kognitif & Evaluasi Psikometrik</h1>${tId}<h2>A. ANALISIS PENYERAPAN MATERI (Klasikal / Kelas)</h2><div class="box">${hk}<table class="compact-table" style="margin-top:5px;"><thead><tr><th>Total Populasi (Peserta Didik)</th><th>Rata-rata Nilai (Tendensi Sentral)</th><th>Frekuensi Tuntas (<i>Mastery</i>)</th><th>Frekuensi Tidak Tuntas (Remedial)</th></tr></thead><tbody><tr><td class="center"><b>${AppState.students.length} Subjek</b></td><td class="center"><b>${av}</b></td><td class="center text-green">${AppState.students.filter(s=>s.isTuntas).length} Peserta Didik</td><td class="center text-red">${AppState.students.length - AppState.students.filter(s=>s.isTuntas).length} Peserta Didik</td></tr></tbody></table></div><h3>1. Laporan Diagnostik Kendala Kelas (Sistem Peringatan Dini / <i>Early-Warning</i>)</h3>${hm}<h3>2. Tabel Tabulasi Distribusi Frekuensi Keseluruhan</h3>${tD}<h3>3. Tabel Konversi Persentase Ketepatan Respon Berdasarkan Kompetensi Dasar / BAB</h3>${tB}<h2>B. PEMETAAN DIAGNOSTIK INDIVIDU PESERTA DIDIK</h2><div class="box">${hs}<hr style="border:0; border-top:1px dashed #cbd5e1; margin:6px 0;"><p style="text-align:left; margin:0 0 2px 0;"><b>Top 10 Materi Remedial Prioritas (<i>Learning Gaps Target</i>):</b></p>${hr}</div><h2>C. EVALUASI KUALITAS SOAL UJIAN (Analisis Butir Instrumen)</h2><div class="box">${hSo}${hP}</div><h3>Tabel Pembedahan Validitas Konstruk Per Butir Soal (<i>Item Analysis Table</i>)</h3>${tS}${kA}<br clear="all" /><div style="border-top:1px solid #ccc; margin-top:20px; padding-top:10px; font-size:8.5pt; color:#555; text-align:justify;"><b>Pernyataan Validitas Sistem:</b> Seluruh kalkulasi statistik (Tingkat Kesukaran, Daya Pembeda, Reliabilitas KR-20, dan Deteksi Miskonsepsi) dalam dokumen ini di-generate secara otomatis melalui algoritma pemrosesan data psikometrik. Hasil analisis dinyatakan <b>Valid dan Akurat</b>. Laporan ini sah digunakan sebagai dasar pengambilan keputusan akademis dan evaluasi kurikulum institusi.</div></div></body></html>`;
 
-            // CLOSING CONCLUSION DINAMIS & BERDIFERENSIASI
-            let poinSoal = "";
-            if (soalInvalid.length > 0 || soalZonk.length > 0) {
-                poinSoal = `<b>1. Evaluasi & Revisi Bank Soal (Kepada Tim Kurikulum & Pembuat Soal):</b> Ditemukan ${soalInvalid.length} soal tidak valid dan ${soalZonk.length} soal berkategori <i>Zonking</i>. Instrumen tes terbukti memiliki kecacatan fungsi secara metodologis dalam mengukur kompetensi siswa. Tim penyusun tes <b>diwajibkan</b> membedah dan merombak total diksi stimulus maupun opsi pengecoh pada butir-butir soal tersebut sebelum diujikan pada tahun ajaran berikutnya, atau menghapusnya sama sekali dari <i>Item Bank</i> sekolah.`;
-            } else {
-                poinSoal = `<b>1. Preservasi Bank Soal (Kepada Tim Kurikulum & Pembuat Soal):</b> Secara keseluruhan, validitas empiris instrumen ujian sudah sangat prima dengan koefisien reliabilitas yang memuaskan. Konstruksi bahasa dan pengecoh soal telah berfungsi memadai. Sangat disarankan untuk mematenkan (meregistrasi) instrumen ini sebagai tes terstandar (<i>standardized test</i>) internal pada Bank Soal sekolah yang dapat diujikan berulang pada angkatan berikutnya.`;
-            }
-
-            let poinMiskonsepsi = "";
-            if (soalMiskonsepsi.length > 0) {
-                poinMiskonsepsi = `<b>2. Pelurusan Miskonsepsi Tersistematis (Kepada Guru Mata Pelajaran):</b> Kehadiran ${soalMiskonsepsi.length} butir soal dengan distraktor/pengecoh yang sangat dominan menjadi bukti empiris adanya sebuah konsep fundamental yang salah namun secara massal diyakini kebenarannya oleh mayoritas siswa di kelas ini. Guru mapel yang bersangkutan <b>diminta memprioritaskan pelurusan</b> materi (<i>debiasing</i>) terkait indikator soal tersebut pada jam tatap muka pertama setelah ujian.`;
-            } else {
-                poinMiskonsepsi = `<b>2. Pemantapan Konsep Akademik (Kepada Guru Mata Pelajaran):</b> Tidak terdeteksi adanya miskonsepsi massal (kesesatan pemahaman kolektif) yang fatal. Peserta didik secara umum telah memproses esensi materi secara akurat. Guru dipersilakan melanjutkan ekspansi materi dan memberikan variasi studi kasus guna memperkaya literasi analitis peserta didik.`;
-            }
-
-            let poinTindakLanjut = "";
-            if (pctTuntas < 50) {
-                poinTindakLanjut = `<b>3. Strategi Intervensi & Remedial Ekstensif (Kebijakan Pengajaran):</b> Menyikapi tingkat ketuntasan agregat yang sangat defisit (${pctTuntas}%), pendekatan perbaikan secara individual dinilai membuang waktu dan tidak efisien. Guru pengampu diinstruksikan mendedikasikan waktu alokasi khusus guna melaksanakan <b>pengajaran ulang (<i>re-teaching</i>) secara klasikal massal</b>. Silakan fokus murni pada daftar <b>"Top 10 Materi Remedial Prioritas"</b> di atas sebagai acuan utama perbaikan sebelum memaksakan perpindahan kompetensi dasar.`;
-            } else if (pctTuntas < 80) {
-                poinTindakLanjut = `<b>3. Optimalisasi Tutor Sebaya & Remedial Klinis (Kebijakan Pengajaran):</b> Dengan proporsi ketuntasan ${pctTuntas}%, metode pembelajaran kooperatif menjadi solusi manajerial paling efektif. Kami merekomendasikan pendayagunaan ${AppState.students.filter(s=>s.isTuntas).length} siswa yang telah melampaui KKM agar ditugaskan bertindak sebagai fasilitator (tutor sebaya) bagi rekan sejawatnya. Sementara itu, atensi khusus dan intervensi tatap muka dari guru dapat difokuskan eksklusif hanya kepada ${siswaRagu + siswaTebak} siswa yang memiliki rekam jejak "Keraguan" dan "Pseudo-guessing" tingkat tinggi.`;
-            } else {
-                poinTindakLanjut = `<b>3. Akselerasi Silabus & Pengayaan Lanjutan (Kebijakan Pengajaran):</b> Tingkat ketuntasan tercapai dengan persentase sangat memuaskan (${pctTuntas}%). Alokasi waktu dan birokrasi untuk program remedial klasikal dapat dieliminasi. Guru pengampu diberikan keleluasaan (diskresi) untuk mengakselerasi proses penyelesaian silabus, serta dipersilakan menginjeksikan matriks penugasan pengayaan berbasis <i>High Order Thinking Skills (HOTS)</i> agar potensi kognitif dan nalar analitis kelompok superior dapat terekspansi secara maksimal.`;
-            }
-
-            let kesimpulanAkhir = `
-                <div class="box" style="border-top: 3px solid #1e3a8a; border-bottom: 3px solid #1e3a8a; background-color: #f0f9ff; padding: 12px; margin-top: 20px;">
-                    <h2 style="text-align:center; color: #1e3a8a; border:none; margin: 0 0 10px 0; font-size:12pt;">KESIMPULAN MANAJERIAL & REKOMENDASI KEBIJAKAN SEKOLAH</h2>
-                    <p style="text-align: justify; margin-bottom:8px;">Berdasarkan kompilasi dan kalkulasi silang atas matriks ketuntasan daya serap, perilaku diagnostik ujian, dan parameter validitas butir tes (<i>Item Analysis</i>), maka Tim Pengembang Kurikulum serta Pimpinan Sekolah mensyaratkan tindak lanjut implementasi kebijakan akademik di lingkup instansi sebagai berikut:</p>
-                    <div style="text-align: justify; padding-left: 0; margin: 0; display:flex; flex-direction:column; gap:6px;">
-                        <p style="margin:0 0 8px 0;">${poinSoal}</p>
-                        <p style="margin:0 0 8px 0;">${poinMiskonsepsi}</p>
-                        <p style="margin:0 0 0 0;">${poinTindakLanjut}</p>
-                    </div>
-                </div>
-            `;
-
-            // STRUKTUR HTML UNTUK MS WORD
-            const htmlContent = `
-                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-                <head>
-                <meta charset='utf-8'><title>Laporan Evaluasi</title>
-                <style>
-                    @page WordSection1 { 
-                        size: 595.3pt 841.9pt; 
-                        margin: 28.35pt; /* 1 cm margin */
-                    }
-                    div.WordSection1 { page: WordSection1; }
-                    body { font-family: 'Arial', sans-serif; font-size: 9pt; color: #111; line-height: 1.15; }
-                    h1 { font-size: 13pt; text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 3px; margin-bottom: 8px; color: #1e3a8a;}
-                    h2 { font-size: 10.5pt; margin-top: 12px; margin-bottom: 5px; background-color: #dbeafe; padding: 4px 6px; border-left: 4px solid #2563eb; color: #1e3a8a;}
-                    h3 { font-size: 9.5pt; margin-top: 8px; margin-bottom: 3px; color: #374151;}
-                    p { margin-top: 0; margin-bottom: 4px; }
-                    .box { border: 1px solid #cbd5e1; padding: 6px; margin-bottom: 8px; background-color: #f8fafc; border-radius: 3px;}
-                    .alert-danger { border-left: 3px solid #dc2626; background-color: #fef2f2; }
-                    .alert-warning { border-left: 3px solid #d97706; background-color: #fffbeb; }
-                    table.compact-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; margin-top: 2px; }
-                    .compact-table th, .compact-table td { border: 1px solid #94a3b8; padding: 2px 4px; vertical-align: middle; font-size: 8.5pt;}
-                    .compact-table th { font-weight: bold; background-color: #e2e8f0; color: #0f172a; text-align: center;}
-                    .center { text-align: center; }
-                    .text-green { color: #16a34a; font-weight: bold;}
-                    .text-red { color: #dc2626; font-weight: bold;}
-                    .text-orange { color: #d97706; font-weight: bold;}
-                    .badge { display: inline-block; padding: 0.5px 3px; font-size: 7.5pt;}
-                    .badge-zonk { color: #b91c1c; font-weight:bold;}
-                    .badge-mis { color: #b45309; font-weight:bold;}
-                    .badge-kosong { color: #475569; font-style: italic; }
-                </style>
-                </head>
-                <body>
-                <div class="WordSection1">
-                    
-                    <h1>Laporan Resume Analitik Kognitif & Evaluasi Psikometrik</h1>
-                    
-                    ${tableIdentitasHTML}
-
-                    <h2>A. ANALISIS PENYERAPAN MATERI (Klasikal / Kelas)</h2>
-                    <div class="box">
-                        ${htmlKlasikalText}
-                        <table class="compact-table" style="margin-top:5px;">
-                            <thead>
-                                <tr>
-                                    <th>Total Populasi (Peserta Didik)</th>
-                                    <th>Rata-rata Nilai (Tendensi Sentral)</th>
-                                    <th>Frekuensi Tuntas (<i>Mastery</i>)</th>
-                                    <th>Frekuensi Tidak Tuntas (Remedial)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td class="center"><b>${AppState.students.length} Subjek</b></td>
-                                    <td class="center"><b>${avgClass}</b></td>
-                                    <td class="center text-green">${AppState.students.filter(s=>s.isTuntas).length} Peserta Didik</td>
-                                    <td class="center text-red">${AppState.students.length - AppState.students.filter(s=>s.isTuntas).length} Peserta Didik</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <h3>1. Laporan Diagnostik Kendala Kelas (Sistem Peringatan Dini / <i>Early-Warning</i>)</h3>
-                    ${htmlMiskonsepsi}
-
-                    <h3>2. Tabel Tabulasi Distribusi Frekuensi Keseluruhan</h3>
-                    ${tableDistribusiHTML}
-
-                    <h3>3. Tabel Konversi Persentase Ketepatan Respon Berdasarkan Kompetensi Dasar / BAB</h3>
-                    ${tableBabHTML}
-
-                    <h2>B. PEMETAAN DIAGNOSTIK INDIVIDU PESERTA DIDIK</h2>
-                    <div class="box">
-                        ${htmlSiswaText}
-                        <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 6px 0;">
-                        <p style="text-align: left; margin: 0 0 2px 0;"><b>Top 10 Materi Remedial Prioritas (<i>Learning Gaps Target</i>):</b></p>
-                        ${htmlRekomendasiSoal}
-                    </div>
-
-                    <h2>C. EVALUASI KUALITAS SOAL UJIAN (Analisis Butir Instrumen)</h2>
-                    <div class="box">
-                        ${htmlSoalText}
-                        ${htmlRekomendasiPemeliharaan}
-                    </div>
-
-                    <h3>Tabel Pembedahan Validitas Konstruk Per Butir Soal (<i>Item Analysis Table</i>)</h3>
-                    ${tableSoalHTML}
-
-                    ${kesimpulanAkhir}
-                    
-                    <br clear="all" />
-                    <div style="border-top: 1px solid #ccc; margin-top: 20px; padding-top: 10px; font-size: 8.5pt; color: #555; text-align: justify;">
-                        <b>Pernyataan Validitas Sistem:</b> Seluruh kalkulasi statistik (Tingkat Kesukaran, Daya Pembeda, Reliabilitas KR-20, dan Deteksi Miskonsepsi) dalam dokumen ini dihasilkan secara otomatis melalui algoritma pemrosesan data psikometrik mutakhir. Hasil analisis dinyatakan <b>Valid dan Akurat</b> merepresentasikan data respon peserta didik pada lembar jawaban yang diunggah. Laporan ini sah digunakan sebagai dasar pengambilan keputusan akademis dan manajerial pendidikan.
-                    </div>
-
-                </div>
-                </body>
-                </html>
-            `;
-
-            // Generate Filename: Kelas Mapel Nama Guru
-            let baseFileName = `${AppState.gradeLevel} ${AppState.subject} ${AppState.teacherName}`;
-            // Jika kosong/default, gunakan nama default
-            if (baseFileName.trim() === '- - -' || baseFileName.trim() === '') {
-                baseFileName = `Laporan_Analisis_Akademik_${new Date().toISOString().slice(0,10)}`;
-            } else {
-                // Membersihkan karakter yang dilarang pada nama file Windows
-                baseFileName = baseFileName.replace(/[\\/:*?"<>|]/g, '').trim();
-            }
-
-            const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `${baseFileName}.doc`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            let bFn = `${AppState.gradeLevel} ${AppState.subject} ${AppState.examType} ${AppState.teacherName} ${new Date().toISOString().slice(0,10)}`;
+            if (bFn.trim() === '- - - -' || bFn.trim() === '') bFn = `Analisis_Soal_${new Date().toISOString().slice(0,10)}`; else bFn = `Analisis Soal_${bFn.replace(/[\\/:*?"<>|]/g, '').trim()}`;
+            const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob(['\ufeff', hc], { type: 'application/msword' })); link.download = `${bFn}.doc`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
-
     </script>
 </body>
 </html>
