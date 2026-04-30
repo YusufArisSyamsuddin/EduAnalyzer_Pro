@@ -165,14 +165,14 @@
                                 <h3 class="text-sm sm:text-lg font-bold text-gray-800">Distribusi Frekuensi</h3>
                                 <button onclick="downloadChart('chartDistribusi', 'Grafik_Distribusi')" class="text-[10px] sm:text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-download"></i> Unduh</button>
                             </div>
-                            <p class="text-[10px] sm:text-xs text-gray-500 mt-1 mb-4">*Sumbu X = Rentang Skor (Jumlah Benar)</p>
+                            <p class="text-[10px] sm:text-xs text-gray-500 mt-1 mb-4">*Sumbu X = Rentang Skor</p>
                             <div class="relative w-full flex-grow min-h-[220px]"><canvas id="chartDistribusi"></canvas></div>
                         </div>
                     </div>
                     <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-200 mt-8 mb-4 border-t-4 border-t-indigo-500">
                         <div class="flex flex-col mb-4">
                             <h3 class="text-lg sm:text-xl font-bold text-gray-800"><i class="fas fa-layer-group text-indigo-500 mr-2"></i> Analisis Pemetaan Daya Serap per KD/BAB</h3>
-                            <p class="text-xs sm:text-sm text-gray-600 mt-1">Gunakan panel ini untuk mengelompokkan butir soal berdasar Kompetensi Dasar (KD) guna memetakan defisit pemahaman spesifik.</p>
+                            <p class="text-xs sm:text-sm text-gray-600 mt-1">Gunakan panel ini untuk memetakan defisit pemahaman spesifik per Kompetensi Dasar.</p>
                         </div>
                         <div class="bg-indigo-50 p-3 sm:p-5 rounded-xl border border-indigo-100 mb-6">
                             <p class="text-xs sm:text-sm font-semibold text-indigo-900 mb-3"><i class="fas fa-edit"></i> Matriks Pemetaan Soal:</p>
@@ -199,7 +199,7 @@
                         <div id="summary-siswa-text" class="text-xs sm:text-sm text-gray-700 space-y-2 mb-4 leading-relaxed text-justify"></div>
                         <div class="bg-red-50 p-3 sm:p-4 rounded-lg border border-red-100">
                             <h4 class="text-xs sm:text-sm font-bold text-red-800 mb-1"><i class="fas fa-exclamation-circle"></i> Rekomendasi Modul Remedial Prioritas (Top 10 Learning Gaps)</h4>
-                            <p class="text-[10px] sm:text-xs text-red-700 mb-3">Distribusi defisit kompetensi tertinggi ditemukan pada butir-butir asesmen berikut. Instuksikan pendidik untuk merancang ulang pendekatan pedagogis:</p>
+                            <p class="text-[10px] sm:text-xs text-red-700 mb-3">Distribusi defisit kompetensi tertinggi ditemukan pada butir-butir asesmen berikut:</p>
                             <div id="rekomendasi-remedial-container" class="flex flex-wrap gap-2"></div>
                         </div>
                     </div>
@@ -210,12 +210,12 @@
                         </div>
                         <div class="bg-blue-50 p-3 rounded-lg mb-4 text-[10px] sm:text-xs text-blue-800 flex gap-2 items-start">
                             <i class="fas fa-info-circle mt-0.5"></i>
-                            <div>
+                            <div class="leading-relaxed">
                                 <strong>Kamus Indikator Klinis:</strong><br>
-                                <span class="bg-yellow-100 text-yellow-800 px-1 rounded">Keraguan Tingkat Tinggi</span> = Rasio pengosongan jawaban &gt; 10% | 
-                                <span class="bg-red-100 text-red-800 px-1 rounded">Anomali Input</span> = Terdeteksi pengisian ganda (*) | 
-                                <span class="bg-purple-100 text-purple-800 px-1 rounded">Guttman Misfit (Anomali Skalogram)</span> = Akurasi rendah di soal termudah, namun akurasi tinggi di soal tersulit (Anomali IRT). <br>
-                                <span class="bg-gray-800 text-white px-1 rounded mt-1 inline-block">Indikasi Kolusi (Mencontek)</span> = Kedekatan radius tempat duduk (Grid 4x4) + Kesamaan Error (WIC Index) / Kesamaan Soal Sulit (Harpp-Hogan Index) ekstrem.
+                                <span class="bg-yellow-100 text-yellow-800 px-1 rounded">Keraguan Tingkat Tinggi</span> = Rasio pengosongan &gt; 10% | 
+                                <span class="bg-red-100 text-red-800 px-1 rounded">Anomali Input</span> = Pengisian ganda (*) | 
+                                <span class="bg-purple-100 text-purple-800 px-1 rounded">Guttman Misfit (Anomali IRT)</span> = Akurasi rendah di soal termudah, namun akurasi tinggi di soal tersulit.<br>
+                                <span class="bg-gray-800 text-white px-1 rounded mt-1 inline-block">Indikasi Kolusi (Mencontek)</span> = Kedekatan spasial (Grid 4x4) + Kesamaan Error (WIC) / Kesamaan Jawaban Sukar (Harpp-Hogan).
                             </div>
                         </div>
                         <div class="custom-scroll overflow-x-auto border rounded-lg max-h-[500px] w-full">
@@ -245,7 +245,6 @@
                     </div>
                 </div>
 
-                <!-- TAB B: ANALISIS KUALITAS SOAL -->
                 <div id="tab-soal" class="hidden space-y-6">
                     <div class="bg-white p-4 sm:p-5 rounded-xl shadow-sm border-l-4 border-l-orange-500 border-y border-r border-gray-100">
                         <h3 class="font-bold text-gray-800 mb-2"><i class="fas fa-file-signature text-orange-500 mr-2"></i>Evaluasi Psikometrik & Standardisasi Instrumen Ujian</h3>
@@ -274,7 +273,7 @@
                         <div class="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 flex flex-col w-full">
                             <h3 class="text-base sm:text-lg font-bold text-gray-800 mb-3">Tabel Analisis Karakteristik Butir Soal</h3>
                             <div class="bg-blue-50 text-blue-700 text-[10px] sm:text-xs p-2 rounded mb-3 border border-blue-100 italic">
-                                <i class="fas fa-edit"></i> <b>Catatan:</b> Jika kunci jawaban otomatis kurang akurat, Anda dapat mengeklik dan mengubah huruf di kolom <b>"Kunci"</b> secara manual. Sistem akan seketika mengkalkulasi ulang data Miskonsepsi, Distraktor, dan Nilai Siswa.
+                                <i class="fas fa-edit"></i> <b>Catatan:</b> Jika kunci otomatis keliru, ubah huruf di kolom <b>"Kunci"</b> secara manual. Sistem akan otomatis me-regrade (mengkalkulasi ulang) seluruh nilai siswa.
                             </div>
                             <div class="custom-scroll overflow-x-auto border rounded-lg flex-grow max-h-[600px] w-full">
                                 <table class="min-w-full divide-y divide-gray-200">
@@ -298,7 +297,6 @@
         </div>
     </main>
 
-    <!-- Footer Profil (Tampil di UI Aplikasi Saja) -->
     <footer class="bg-white border-t border-gray-200 py-4 flex-shrink-0 relative z-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs sm:text-sm text-gray-500">
             <p class="mb-1">Dikembangkan oleh: <b>YUSUF ARIS SYAMSUDDIN</b></p>
@@ -506,6 +504,11 @@
                 }
             }
 
+            AppState.questions.forEach(q => {
+                q.correctCount = 0;
+                q.choices = {'A':0,'B':0,'C':0,'D':0,'E':0,'-':0,'*':0, 'Other':0};
+            });
+
             if (!isRegrade) {
                 AppState.students.forEach(s => {
                     for(let i=0; i < maxQ; i++) {
@@ -523,9 +526,9 @@
                 });
             }
 
-            if (isRegrade) {
-                AppState.questions.forEach(q => q.correctCount = 0);
-                AppState.students.forEach(s => {
+            // Scoring and Data Binding
+            AppState.students.forEach(s => {
+                if (isRegrade) {
                     if (s.jawaban && s.jawaban.trim() !== '') {
                         s.benar = 0; s.salah = 0; s.kosong = 0;
                         s.detailBenar = []; s.detailSalah = [];
@@ -536,35 +539,28 @@
                                 s.kosong++;
                             } else if (ans === '*' || ans === 'X') {
                                 s.salah++; s.detailSalah.push(q.id);
-                            } else if (q.kunci && q.kunci !== '?') {
-                                if (ans === q.kunci) {
-                                    s.benar++; s.detailBenar.push(q.id); q.correctCount++;
-                                } else {
-                                    s.salah++; s.detailSalah.push(q.id);
-                                }
+                            } else if (q.kunci !== '?') {
+                                if (ans === q.kunci) { s.benar++; s.detailBenar.push(q.id); } 
+                                else { s.salah++; s.detailSalah.push(q.id); }
                             } else {
                                 s.salah++; s.detailSalah.push(q.id);
                             }
+                            
+                            // Re-tally choices for regrade accuracy
+                            if(AppState.questions[i].choices[ans] !== undefined) AppState.questions[i].choices[ans]++;
+                            else AppState.questions[i].choices['Other']++;
                         }
-                    } else {
-                        s.detailBenar.forEach(qNum => {
-                            const q = AppState.questions.find(x => x.id === qNum);
-                            if (q) q.correctCount++;
-                        });
                     }
-                    s.score = (s.benar / maxQ) * 100;
-                    s.isTuntas = s.score >= AppState.kkm;
+                }
+                
+                s.detailBenar.forEach(qNum => {
+                    const q = AppState.questions.find(x => x.id === qNum);
+                    if (q) q.correctCount++;
                 });
-            } else {
-                AppState.students.forEach(s => {
-                    s.score = (s.benar / maxQ) * 100;
-                    s.isTuntas = s.score >= AppState.kkm;
-                    s.detailBenar.forEach(qNum => {
-                        const q = AppState.questions.find(x => x.id === qNum);
-                        if (q) q.correctCount++;
-                    });
-                });
-            }
+
+                s.score = (s.benar / maxQ) * 100;
+                s.isTuntas = s.score >= AppState.kkm;
+            });
 
             const t1 = Math.floor(maxQ * 0.2), t2 = Math.floor(maxQ * 0.4), t3 = Math.floor(maxQ * 0.6), t4 = Math.floor(maxQ * 0.8);
             AppState.distLabels = [`0 - ${t1}`, `${t1 + 1} - ${t2}`, `${t2 + 1} - ${t3}`, `${t3 + 1} - ${t4}`, `${t4 + 1} - ${maxQ}`];
@@ -604,7 +600,7 @@
 
                 let upperCorrect = upperGroup.filter(s => s.detailBenar.includes(q.id)).length;
                 let lowerCorrect = lowerGroup.filter(s => s.detailBenar.includes(q.id)).length;
-                q.dayaBeda = (upperCorrect - lowerCorrect) / n30;
+                q.dayaBeda = n30 > 0 ? (upperCorrect - lowerCorrect) / n30 : 0;
                 
                 q.pengecohKosong = [];
                 q.miskonsepsi = null;
@@ -633,16 +629,14 @@
                 
                 let easyCorrect = s1.detailBenar.filter(x => easiestQs.includes(x)).length;
                 let hardCorrect = s1.detailBenar.filter(x => hardestQs.includes(x)).length;
-                let easyRate = easyCorrect / qN25;
-                let hardRate = hardCorrect / qN25;
+                let easyRate = qN25 > 0 ? easyCorrect / qN25 : 0;
+                let hardRate = qN25 > 0 ? hardCorrect / qN25 : 0;
                 
                 s1.isTebakan = (easyRate <= 0.5 && hardRate >= 0.5);
                 s1.isMencontek = false;
 
                 if (s1.salah >= 2 || s1.benar > 0) {
-                    let maxWIC = 0;
-                    let maxIdenticalRate = 0;
-                    let maxHarppHogan = 0;
+                    let maxWIC = 0, maxIdenticalRate = 0, maxHarppHogan = 0;
 
                     AppState.students.forEach(s2 => {
                         if (s1.no !== s2.no && s1.kelas === s2.kelas) {
@@ -651,15 +645,11 @@
                             let isAdjacent = Math.abs(r1 - r2) <= 1 && Math.abs(c1 - c2) <= 1;
 
                             if (isAdjacent) {
-                                let wicCount = 0;
-                                let identicalCount = 0;
-                                let answeredQuestions = 0;
-                                let hardIdenticalCorrect = 0;
+                                let wicCount = 0, identicalCount = 0, answeredQuestions = 0, hardIdenticalCorrect = 0;
 
                                 for(let i=0; i<AppState.totalQuestions; i++) {
                                     const qId = i + 1;
-                                    const ans1 = s1.jawaban.charAt(i);
-                                    const ans2 = s2.jawaban.charAt(i);
+                                    const ans1 = s1.jawaban.charAt(i), ans2 = s2.jawaban.charAt(i);
                                     
                                     if(ans1 && ans2 && ans1 !== '-' && ans1 !== ' ') {
                                         answeredQuestions++;
@@ -697,7 +687,6 @@
             }
 
             AppState.students.sort((a, b) => a.no - b.no);
-            
             renderBabInputs(); 
         }
 
@@ -708,7 +697,6 @@
                 q.kunci = newKunci;
                 analyzeData(true); 
                 saveState();
-                renderQuestionTable();
                 updateUI();
                 if(chartBabInst) applyBabAnalysis(false);
             }
@@ -1131,7 +1119,7 @@
             if (pt < 50) {
                 poinTindakLanjut = `<b>3. Strategi Intervensi & Remedial Ekstensif (Kebijakan Pengajaran):</b> Menyikapi tingkat ketuntasan agregat yang sangat defisit (${pt}%), pendekatan perbaikan secara individual dinilai membuang waktu dan tidak efisien. Guru pengampu diinstruksikan mendedikasikan waktu alokasi khusus guna melaksanakan <b>pengajaran ulang (<i>re-teaching</i>) secara klasikal massal</b>. Silakan fokus murni pada daftar <b>"Top 10 Materi Remedial Prioritas"</b> di atas sebagai acuan utama perbaikan sebelum memaksakan perpindahan kompetensi dasar.`;
             } else if (pt < 80) {
-                poinTindakLanjut = `<b>3. Optimalisasi Tutor Sebaya & Remedial Klinis (Kebijakan Pengajaran):</b> Dengan proporsi ketuntasan ${pt}%, metode pembelajaran kooperatif menjadi solusi manajerial paling efektif. Kami merekomendasikan pendayagunaan ${AppState.students.filter(s=>s.isTuntas).length} siswa yang telah melampaui KKM agar ditugaskan bertindak sebagai fasilitator (tutor sebaya) bagi rekan sejawatnya. Sementara itu, atensi khusus dan intervensi tatap muka dari guru dapat difokuskan eksklusif hanya kepada siswa yang memiliki rekam jejak "Keraguan" dan "Guttman Misfit" tingkat tinggi.`;
+                poinTindakLanjut = `<b>3. Optimalisasi Tutor Sebaya & Remedial Klinis (Kebijakan Pengajaran):</b> Dengan proporsi ketuntasan ${pt}%, metode pembelajaran kooperatif menjadi solusi manajerial paling efektif. Kami merekomendasikan pendayagunaan ${AppState.students.filter(s=>s.isTuntas).length} siswa yang telah melampaui KKM agar ditugaskan bertindak sebagai fasilitator (tutor sebaya) bagi rekan sejawatnya. Sementara itu, atensi khusus dan intervensi tatap muka dari guru dapat difokuskan eksklusif hanya kepada siswa yang memiliki rekam jejak "Keraguan" dan anomali pola jawaban tingkat tinggi.`;
             } else {
                 poinTindakLanjut = `<b>3. Akselerasi Silabus & Pengayaan Lanjutan (Kebijakan Pengajaran):</b> Tingkat ketuntasan tercapai dengan persentase sangat memuaskan (${pt}%). Alokasi waktu dan birokrasi untuk program remedial klasikal dapat dieliminasi. Guru pengampu diberikan keleluasaan (diskresi) untuk mengakselerasi proses penyelesaian silabus, serta dipersilakan menginjeksikan matriks penugasan pengayaan berbasis <i>High Order Thinking Skills (HOTS)</i> agar potensi kognitif dan nalar analitis kelompok superior dapat terekspansi secara maksimal.`;
             }
