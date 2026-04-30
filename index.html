@@ -84,7 +84,21 @@
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Mata Pelajaran</label>
-                            <input type="text" id="input-mapel" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Cth: Matematika / IPA">
+                            <select id="input-mapel" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="">-- Pilih Mapel --</option>
+                                <option value="Pendidikan Agama">Pendidikan Agama</option>
+                                <option value="PPKn">PPKn</option>
+                                <option value="Bahasa Indonesia">Bahasa Indonesia</option>
+                                <option value="Matematika">Matematika</option>
+                                <option value="Ilmu Pengetahuan Alam (IPA)">IPA</option>
+                                <option value="Ilmu Pengetahuan Sosial (IPS)">IPS</option>
+                                <option value="Bahasa Inggris">Bahasa Inggris</option>
+                                <option value="Seni Budaya">Seni Budaya</option>
+                                <option value="PJOK">PJOK</option>
+                                <option value="Prakarya / Informatika">Prakarya / Informatika</option>
+                                <option value="Muatan Lokal">Muatan Lokal</option>
+                                <option value="Lainnya">Lainnya</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Jenis Ulangan</label>
@@ -92,7 +106,14 @@
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Kelas / Fase</label>
-                            <input type="text" id="input-kelas-guru" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Cth: Kelas 8 / Fase D">
+                            <select id="input-kelas-guru" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option value="">-- Pilih Kelas --</option>
+                                <option value="Kelas 7">Kelas 7</option>
+                                <option value="Kelas 8">Kelas 8</option>
+                                <option value="Kelas 9">Kelas 9</option>
+                                <option value="Fase D">Fase D</option>
+                                <option value="Semua Kelas">Semua Kelas</option>
+                            </select>
                         </div>
                     </div>
                     
@@ -189,6 +210,7 @@
                             </div>
                             <p class="text-center text-[10px] sm:text-xs text-gray-500 mb-4">*Grafik Hijau (Serapan Kompetensi Terpenuhi), Grafik Merah (Defisit Kompetensi/Perlu Pengajaran Ulang).</p>
                             <div class="relative w-full h-[300px] sm:h-[350px]"><canvas id="chartBab"></canvas></div>
+                            <div id="bab-recommendation-container" class="mt-4"></div>
                         </div>
                     </div>
                 </div>
@@ -769,6 +791,25 @@
             });
             
             document.getElementById('bab-chart-wrapper').classList.remove('hidden');
+            
+            let worstBabs = [];
+            AppState.babLabels.forEach((lbl, i) => {
+                let bnr = parseFloat(AppState.babDataBenar[i]);
+                if (bnr < AppState.kkm) worstBabs.push({name: lbl, score: bnr});
+            });
+            worstBabs.sort((a,b) => a.score - b.score);
+            
+            let recUI = '';
+            if (AppState.babLabels.length > 0) {
+                if (worstBabs.length > 0) {
+                    let textList = worstBabs.map(w => `<b>${w.name}</b> (${w.score}%)`).join(', ');
+                    recUI = `<div class="bg-red-50 p-3 sm:p-4 rounded-lg border border-red-200 text-xs sm:text-sm text-red-800"><p><b><i class="fas fa-exclamation-triangle mr-1"></i> Rekomendasi Tindak Lanjut Topik/Kompetensi:</b> Ditemukan defisit pemahaman klasikal. Sangat direkomendasikan untuk melakukan <b>pengajaran ulang (<i>re-teaching</i>) atau memberikan penekanan khusus</b> pada: ${textList}. Topik-topik tersebut berada di bawah ambang batas ketuntasan klasikal yang diharapkan.</p></div>`;
+                } else {
+                    recUI = `<div class="bg-green-50 p-3 sm:p-4 rounded-lg border border-green-200 text-xs sm:text-sm text-green-800"><p><b><i class="fas fa-check-circle mr-1"></i> Rekomendasi Tindak Lanjut Topik/Kompetensi:</b> Seluruh Topik/Kompetensi yang dipetakan telah berhasil diserap dengan baik (melampaui batas KKM). Pendekatan instruksional dapat dilanjutkan ke materi selanjutnya tanpa perlu pengulangan mendasar.</p></div>`;
+                }
+            }
+            document.getElementById('bab-recommendation-container').innerHTML = recUI;
+
             if (draw) drawBabChart();
             saveState();
         }
@@ -1042,6 +1083,23 @@
             let tD = `<table class="compact-table"><thead><tr><th>Rentang Frekuensi Jawaban Benar</th><th>Jumlah Probandus (Peserta Didik)</th></tr></thead><tbody>${AppState.distLabels.map((l,i)=>`<tr><td class="center">${l}</td><td class="center"><b>${AppState.distData[i]}</b></td></tr>`).join('')}</tbody></table>`;
             let tB = AppState.babLabels.length > 0 ? `<table class="compact-table"><thead><tr><th>Pemetaan Kompetensi / Topik Dasar</th><th>Persentase Ketercapaian (Benar)</th><th>Persentase Defisit (Salah)</th></tr></thead><tbody>${AppState.babLabels.map((l,i)=>`<tr><td><b>${l}</b></td><td class="center text-green">${AppState.babDataBenar[i]}%</td><td class="center text-red">${AppState.babDataSalah[i]}%</td></tr>`).join('')}</tbody></table>` : `<p style="margin:0; font-style:italic;">Konfigurasi agregasi per kompetensi dasar (BAB) belum diinisialisasi dalam kerangka aplikasi.</p>`;
 
+            let tBRec = '';
+            if (AppState.babLabels.length > 0) {
+                let worstBabs = [];
+                AppState.babLabels.forEach((lbl, i) => {
+                    let bnr = parseFloat(AppState.babDataBenar[i]);
+                    if (bnr < AppState.kkm) worstBabs.push({name: lbl, score: bnr});
+                });
+                worstBabs.sort((a,b) => a.score - b.score);
+                
+                if (worstBabs.length > 0) {
+                    let textList = worstBabs.map(w => `<b>${w.name}</b> (${w.score}%)`).join(', ');
+                    tBRec = `<div class="box alert-danger" style="margin-top: 5px;"><b class="text-red">Rekomendasi Pemetaan Kompetensi:</b><br>Ditemukan defisit pemahaman klasikal. Sangat direkomendasikan untuk melakukan <b>pengajaran ulang (<i>re-teaching</i>) atau memberikan penekanan khusus</b> pada: ${textList}. Topik/Kompetensi tersebut berada di bawah ambang batas ketuntasan minimum.</div>`;
+                } else {
+                    tBRec = `<div class="box" style="margin-top: 5px;"><b class="text-green">Rekomendasi Pemetaan Kompetensi:</b><br>Seluruh Topik/Kompetensi telah berhasil diserap dengan baik oleh peserta didik (melampaui KKM). Pendekatan instruksional dapat dilanjutkan ke materi selanjutnya atau diberikan program pengayaan lanjutan.</div>`;
+                }
+            }
+
             const sRa = AppState.students.filter(s=>s.raguRagu).length, sTe = AppState.students.filter(s=>s.isTebakan).length, sEr = AppState.students.filter(s=>s.jawabanGanda > 0).length, sCo = AppState.students.filter(s=>s.isMencontek).length;
             let hs = `<p style="text-align:justify; margin:0 0 5px 0;"><b>Deskripsi Psikologis Perilaku Asesmen Individu:</b> Terdeteksi fenomena <b>${sRa} responden</b> yang mendemonstrasikan keraguan kognitif parah (tingkat peninggalan/<i>omission</i> jawaban tak rasional), <b>${sTe} responden</b> mengalami anomali Skalogram <i>Guttman Misfit</i> (berhasil menjawab soal sukar namun salah pada soal dasar/mudah), <b>${sEr} responden</b> melakukan kecerobohan birokratis pada media isian (error pengisian ganda), dan terdiagnosis kuat <b>${sCo} responden</b> terindikasi melakukan kolusi/mencontek berdasarkan triangulasi matriks spasial (radius kedekatan tempat duduk Grid 4x4) yang divalidasi silang menggunakan <i>Wrong-In-Common (WIC) Index</i> dan <i>Harpp-Hogan Index</i> (anomali kecocokan jawaban pada kuartil soal tersulit).</p>`;
             
@@ -1202,6 +1260,7 @@
 
                     <h3>3. Tabel Konversi Persentase Ketepatan Respon Berdasarkan Kompetensi Dasar / BAB</h3>
                     ${tB}
+                    ${tBRec}
 
                     <h2>B. PEMETAAN DIAGNOSTIK INDIVIDU PESERTA DIDIK</h2>
                     <div class="box">
