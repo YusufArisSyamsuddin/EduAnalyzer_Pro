@@ -21,6 +21,9 @@
         .insight-card { border-left: 4px solid; }
         .insight-danger { border-color: #ef4444; background: #fef2f2; }
         .insight-warning { border-color: #f59e0b; background: #fffbeb; }
+        .analysis-table { width: max-content; min-width: 100%; table-layout: auto; }
+        .analysis-table th, .analysis-table td { white-space: nowrap; }
+        .analysis-table .wide-text { min-width: max-content; white-space: nowrap; }
     </style>
 </head>
 <body class="text-gray-800 antialiased h-screen flex flex-col overflow-hidden">
@@ -52,7 +55,7 @@
         </div>
     </header>
 
-    <main class="flex-grow overflow-auto custom-scroll bg-slate-50">
+    <main class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scroll bg-slate-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
             <div id="view-upload" class="flex flex-col items-center justify-center mt-4 sm:mt-10">
                 <div class="bg-white p-6 sm:p-10 rounded-2xl shadow-xl max-w-3xl w-full text-center border border-gray-100">
@@ -235,8 +238,8 @@
                         <h3 class="font-bold text-gray-800 mb-2"><i class="fas fa-user-check text-purple-500 mr-2"></i>Diagnosis Profil Kognitif dan Perilaku Peserta Didik</h3>
                         <div id="summary-siswa-text" class="text-xs sm:text-sm text-gray-700 space-y-2 mb-4 leading-relaxed text-justify"></div>
                         <div class="bg-red-50 p-3 sm:p-4 rounded-lg border border-red-100">
-                            <h4 class="text-xs sm:text-sm font-bold text-red-800 mb-1"><i class="fas fa-exclamation-circle"></i> Rekomendasi Modul Remedial Prioritas (Top 10 Learning Gaps)</h4>
-                            <p class="text-[10px] sm:text-xs text-red-700 mb-3">Distribusi defisit kompetensi tertinggi ditemukan pada butir-butir asesmen berikut:</p>
+                            <h4 class="text-xs sm:text-sm font-bold text-red-800 mb-1"><i class="fas fa-exclamation-circle"></i> Rekomendasi Modul Remedial Prioritas (Butir Revisi Dominan: <span id="dominant-revision-count">0</span> butir)</h4>
+                            <p class="text-[10px] sm:text-xs text-red-700 mb-3">Daftar ini fleksibel mengikuti jumlah butir yang berstatus Revisi Dominan.</p>
                             <div id="rekomendasi-remedial-container" class="flex flex-wrap gap-2"></div>
                         </div>
                     </div>
@@ -256,7 +259,7 @@
                             </div>
                         </div>
                         <div class="custom-scroll overflow-x-auto border rounded-lg max-h-[500px] w-full">
-                            <table class="min-w-full divide-y divide-gray-200">
+                            <table class="analysis-table divide-y divide-gray-200">
                                 <thead class="bg-gray-100 sticky top-0 z-10">
                                     <tr>
                                         <th onclick="sortTableSiswa('no')" class="cursor-pointer hover:bg-gray-200 transition-colors px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase w-12">
@@ -313,15 +316,15 @@
                                 <i class="fas fa-edit"></i> <b>Catatan:</b> Jika kunci otomatis keliru, ubah huruf di kolom <b>"Kunci"</b> secara manual. Sistem akan otomatis me-regrade (mengkalkulasi ulang) seluruh nilai siswa.
                             </div>
                             <div class="custom-scroll overflow-x-auto border rounded-lg flex-grow max-h-[600px] w-full">
-                                <table class="min-w-full divide-y divide-gray-200">
+                                <table class="analysis-table divide-y divide-gray-200">
                                     <thead class="bg-gray-100 sticky top-0 z-10">
                                         <tr>
-                                            <th class="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">No</th>
+                                            <th onclick="sortTableSoal('no')" class="cursor-pointer hover:bg-gray-200 transition-colors px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">No <span id="sort-icon-soal-no"><i class="fas fa-sort-numeric-down ml-1 text-blue-600"></i></span></th>
                                             <th class="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">Kunci</th>
-                                            <th class="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">P (Kesukaran)</th>
-                                            <th class="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">D (Daya Beda)</th>
-                                            <th class="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">r Item-Total</th>
-                                            <th class="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">Keputusan</th>
+                                            <th onclick="sortTableSoal('p')" class="cursor-pointer hover:bg-gray-200 transition-colors px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">P (Kesukaran) <span id="sort-icon-soal-p"><i class="fas fa-sort text-gray-300 ml-1"></i></span></th>
+                                            <th onclick="sortTableSoal('d')" class="cursor-pointer hover:bg-gray-200 transition-colors px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">D (Daya Beda) <span id="sort-icon-soal-d"><i class="fas fa-sort text-gray-300 ml-1"></i></span></th>
+                                            <th onclick="sortTableSoal('r')" class="cursor-pointer hover:bg-gray-200 transition-colors px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">r Item-Total <span id="sort-icon-soal-r"><i class="fas fa-sort text-gray-300 ml-1"></i></span></th>
+                                            <th onclick="sortTableSoal('keputusan')" class="cursor-pointer hover:bg-gray-200 transition-colors px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">Keputusan <span id="sort-icon-soal-keputusan"><i class="fas fa-sort text-gray-300 ml-1"></i></span></th>
                                             <th class="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold text-gray-600 uppercase">Diagnosis Distraktor & Miskonsepsi</th>
                                         </tr>
                                     </thead>
@@ -336,7 +339,7 @@
         </div>
     </main>
 
-    <footer class="bg-white border-t border-gray-200 py-4 flex-shrink-0 relative z-20">
+    <footer class="bg-white border-t border-gray-200 py-4 flex-shrink-0 relative z-20 block">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs sm:text-sm text-gray-500">
             <p class="mb-1">Dikembangkan oleh: <b>YUSUF ARIS SYAMSUDDIN</b></p>
             <p>ID: 0762773674130202 | Guru IPA & Informatika - SMPN 2 Secang</p>
@@ -369,7 +372,7 @@
             babResults: [], babLabels: [], babDataBenar: [], babDataSalah: [],
             mappingValidation: { valid: true, invalid: [], duplicates: [], missing: [], covered: 0, coveragePct: 0 },
             blueprint: { kd: [], cognitive: {}, difficulty: {}, distractorQuality: {} },
-            diagnostics: { teacher: [], student: [], curriculum: [], leadership: [], itemDecision: { keep: 0, revise: 0, discard: 0 }, weakestKds: [], problemItems: [] },
+            diagnostics: { teacher: [], student: [], curriculum: [], leadership: [], itemDecision: { keep: 0, revise: 0, reviseDominan: 0, reviseLemah: 0, discard: 0 }, weakestKds: [], problemItems: [] },
             analysisConfig: {
                 upperLowerPercent: 0.30,
                 easiestHardestPercent: 0.25,
@@ -388,6 +391,8 @@
         
         let sortColSiswa = 'no';
         let sortAscSiswa = true;
+        let sortColSoal = 'no';
+        let sortAscSoal = true;
         let PendingFile = null;
 
         function escapeHtml(value) {
@@ -396,6 +401,128 @@
 
         function toPercent(value, digits = 0) {
             return `${((Number(value) || 0) * 100).toFixed(digits)}%`;
+        }
+
+        function isRevisionStatus(status) {
+            return String(status || '').startsWith('Revisi');
+        }
+
+        function decisionLabels(decision) {
+            if (!decision) return ['-'];
+            if (Array.isArray(decision.labels) && decision.labels.length) return decision.labels;
+            return [decision.status || '-'];
+        }
+
+        function hasDecisionLabel(decision, label) {
+            return decisionLabels(decision).includes(label);
+        }
+
+        function decisionLabelText(decision) {
+            return decisionLabels(decision).join(' / ');
+        }
+
+        function decisionBadgeClass(label) {
+            const text = String(label || '').toLowerCase();
+            if (text.includes('buang')) return 'bg-red-100 text-red-800 border border-red-200';
+            if (text.includes('revisi dominan')) return 'bg-orange-100 text-orange-800 border border-orange-200';
+            if (text.includes('revisi lemah')) return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+            if (text.includes('simpan')) return 'bg-green-100 text-green-800 border border-green-200';
+            return 'bg-slate-100 text-slate-700 border border-slate-200';
+        }
+
+        function decisionBadgesHtml(decision) {
+            return decisionLabels(decision).map(label => `<span class="${decisionBadgeClass(label)} text-[9px] sm:text-xs px-2 py-1 rounded font-bold inline-block">${escapeHtml(label)}</span>`).join(' ');
+        }
+
+        function decisionSortRank(decision) {
+            const labels = decisionLabels(decision);
+            if (labels.includes('Buang')) return 0;
+            if (labels.includes('Revisi Dominan')) return 1;
+            if (labels.includes('Revisi Lemah')) return 2;
+            if (labels.includes('Simpan Bank Soal')) return 3;
+            return 9;
+        }
+
+        function itemProblemPriority(q) {
+            return decisionSortRank(q.decision);
+        }
+
+        function getProblemAuditItems(limit = 5) {
+            const items = [...(AppState.questions || [])]
+                .filter(q => q.decision?.status && q.decision.status !== 'Simpan Bank Soal')
+                .sort((a,b) => itemProblemPriority(a) - itemProblemPriority(b) || a.p - b.p || a.dayaBeda - b.dayaBeda || a.id - b.id);
+            return limit ? items.slice(0, limit) : items;
+        }
+
+        function getDominantRevisionItems() {
+            return [...(AppState.questions || [])]
+                .filter(q => hasDecisionLabel(q.decision, 'Revisi Dominan'))
+                .sort((a,b) => a.id - b.id);
+        }
+
+        function isDominantRevisionTrigger(q, state = AppState) {
+            const cfg = state.analysisConfig?.item || { reviseDiscrimination: 0.20 };
+            return (Number(q?.dayaBeda) || 0) < cfg.reviseDiscrimination || q?.miskonsepsi !== null;
+        }
+
+        function distributionBandIndexFromCorrect(correctCount, totalQuestions = AppState.totalQuestions) {
+            const total = Math.max(1, Number(totalQuestions) || 0);
+            const correct = Math.max(0, Math.min(total, Number(correctCount) || 0));
+            const t1 = Math.floor(total * 0.2);
+            const t2 = Math.floor(total * 0.4);
+            const t3 = Math.floor(total * 0.6);
+            const t4 = Math.floor(total * 0.8);
+            if (correct <= t1) return 0;
+            if (correct <= t2) return 1;
+            if (correct <= t3) return 2;
+            if (correct <= t4) return 3;
+            return 4;
+        }
+
+        function getStudentDistributionBand(student, totalQuestions = AppState.totalQuestions) {
+            const total = Math.max(1, Number(totalQuestions) || Number(AppState.totalQuestions) || 0);
+            const rawCorrect = Number(student?.benar);
+            const score = Number(student?.score) || 0;
+            const correct = Number.isFinite(rawCorrect) ? rawCorrect : Math.round((score / 100) * total);
+            const index = distributionBandIndexFromCorrect(correct, total);
+            const info = distributionBandInfo(index);
+            return { index, correct, total, ...info };
+        }
+
+        function getStudentCategory(student) {
+            return PedagogyRules.classifyStudent(student || {}, AppState.kkm, AppState.totalQuestions);
+        }
+
+        function getInterventionPriorityStudents() {
+            return [...(AppState.students || [])]
+                .map(student => ({ ...student, performanceCategory: getStudentCategory(student) }))
+                .filter(student => student.performanceCategory.label === 'Intervensi Prioritas')
+                .sort((a,b) => String(a.kelas).localeCompare(String(b.kelas), 'id-ID', { numeric: true }) || String(a.nama).localeCompare(String(b.nama), 'id-ID'));
+        }
+
+        function importantHtmlClass(token) {
+            const text = String(token || '').toLowerCase();
+            if (/(buang|risiko|peringatan|bermasalah|intervensi prioritas|daya beda rendah|negatif|miskonsepsi|zonking|ekstrem|tidak valid)/.test(text)) return 'font-bold text-red-700';
+            if (/(revisi dominan|prioritas|remedial|re-teaching|tindak lanjut|rekomendasi|perlu revisi|blank\/omission|konsistensi|coverage|gap analysis)/.test(text)) return 'font-bold text-orange-700';
+            if (/(revisi lemah|belum dipetakan|validasi|latihan ulang|learning path)/.test(text)) return 'font-bold text-amber-700';
+            if (/(simpan|layak|pengayaan|tuntas|reliabilitas|proporsi soal layak|baik)/.test(text)) return 'font-bold text-emerald-700';
+            return 'font-bold text-blue-700';
+        }
+
+        function richImportantHtml(value) {
+            const source = String(value ?? '');
+            const pattern = /(Reliabilitas KR-20|Proporsi soal layak|Soal perlu revisi\/buang|Rombel\/topik risiko|KD paling lemah|Butir bermasalah prioritas|Siswa prioritas remedial|Profil kelemahan siswa|Learning path individu|Coverage blueprint|Level kognitif C1-C6|Revisi Dominan|Revisi Lemah|Intervensi Prioritas|Remedial Intensif|re-teaching|tindak lanjut|rekomendasi|prioritas|risiko|revisi|buang|simpan|layak|validasi|miskonsepsi|blank\/omission tinggi|konsistensi|gap analysis|HOTS|KD|KKM\s+\d+(?:[,.]\d+)?|\d+(?:[,.]\d+)?%|\d+\s+dari\s+\d+\s+butir|\d+\s+siswa)/gi;
+            let output = '';
+            let last = 0;
+            source.replace(pattern, (match, ...args) => {
+                const offset = args[args.length - 2];
+                if (offset > last) output += escapeHtml(source.slice(last, offset));
+                output += `<span class="${importantHtmlClass(match)}">${escapeHtml(match)}</span>`;
+                last = offset + match.length;
+                return match;
+            });
+            if (last < source.length) output += escapeHtml(source.slice(last));
+            return output;
         }
 
         function fileSignature(file) {
@@ -443,7 +570,15 @@
             AppState.splitHalfReliability = AppState.splitHalfReliability || 0;
             AppState.mappingValidation = AppState.mappingValidation || { valid: true, invalid: [], duplicates: [], missing: [], covered: 0, coveragePct: 0 };
             AppState.blueprint = AppState.blueprint || { kd: [], cognitive: {}, difficulty: {}, distractorQuality: {} };
-            AppState.diagnostics = AppState.diagnostics || { teacher: [], student: [], curriculum: [], leadership: [], itemDecision: { keep: 0, revise: 0, discard: 0 }, weakestKds: [], problemItems: [] };
+            AppState.diagnostics = AppState.diagnostics || { teacher: [], student: [], curriculum: [], leadership: [], itemDecision: { keep: 0, revise: 0, reviseDominan: 0, reviseLemah: 0, discard: 0 }, weakestKds: [], problemItems: [] };
+            AppState.diagnostics.itemDecision = {
+                keep: 0,
+                revise: 0,
+                reviseDominan: 0,
+                reviseLemah: 0,
+                discard: 0,
+                ...(AppState.diagnostics.itemDecision || {})
+            };
             AppState.analysisConfig = {
                 upperLowerPercent: 0.30,
                 easiestHardestPercent: 0.25,
@@ -962,7 +1097,7 @@
                             s1.isMencontek = true;
                         }
                     }
-                    s1.performanceCategory = PedagogyRules.classifyStudent(s1.score, state.kkm);
+                    s1.performanceCategory = PedagogyRules.classifyStudent(s1, state.kkm, maxQ);
                 });
 
                 state.reliabilitas = (varRaw > 0 && maxQ > 1) ? (maxQ / (maxQ - 1)) * (1 - (sumPQ / varRaw)) : 0;
@@ -975,12 +1110,17 @@
 
         // Layer 3: Rules interpretasi pedagogik.
         const PedagogyRules = {
-            classifyStudent(score, kkm) {
+            classifyStudent(studentOrScore, kkm, totalQuestions = AppState.totalQuestions) {
+                const student = typeof studentOrScore === 'object' && studentOrScore !== null ? studentOrScore : null;
+                const score = student ? (Number(student.score) || 0) : (Number(studentOrScore) || 0);
+                const band = student
+                    ? getStudentDistributionBand(student, totalQuestions)
+                    : getStudentDistributionBand({ score }, totalQuestions);
+                if (band.index <= 1) return { label: 'Intervensi Prioritas', rank: 0, className: 'bg-red-100 text-red-800', distributionBand: band };
                 if (score >= Math.max(90, kkm + 10)) return { label: 'Pengayaan', rank: 4, className: 'bg-emerald-100 text-emerald-800' };
                 if (score >= kkm) return { label: 'Tuntas', rank: 3, className: 'bg-green-100 text-green-800' };
                 if (score >= Math.max(0, kkm - 10)) return { label: 'Remedial Ringan', rank: 2, className: 'bg-yellow-100 text-yellow-800' };
-                if (score >= Math.max(0, kkm - 25)) return { label: 'Remedial Intensif', rank: 1, className: 'bg-orange-100 text-orange-800' };
-                return { label: 'Intervensi Prioritas', rank: 0, className: 'bg-red-100 text-red-800' };
+                return { label: 'Remedial Intensif', rank: 1, className: 'bg-orange-100 text-orange-800' };
             },
             decideItem(q, state) {
                 const cfg = state.analysisConfig.item;
@@ -1000,12 +1140,24 @@
                 if (q.miskonsepsi) reasons.push(`miskonsepsi dominan opsi ${q.miskonsepsi.opt}`);
                 if (q.keyConfidence !== undefined && q.keyConfidence < state.analysisConfig.keyConfidenceThreshold && q.keySource !== 'manual') reasons.push('inferensi kunci perlu verifikasi');
 
-                if (q.dayaBeda < 0 || q.correctedR < cfg.discardCorrectedR || q.p < cfg.extremeLowP) return { status: 'Buang', className: 'bg-red-100 text-red-800', reasons };
-                if (reasons.length > 0 || q.dayaBeda < cfg.goodDiscrimination || q.correctedR < cfg.weakCorrectedR || deadRate >= 0.5) return { status: 'Revisi', className: 'bg-yellow-100 text-yellow-800', reasons };
-                return { status: 'Simpan Bank Soal', className: 'bg-green-100 text-green-800', reasons: ['parameter psikometrik memadai'] };
+                const dominantRevision = isDominantRevisionTrigger(q, state);
+                const discardItem = q.dayaBeda < 0 || q.correctedR < cfg.discardCorrectedR || q.p < cfg.extremeLowP;
+                if (discardItem) {
+                    return {
+                        status: 'Buang',
+                        labels: [dominantRevision ? 'Revisi Dominan' : 'Revisi Lemah', 'Buang'],
+                        className: 'bg-red-100 text-red-800 border border-red-200',
+                        reasons
+                    };
+                }
+                if (dominantRevision) return { status: 'Revisi Dominan', labels: ['Revisi Dominan'], className: 'bg-orange-100 text-orange-800 border border-orange-200', reasons };
+                if (reasons.length > 0 || q.dayaBeda < cfg.goodDiscrimination || q.correctedR < cfg.weakCorrectedR || deadRate >= 0.5) {
+                    return { status: 'Revisi Lemah', labels: ['Revisi Lemah'], className: 'bg-yellow-100 text-yellow-800 border border-yellow-200', reasons };
+                }
+                return { status: 'Simpan Bank Soal', labels: ['Simpan Bank Soal'], className: 'bg-green-100 text-green-800', reasons: ['parameter psikometrik memadai'] };
             },
             enrichItems(state) {
-                const counts = { keep: 0, revise: 0, discard: 0 };
+                const counts = { keep: 0, revise: 0, reviseDominan: 0, reviseLemah: 0, discard: 0 };
                 state.questions.forEach(q => {
                     q.optionsCount = state.optionsList.filter(opt => opt !== q.kunci).length || state.optionsList.length;
                     q.decision = this.decideItem(q, state);
@@ -1013,12 +1165,11 @@
                     if (q.decision.status === 'Simpan Bank Soal') counts.keep++;
                     else if (q.decision.status === 'Buang') counts.discard++;
                     else counts.revise++;
+                    if (hasDecisionLabel(q.decision, 'Revisi Dominan')) counts.reviseDominan++;
+                    if (hasDecisionLabel(q.decision, 'Revisi Lemah')) counts.reviseLemah++;
                 });
                 state.diagnostics.itemDecision = counts;
-                state.diagnostics.problemItems = [...state.questions]
-                    .filter(q => q.decision.status !== 'Simpan Bank Soal')
-                    .sort((a,b) => (a.p - b.p) || (a.dayaBeda - b.dayaBeda))
-                    .slice(0, 12);
+                state.diagnostics.problemItems = getProblemAuditItems(0);
             },
             validateMapping(state) {
                 const maxQ = state.totalQuestions || 0;
@@ -1067,7 +1218,7 @@
                         avgP: items.length ? items.reduce((a,q) => a + q.p, 0) / items.length : 0,
                         avgD: items.length ? items.reduce((a,q) => a + q.dayaBeda, 0) / items.length : 0,
                         avgR: items.length ? items.reduce((a,q) => a + q.correctedR, 0) / items.length : 0,
-                        revise: items.filter(q => q.decision?.status === 'Revisi').length,
+                        revise: items.filter(q => isRevisionStatus(q.decision?.status)).length,
                         discard: items.filter(q => q.decision?.status === 'Buang').length,
                         keep: items.filter(q => q.decision?.status === 'Simpan Bank Soal').length
                     };
@@ -1110,11 +1261,13 @@
             },
             teacherRecommendations(state) {
                 const weakKdText = state.diagnostics.weakestKds.length ? state.diagnostics.weakestKds.map(kd => `${kd.name} (${kd.pctCorrect.toFixed(1)}%)`).join(', ') : 'belum ada KD lemah terpetakan';
-                const badItems = state.diagnostics.problemItems.slice(0, 6).map(q => `No. ${q.id}`).join(', ') || '-';
+                const badItems = getProblemAuditItems(5).map(q => `No. ${q.id}`).join(', ') || '-';
+                const interventionCount = state.students.filter(s => this.classifyStudent(s, state.kkm, state.totalQuestions).label === 'Intervensi Prioritas').length;
+                const remedialTotal = state.students.filter(s => !s.isTuntas).length;
                 return [
                     `KD paling lemah: ${weakKdText}. Prioritaskan re-teaching pada KD tersebut.`,
                     `Butir bermasalah prioritas: ${badItems}. Periksa kunci, stimulus, dan fungsi pengecoh sebelum masuk bank soal.`,
-                    `Siswa prioritas remedial: ${state.students.filter(s => !s.isTuntas).length} siswa di bawah KKM ${state.kkm}.`
+                    `Siswa prioritas pendampingan: ${interventionCount} siswa Intervensi Prioritas (di bawah Transisi) dari ${remedialTotal} siswa di bawah KKM ${state.kkm}.`
                 ];
             },
             studentRecommendations(state) {
@@ -1137,7 +1290,7 @@
                 ];
             },
             leadershipRecommendations(state) {
-                const decisions = state.diagnostics.itemDecision || { keep: 0, revise: 0, discard: 0 };
+                const decisions = state.diagnostics.itemDecision || { keep: 0, revise: 0, reviseDominan: 0, reviseLemah: 0, discard: 0 };
                 const total = state.questions.length || 1;
                 const classStats = state.classes.map(kelas => {
                     const list = state.students.filter(s => s.kelas === kelas);
@@ -1146,7 +1299,7 @@
                 }).sort((a,b) => a.avg - b.avg);
                 return [
                     `Reliabilitas KR-20: ${state.reliabilitas.toFixed(2)} (CI aproks. ${state.reliabilityCI.lower.toFixed(2)}-${state.reliabilityCI.upper.toFixed(2)}); split-half ${state.splitHalfReliability.toFixed(2)}. Proporsi soal layak: ${((decisions.keep / total) * 100).toFixed(1)}%.`,
-                    `Soal perlu revisi/buang: ${decisions.revise + decisions.discard} dari ${total} butir.`,
+                    `Soal perlu revisi/buang: ${state.diagnostics.problemItems.length} dari ${total} butir (${decisions.reviseDominan || 0} Revisi Dominan, ${decisions.reviseLemah || 0} Revisi Lemah, ${decisions.discard || 0} Buang).`,
                     `Rombel/topik risiko: ${classStats[0] ? `${classStats[0].kelas} (rerata ${classStats[0].avg.toFixed(1)})` : '-'}; ${state.diagnostics.weakestKds[0] ? state.diagnostics.weakestKds[0].name : 'KD belum dipetakan'}.`
                 ];
             }
@@ -1160,6 +1313,16 @@
                 sortAscSiswa = (col === 'nama' || col === 'no'); 
             }
             renderStudentTable();
+        };
+
+        window.sortTableSoal = function(col) {
+            if (sortColSoal === col) {
+                sortAscSoal = !sortAscSoal;
+            } else {
+                sortColSoal = col;
+                sortAscSoal = col === 'no' || col === 'keputusan';
+            }
+            renderQuestionTable();
         };
 
         function saveState() {
@@ -1700,24 +1863,7 @@
             PedagogyRules.updateMappingDiagnostics(AppState);
             renderMappingStatus();
             document.getElementById('bab-chart-wrapper').classList.remove('hidden');
-
-            const worstBabs = [...AppState.babResults].filter(kd => kd.pctCorrect < AppState.kkm).sort((a,b) => a.pctCorrect - b.pctCorrect);
-            let recUI = '';
-            if (AppState.babLabels.length > 0) {
-                if (worstBabs.length > 0) {
-                    const priority = worstBabs.slice(0, 3);
-                    recUI = `<div class="bg-red-50 p-3 sm:p-4 rounded-lg border border-red-200 text-xs sm:text-sm text-red-800">
-                        <p class="font-bold mb-2"><i class="fas fa-exclamation-triangle mr-1"></i> Rekomendasi Tindak Lanjut Topik/Kompetensi Prioritas</p>
-                        <ol class="list-decimal ml-5 space-y-1">
-                            ${priority.map(kd => `<li><b>${escapeHtml(kd.name)}</b> (${kd.pctCorrect.toFixed(1)}%). Fokus re-teaching pada butir ${kd.weakItems.map(q => `No. ${q.id}`).join(', ') || 'terlemah di KD ini'}.</li>`).join('')}
-                        </ol>
-                        ${worstBabs.length > priority.length ? `<p class="mt-2 text-[10px] sm:text-xs text-red-700">${worstBabs.length - priority.length} topik lain masih di bawah KKM, tetapi tidak ditampilkan agar tindak lanjut tetap fokus.</p>` : ''}
-                    </div>`;
-                } else {
-                    recUI = `<div class="bg-green-50 p-3 sm:p-4 rounded-lg border border-green-200 text-xs sm:text-sm text-green-800"><p><b><i class="fas fa-check-circle mr-1"></i> Rekomendasi Tindak Lanjut Topik/Kompetensi:</b> Seluruh Topik/Kompetensi yang dipetakan telah berhasil diserap dengan baik (melampaui batas KKM). Pendekatan instruksional dapat dilanjutkan ke materi selanjutnya tanpa perlu pengulangan mendasar.</p></div>`;
-                }
-            }
-            document.getElementById('bab-recommendation-container').innerHTML = recUI;
+            document.getElementById('bab-recommendation-container').innerHTML = '';
             renderBlueprintCoverage();
             renderStakeholderBrief();
 
@@ -1836,7 +1982,7 @@
                         <h4 class="text-xs sm:text-sm font-bold uppercase tracking-wide">Output ${card.title}</h4>
                     </div>
                     <ul class="text-[10px] sm:text-xs text-gray-700 space-y-1 leading-relaxed">
-                        ${(card.items || []).slice(0,3).map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+                        ${(card.items || []).slice(0,3).map(item => `<li>${richImportantHtml(item)}</li>`).join('')}
                     </ul>
                 </div>`).join('');
         }
@@ -1858,11 +2004,11 @@
                 return `
                 <tr>
                     <td class="px-2 py-1 font-semibold">${escapeHtml(kd.name)}</td>
-                    <td class="px-2 py-1">${escapeHtml(kd.material || '-')}</td>
+                    <td class="px-2 py-1 wide-text">${escapeHtml(kd.material || '-')}</td>
                     <td class="px-2 py-1 text-center">${escapeHtml(kd.level || 'Belum')}</td>
                     <td class="px-2 py-1 text-center font-bold ${kd.pctCorrect < AppState.kkm ? 'text-red-600' : 'text-green-600'}">${kd.pctCorrect.toFixed(1)}%</td>
                     <td class="px-2 py-1 text-center">D ${kd.quality.avgD.toFixed(2)} | r ${kd.quality.avgR.toFixed(2)} | Revisi ${kd.quality.revise + kd.quality.discard}</td>
-                    <td class="px-2 py-1">${escapeHtml(action)}</td>
+                    <td class="px-2 py-1 wide-text">${escapeHtml(action)}</td>
                 </tr>`;
             }).join('');
             const v = AppState.mappingValidation || {};
@@ -1876,9 +2022,8 @@
                         <div class="text-[10px] sm:text-xs bg-slate-50 border rounded-lg px-3 py-2 text-slate-700">Coverage: <b>${v.covered || 0}/${AppState.totalQuestions || 0}</b> (${(v.coveragePct || 0).toFixed(1)}%)</div>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 text-[10px] sm:text-xs mb-4">${cognitiveHtml}</div>
-                    <p class="text-[10px] sm:text-xs text-slate-500 mb-2">Tabel berikut hanya menampilkan KD/topik prioritas, bukan seluruh materi. Kolom aksi menunjukkan tindak lanjut praktis.</p>
                     <div class="custom-scroll overflow-x-auto border rounded-lg">
-                        <table class="min-w-full text-[10px] sm:text-xs">
+                        <table class="analysis-table text-[10px] sm:text-xs">
                             <thead class="bg-gray-100 text-gray-600 uppercase">
                                 <tr><th class="px-2 py-2 text-left">KD/Topik Prioritas</th><th class="px-2 py-2 text-left">Materi/Indikator</th><th class="px-2 py-2 text-center">Level</th><th class="px-2 py-2 text-center">Capaian</th><th class="px-2 py-2 text-center">Kualitas KD</th><th class="px-2 py-2 text-left">Aksi Tindak Lanjut</th></tr>
                             </thead>
@@ -1934,6 +2079,7 @@
             AppState.babDataBenar = [];
             AppState.babDataSalah = [];
             AppState.mappingValidation = { valid: true, invalid: [], duplicates: [], missing: [], covered: 0, coveragePct: 0 };
+            AppState.diagnostics = { teacher: [], student: [], curriculum: [], leadership: [], itemDecision: { keep: 0, revise: 0, reviseDominan: 0, reviseLemah: 0, discard: 0 }, weakestKds: [], problemItems: [] };
         }
 
         function switchTab(t) {
@@ -1983,11 +2129,15 @@
             const sRagu = AppState.students.filter(s => s.raguRagu).length, sTebak = AppState.students.filter(s => s.isTebakan).length, sErr = AppState.students.filter(s => s.jawabanGanda > 0).length, sCont = AppState.students.filter(s => s.isMencontek).length;
             document.getElementById('summary-siswa-text').innerHTML = `<p><b>Deskripsi Perilaku Asesmen:</b> Terdeteksi <b>${sRagu} responden</b> dengan tingkat pengosongan jawaban tinggi, <b>${sTebak} responden</b> dengan <i>Guttman-like response pattern</i> berbasis heuristik (benar di soal sukar namun lemah pada soal dasar), <b>${sErr} responden</b> melakukan pengisian ganda, dan <b>${sCont} responden</b> memiliki indikasi kemiripan respons ekstrem berdasarkan WIC & Harpp-Hogan. Indikasi ini adalah sinyal audit awal, bukan vonis.</p><p class="mt-2"><b>Rekomendasi Tindak Lanjut:</b> Lakukan pendampingan atau evaluasi lisan bagi siswa yang terindikasi anomali untuk memvalidasi pemahaman dan integritas datanya.</p>`;
 
-            const top10 = [...AppState.questions].sort((a,b) => a.p - b.p).slice(0, 10).sort((a,b) => a.id - b.id);
-            document.getElementById('rekomendasi-remedial-container').innerHTML = top10.map(q => `<div class="bg-white border border-red-200 px-2 py-1 sm:px-3 sm:py-1.5 rounded-md shadow-sm text-xs sm:text-sm"><b>Soal No. ${q.id}</b> <span class="text-[10px] sm:text-xs text-gray-500">(${((1 - q.p) * 100).toFixed(0)}% Gagal)</span></div>`).join('');
+            const dominantRevisionItems = getDominantRevisionItems();
+            const dominantCountEl = document.getElementById('dominant-revision-count');
+            if (dominantCountEl) dominantCountEl.textContent = dominantRevisionItems.length;
+            document.getElementById('rekomendasi-remedial-container').innerHTML = dominantRevisionItems.length
+                ? dominantRevisionItems.map(q => `<div class="bg-white border border-orange-200 px-2 py-1 sm:px-3 sm:py-1.5 rounded-md shadow-sm text-xs sm:text-sm"><b>Soal No. ${q.id}</b> <span class="text-[10px] sm:text-xs text-gray-500">(${((1 - q.p) * 100).toFixed(0)}% Gagal; ${escapeHtml(q.auditReasons.slice(0,2).join(', ') || 'perlu revisi')})</span></div>`).join('')
+                : '<div class="bg-white border border-emerald-200 px-3 py-2 rounded-md text-xs sm:text-sm text-emerald-700 font-semibold">Tidak ada butir berstatus Revisi Dominan.</div>';
 
             const sZonk = AppState.questions.filter(q => q.p < 0.2), sInv = AppState.questions.filter(q => q.dayaBeda < 0.2), sMis = AppState.questions.filter(q => q.miskonsepsi !== null);
-            const itemDecision = AppState.diagnostics.itemDecision || { keep: 0, revise: 0, discard: 0 };
+            const itemDecision = AppState.diagnostics.itemDecision || { keep: 0, revise: 0, reviseDominan: 0, reviseLemah: 0, discard: 0 };
             
             let infoReliabilitas = AppState.reliabilitas > 0.7 ? "Konsistensi Tinggi (Sangat Reliabel)" : "Konsistensi Rendah (Butuh Revisi)";
             let soalText = `<p><b>Evaluasi Validitas & Reliabilitas Instrumen:</b> Berdasarkan pengukuran statistik atas ${AppState.totalQuestions} butir soal, diperoleh <b>KR-20 ${AppState.reliabilitas.toFixed(2)}</b> (<b>${infoReliabilitas}</b>) dengan CI aproksimasi <b>${AppState.reliabilityCI.lower.toFixed(2)}-${AppState.reliabilityCI.upper.toFixed(2)}</b> dan pembanding split-half <b>${AppState.splitHalfReliability.toFixed(2)}</b>. Komposisi tingkat kesukaran tes: <b>${AppState.proporsiKesukaran.mudah} Mudah, ${AppState.proporsiKesukaran.sedang} Sedang, ${AppState.proporsiKesukaran.sukar} Sukar</b>.</p>`;
@@ -1995,7 +2145,7 @@
             soalText += `<li><b>${sInv.length} Mendegradasi Validitas:</b> ${sInv.length > 0 ? sInv.map(q=>q.id).join(', ') : '-'} (Daya Diskriminasi/Pembeda &lt; 0.20, tidak mampu mendistingsi kemampuan tinggi/rendah peserta didik).</li>`;
             soalText += `<li><b>${sZonk.length} Kesukaran Ekstrem (Zonking):</b> ${sZonk.length > 0 ? sZonk.map(q=>q.id).join(', ') : '-'} (Rasio kebenaran &lt; 20%).</li>`;
             soalText += `<li><b>${sMis.length} Indikasi Miskonsepsi:</b> ${sMis.length > 0 ? sMis.map(q=>q.id).join(', ') : '-'} (Kehadiran distraktor/pengecoh salah yang menyerap atensi populasi dalam kadar masif).</li>`;
-            soalText += `<li><b>Keputusan Bank Soal:</b> ${itemDecision.keep} simpan, ${itemDecision.revise} revisi, ${itemDecision.discard} buang berdasarkan gabungan P, D, r item-total, dan fungsi distraktor.</li>`;
+            soalText += `<li><b>Keputusan Bank Soal:</b> ${itemDecision.keep} simpan, ${itemDecision.revise} revisi, ${itemDecision.discard} buang. Label telaah: ${itemDecision.reviseDominan || 0} Revisi Dominan (gabungan unik D &lt; 0.20 dan miskonsepsi) dan ${itemDecision.reviseLemah || 0} Revisi Lemah; butir Buang dapat tetap membawa label revisi agar guru tahu perlu diganti/ditulis ulang.</li>`;
             soalText += `</ul>`;
             soalText += `<p class="text-[10px] sm:text-xs"><b>Rekomendasi Pemeliharaan Instrumen:</b> <br>1. Melakukan penyusutan (<i>drop</i>) terhadap butir tak-valid dari perhitungan komposit.<br>2. Verifikasi triangulasi silabus dan kunci jawaban bagi soal Zonking.<br>3. Menganulir atau meredaksional ulang pengecoh tidak berfungsi (<i>non-functioning distractors</i>) sebagaimana rincian tabel di bawah.</p>`;
             document.getElementById('summary-soal-text').innerHTML = soalText;
@@ -2015,8 +2165,8 @@
             }
             if(m.length > 0) {
                 html += `<div class="insight-card insight-warning p-2 sm:p-3 rounded-r-lg border border-yellow-200">
-                    <p class="font-bold text-yellow-800 text-[11px] sm:text-sm"><i class="fas fa-exclamation-circle"></i> Indikasi Miskonsepsi Kognitif Massal Tersistematis</p>
-                    <p class="text-[10px] sm:text-xs text-yellow-800 mt-1">Algoritma analitik menemukan penyimpangan konseptual terstruktur pada: ${m.map(q => `<br>- <b>Butir No. ${q.id}</b>: Kunci [${q.kunci}], <b>${((q.miskonsepsi.count / AppState.students.length)*100).toFixed(0)}% responden terdistraksi ke opsi [${q.miskonsepsi.opt}]</b>, terutama pada ${q.miskonsepsi.group}.`).join('')}</p>
+                    <p class="font-bold text-yellow-800 text-[11px] sm:text-sm"><i class="fas fa-exclamation-circle"></i> Indikasi Miskonsepsi Kelas (Perlu Konfirmasi Guru)</p>
+                    <p class="text-[10px] sm:text-xs text-yellow-800 mt-1">Maknanya: banyak siswa memilih pengecoh yang sama, sehingga kemungkinan ada konsep yang dipahami keliru atau redaksi pengecoh terlalu menarik. Rinciannya: ${m.map(q => `<br>- <b>Butir No. ${q.id}</b>: kunci [${q.kunci}], <b>${((q.miskonsepsi.count / AppState.students.length)*100).toFixed(0)}% responden memilih opsi [${q.miskonsepsi.opt}]</b>, terutama pada ${q.miskonsepsi.group}.`).join('')}</p>
                 </div>`;
             }
             if(weakKds.length > 0) {
@@ -2025,11 +2175,11 @@
                     <p class="text-[10px] sm:text-xs text-blue-800 mt-1">Prioritas re-teaching: ${weakKds.slice(0,3).map(kd => `<b>${escapeHtml(kd.name)}</b> (${kd.pctCorrect.toFixed(1)}%, butir hot spot: ${kd.weakItems.map(q => q.id).join(', ') || '-'})`).join('; ')}.</p>
                 </div>`;
             }
-            const auditItems = (AppState.diagnostics.problemItems || []).slice(0, 5);
+            const auditItems = getProblemAuditItems(5);
             if(auditItems.length > 0) {
                 html += `<div class="insight-card p-2 sm:p-3 rounded-r-lg border border-slate-200 bg-slate-50" style="border-left-color:#64748b">
                     <p class="font-bold text-slate-800 text-[11px] sm:text-sm"><i class="fas fa-clipboard-list"></i> Jejak Audit Statistik Butir</p>
-                    <p class="text-[10px] sm:text-xs text-slate-700 mt-1">${auditItems.map(q => `<b>No. ${q.id}</b>: P=${q.p.toFixed(2)}, D=${q.dayaBeda.toFixed(2)}, r=${q.correctedR.toFixed(2)}, keputusan=${q.decision.status}, alasan=${q.auditReasons.slice(0,2).join(', ')}`).join('<br>')}</p>
+                    <p class="text-[10px] sm:text-xs text-slate-700 mt-1">${auditItems.map(q => `<b>No. ${q.id}</b>: P=${q.p.toFixed(2)}, D=${q.dayaBeda.toFixed(2)}, r=${q.correctedR.toFixed(2)}, keputusan=${q.decision.status}, alasan=${q.auditReasons.join(', ')}`).join('<br>')}</p>
                 </div>`;
             }
             document.getElementById('insight-klasikal-container').innerHTML = html || '<p class="text-xs sm:text-sm text-gray-500 italic p-2 bg-gray-50 rounded border border-gray-200">Tidak terdiagnosis preseden anomali yang mencolok dari representasi data klasikal.</p>';
@@ -2054,7 +2204,7 @@
                 if (sortColSiswa === 'no') { valA = a.no; valB = b.no; }
                 else if (sortColSiswa === 'nama') { valA = a.nama.toLowerCase(); valB = b.nama.toLowerCase(); }
                 else if (sortColSiswa === 'nilai') { valA = a.score; valB = b.score; }
-                else if (sortColSiswa === 'ketuntasan') { valA = a.performanceCategory?.rank ?? (a.isTuntas ? 3 : 1); valB = b.performanceCategory?.rank ?? (b.isTuntas ? 3 : 1); }
+                else if (sortColSiswa === 'ketuntasan') { valA = getStudentCategory(a).rank; valB = getStudentCategory(b).rank; }
                 else { valA = a.no; valB = b.no; }
                 
                 if (valA < valB) return sortAscSiswa ? -1 : 1;
@@ -2073,20 +2223,30 @@
                     ? s.learningPath.map(kd => `${escapeHtml(kd.name)} (${kd.pct.toFixed(0)}%)`).join(' | ')
                     : (s.detailSalah.length>0 ? `Defisit di No: ${s.detailSalah.slice(0,5).join(',')}${s.detailSalah.length>5?'...':''}` : 'Penguasaan Penuh');
                 
-                const category = s.performanceCategory || PedagogyRules.classifyStudent(s.score, AppState.kkm);
+                const category = getStudentCategory(s);
                 return `<tr class="hover:bg-slate-50 transition-colors border-b border-gray-100">
                     <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-bold text-gray-800 align-middle">${escapeHtml(s.no)}</td>
                     <td class="px-3 sm:px-4 py-2 sm:py-3 whitespace-nowrap"><div class="font-semibold text-xs sm:text-sm text-gray-800">${escapeHtml(s.nama)}</div><div class="text-[9px] sm:text-xs text-gray-500">Kelas ${escapeHtml(s.kelas)}</div></td>
                     <td class="px-2 sm:px-4 py-2 sm:py-3 text-center font-bold text-xs sm:text-sm ${s.isTuntas?'text-green-600':'text-red-600'} align-middle">${s.score.toFixed(1)}</td>
                     <td class="px-2 sm:px-4 py-2 sm:py-3 text-center align-middle"><span class="${category.className} text-[9px] sm:text-xs px-2 py-1 rounded font-bold">${category.label}</span></td>
-                    <td class="px-2 sm:px-4 py-2 sm:py-3 align-middle"><div class="flex flex-wrap gap-1 mb-1">${d.join('')}</div><div class="text-[9px] sm:text-xs text-gray-600 bg-gray-50 inline-block px-1 rounded break-words max-w-[190px] sm:max-w-md whitespace-normal"><b>Learning path:</b> ${learningPath}</div></td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 align-middle wide-text"><div class="flex gap-1 mb-1 whitespace-nowrap">${d.join('')}</div><div class="text-[9px] sm:text-xs text-gray-600 bg-gray-50 inline-block px-1 rounded whitespace-nowrap leading-relaxed"><b>Learning path:</b> ${learningPath}</div></td>
                 </tr>`;
             }).join('');
         }
 
         function renderQuestionTable() {
+            ['no','p','d','r','keputusan'].forEach(col => {
+                const icon = document.getElementById(`sort-icon-soal-${col}`);
+                if (!icon) return;
+                const numeric = col !== 'keputusan';
+                const active = sortColSoal === col;
+                const iconClass = !active ? 'fa-sort text-gray-300' : (numeric
+                    ? (sortAscSoal ? 'fa-sort-numeric-up text-blue-600' : 'fa-sort-numeric-down text-blue-600')
+                    : (sortAscSoal ? 'fa-sort-amount-up text-blue-600' : 'fa-sort-amount-down text-blue-600'));
+                icon.innerHTML = `<i class="fas ${iconClass} ml-1"></i>`;
+            });
             const z = document.getElementById('chk-zonking').checked, m = document.getElementById('chk-miskonsepsi').checked, inv = document.getElementById('chk-tidakvalid').checked, norm = document.getElementById('chk-normal').checked;
-            document.getElementById('table-body-soal').innerHTML = AppState.questions.filter(q => {
+            const rows = AppState.questions.filter(q => {
                 const isZ = q.p < 0.2, isI = q.dayaBeda < 0.2, hasM = q.miskonsepsi !== null;
                 let show = false;
                 if (!isZ && !hasM && !isI && norm) show = true;
@@ -2094,7 +2254,18 @@
                 if (hasM && m) show = true;
                 if (isI && inv) show = true;
                 return show;
-            }).map(q => {
+            }).sort((a,b) => {
+                let valA, valB;
+                if (sortColSoal === 'p') { valA = a.p; valB = b.p; }
+                else if (sortColSoal === 'd') { valA = a.dayaBeda; valB = b.dayaBeda; }
+                else if (sortColSoal === 'r') { valA = a.correctedR; valB = b.correctedR; }
+                else if (sortColSoal === 'keputusan') { valA = decisionSortRank(a.decision); valB = decisionSortRank(b.decision); }
+                else { valA = a.id; valB = b.id; }
+                if (valA < valB) return sortAscSoal ? -1 : 1;
+                if (valA > valB) return sortAscSoal ? 1 : -1;
+                return a.id - b.id;
+            });
+            document.getElementById('table-body-soal').innerHTML = rows.map(q => {
                 let a = []; 
                 if(q.p < 0.2) a.push(`<div class="text-[9px] sm:text-xs text-red-600 font-semibold mb-1"><i class="fas fa-radiation-alt"></i> Tindaklanjuti Validasi Konsep/Kunci!</div>`);
                 if(q.miskonsepsi) a.push(`<div class="text-[9px] sm:text-xs text-yellow-600 mb-1"><i class="fas fa-exclamation-triangle"></i> Miskonsepsi: opsi <b>${q.miskonsepsi.opt}</b> dipilih ${q.miskonsepsi.count} peserta, dominan pada ${q.miskonsepsi.group}</div>`);
@@ -2104,7 +2275,7 @@
                     a.push(`<div class="text-[8px] sm:text-[10px] text-slate-500 mt-1">${optLine}</div>`);
                 }
                 if(a.length === 0) a.push(`<div class="text-[9px] sm:text-xs text-green-600"><i class="fas fa-check"></i> Validitas Fungsi Instrumen Optimal</div>`);
-                const decision = q.decision || { status: 'Revisi', className: 'bg-yellow-100 text-yellow-800', reasons: [] };
+                const decision = q.decision || { status: 'Revisi Lemah', className: 'bg-yellow-100 text-yellow-800 border border-yellow-200', reasons: [] };
 
                 return `<tr class="hover:bg-slate-50 border-b border-gray-100">
                     <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-bold text-gray-800 align-middle">${q.id}</td>
@@ -2114,8 +2285,8 @@
                     <td class="px-2 sm:px-3 py-2 sm:py-3 text-center align-middle"><div class="font-bold ${q.difficultyLabel==='Mudah'?'text-green-600':q.difficultyLabel==='Sedang'?'text-yellow-600':'text-red-600'}">${(q.p*100).toFixed(0)}%</div><div class="text-[8px] sm:text-[10px] text-gray-500">${q.difficultyLabel}</div></td>
                     <td class="px-2 sm:px-3 py-2 sm:py-3 text-center align-middle"><div class="font-bold ${q.dayaBeda<0.2?'text-red-600':'text-green-600'}">${q.dayaBeda.toFixed(2)}</div><div class="text-[8px] sm:text-[10px] text-gray-500">${q.dayaBeda<0?'Negatif':q.dayaBeda===0?'Nol':q.dayaBeda<0.2?'Rendah':'Memadai'}</div></td>
                     <td class="px-2 sm:px-3 py-2 sm:py-3 text-center align-middle"><div class="font-bold ${q.correctedR<0.2?'text-red-600':'text-green-600'}">${q.correctedR.toFixed(2)}</div><div class="text-[8px] sm:text-[10px] text-gray-500">Terkoreksi</div></td>
-                    <td class="px-2 sm:px-3 py-2 sm:py-3 text-center align-middle"><span class="${decision.className} text-[9px] sm:text-xs px-2 py-1 rounded font-bold">${decision.status}</span><div class="text-[8px] sm:text-[10px] text-gray-500 mt-1">${decision.reasons.slice(0,2).join(', ')}</div></td>
-                    <td class="px-2 sm:px-3 py-2 sm:py-3 align-middle">${a.join('')}</td>
+                    <td class="px-2 sm:px-3 py-2 sm:py-3 text-center align-middle wide-text"><div class="flex justify-center gap-1 whitespace-nowrap">${decisionBadgesHtml(decision)}</div><div class="text-[8px] sm:text-[10px] text-gray-500 mt-1 whitespace-nowrap leading-relaxed">${decision.reasons.join(', ') || '-'}</div></td>
+                    <td class="px-2 sm:px-3 py-2 sm:py-3 align-middle wide-text leading-relaxed">${a.join('')}</td>
                 </tr>`;
             }).join('');
         }
@@ -2200,6 +2371,7 @@
             blue: '1D4ED8',
             blueLight: 'DBEAFE',
             green: 'C6EFCE',
+            orange: 'FCE4D6',
             yellow: 'FFF2CC',
             red: 'F4CCCC',
             gray: 'E5E7EB',
@@ -2231,7 +2403,7 @@
 
         function wSmartText(text, options = {}) {
             const source = String(text ?? '');
-            const importantPattern = /(KR-20\s+\d+(?:\.\d+)?|split-half\s+\d+(?:\.\d+)?|CI aproksimasi\s+\d+(?:\.\d+)?-\d+(?:\.\d+)?|rerata kelas berada pada\s+\d+(?:\.\d+)?|ketuntasan\s+\d+(?:[,.]\d+)?%|Standar deviasi\s+\d+(?:\.\d+)?|koefisien variasi\s+\d+(?:\.\d+)?%|\d+\s+dari\s+\d+\s+siswa|\d+(?:[,.]\d+)?%|\b\d+\s+(?:siswa|butir|mudah|sedang|sukar|simpan|revisi|buang)\b|hasil utama|interpretasi|risiko|tindak lanjut|rekomendasi|perlu revisi|ditulis ulang|dibuang|layak simpan|validasi|revisi|buang|simpan|prioritas|statistik|kesimpulan|peringatan|kritik|saran|remedial massal|remedial terarah|remedial|pengayaan|re-teaching|KD paling lemah|KD lemah|butir paling lemah|mutu instrumen|daya beda rendah|daya beda|korelasi item-total|fungsi distraktor|kesukaran ekstrem|miskonsepsi dominan|miskonsepsi|blank\/omission tinggi|Guttman-like response pattern|pengisian ganda|sinyal kemiripan respons ekstrem|bank soal|makna ditentukan|rentang rendah|rentang tinggi|kelompok transisi|perlu penguatan dasar|siap pengayaan|Intervensi Prioritas|Remedial Intensif|bukan vonis|sinyal audit awal|dokumen diagnosis akademik|keputusan administratif|penguasaan kompetensi|latihan terarah|masalahnya perlu dibaca ganda|tidak langsung masuk bank soal|arsipkan laporan ini)/gi;
+            const importantPattern = /(KR-20\s+\d+(?:\.\d+)?|split-half\s+\d+(?:\.\d+)?|CI aproksimasi\s+\d+(?:\.\d+)?-\d+(?:\.\d+)?|rerata kelas berada pada\s+\d+(?:\.\d+)?|ketuntasan\s+\d+(?:[,.]\d+)?%|Standar deviasi\s+\d+(?:\.\d+)?|koefisien variasi\s+\d+(?:\.\d+)?%|\d+\s+dari\s+\d+\s+siswa|\d+(?:[,.]\d+)?%|\b\d+\s+(?:siswa|butir|mudah|sedang|sukar|simpan|revisi|buang)\b|hasil utama|interpretasi|risiko|tindak lanjut|rekomendasi|Revisi Dominan|Revisi Lemah|Output Pimpinan|perlu revisi|ditulis ulang|dibuang|layak simpan|validasi|revisi|buang|simpan|prioritas|statistik|kesimpulan|peringatan|kritik|saran|remedial massal|remedial terarah|remedial|pengayaan|re-teaching|KD paling lemah|KD lemah|butir paling lemah|mutu instrumen|daya beda rendah|daya beda|korelasi item-total|fungsi distraktor|kesukaran ekstrem|miskonsepsi dominan|miskonsepsi|blank\/omission tinggi|Guttman-like response pattern|pengisian ganda|sinyal kemiripan respons ekstrem|bank soal|makna ditentukan|rentang rendah|rentang tinggi|kelompok transisi|perlu penguatan dasar|siap pengayaan|Intervensi Prioritas|Remedial Intensif|bukan vonis|sinyal audit awal|dokumen diagnosis akademik|keputusan administratif|penguasaan kompetensi|latihan terarah|masalahnya perlu dibaca ganda|tidak langsung masuk bank soal|arsipkan laporan ini)/gi;
             let output = '';
             let last = 0;
             source.replace(importantPattern, (match, ...args) => {
@@ -2258,6 +2430,10 @@
             const border = options.borderLeft ? `<w:pBdr><w:left w:val="single" w:sz="18" w:space="4" w:color="${options.borderLeft}"/></w:pBdr>` : '';
             const pPr = (styleXml || align || spacing || indent || keepNext || shade || border) ? `<w:pPr>${styleXml}${align}${spacing}${indent}${keepNext}${shade}${border}</w:pPr>` : '';
             return `<w:p>${pPr}${options.rich ? wSmartText(text, options) : wText(text, options)}</w:p>`;
+        }
+
+        function wPageBreak() {
+            return '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
         }
 
         function wCell(value, options = {}) {
@@ -2322,8 +2498,9 @@
         function statusFill(status) {
             const text = String(status || '').toLowerCase();
             if (text.includes('simpan') || text.includes('baik') || text.includes('tuntas') || text.includes('pengayaan') || text.includes('layak')) return REPORT_COLORS.green;
+            if (text.includes('buang') || text.includes('intervensi prioritas') || text.includes('merah') || text.includes('bermasalah')) return REPORT_COLORS.red;
+            if (text.includes('revisi dominan') || text.includes('intensif')) return REPORT_COLORS.orange;
             if (text.includes('revisi') || text.includes('ringan') || text.includes('lemah') || text.includes('kuning')) return REPORT_COLORS.yellow;
-            if (text.includes('buang') || text.includes('intensif') || text.includes('prioritas') || text.includes('merah') || text.includes('bermasalah')) return REPORT_COLORS.red;
             return REPORT_COLORS.white;
         }
 
@@ -2406,7 +2583,7 @@
                 : (dominant.index === 2
                     ? 'Hasil utama menunjukkan banyak siswa berada pada kelompok transisi, sehingga diperlukan latihan terarah dan pembahasan ulang konsep inti.'
                     : 'Hasil utama menunjukkan banyak siswa berada pada rentang tinggi, sehingga pengayaan dapat disiapkan sambil tetap menutup gap pada siswa yang masih rendah.');
-            return `Grafik dan tabel ini membaca jumlah benar per siswa, bukan urutan nomor soal. Kolom proporsi menunjukkan banyaknya siswa yang berada pada rentang skor tersebut, sedangkan makna ditentukan oleh posisi rentang skor. Kelompok terbanyak berada pada rentang ${dominant.range} (${dominant.category}) sebanyak ${dominant.count} siswa (${docxPercent(dominant.pct)}), yang bermakna ${dominant.meaning} ${direction} Ringkasnya, ${lowCount} siswa (${docxPercent(lowCount / total)}) berada pada rentang penguatan dasar, ${transitionCount} siswa (${docxPercent(transitionCount / total)}) berada pada kelompok transisi, dan ${highCount} siswa (${docxPercent(highCount / total)}) berada pada rentang siap pengayaan.`;
+            return `Grafik dan tabel ini membaca jumlah benar per siswa, bukan urutan nomor soal. Kolom proporsi menunjukkan banyaknya siswa yang berada pada rentang skor tersebut, sedangkan makna ditentukan oleh posisi rentang skor. Kelompok terbanyak berada pada rentang ${dominant.range} (${dominant.category}) sebanyak ${dominant.count} siswa (${docxPercent(dominant.pct)}), yang bermakna ${dominant.meaning} ${direction} Ringkasnya, ${lowCount} siswa (${docxPercent(lowCount / total)}) berada pada dua rentang penguatan dasar di bawah Transisi dan otomatis menjadi Intervensi Prioritas, ${transitionCount} siswa (${docxPercent(transitionCount / total)}) berada pada kelompok transisi, dan ${highCount} siswa (${docxPercent(highCount / total)}) berada pada rentang siap pengayaan.`;
         }
 
         function renderDistributionExplanation() {
@@ -2420,27 +2597,30 @@
             const dominant = [...bands].sort((a,b) => b.count - a.count || a.index - b.index)[0];
             const total = Math.max(1, AppState.students.length);
             const lowCount = bands.filter(b => b.index <= 1).reduce((sum, b) => sum + b.count, 0);
+            const transitionCount = bands.find(b => b.index === 2)?.count || 0;
             const highCount = bands.filter(b => b.index >= 3).reduce((sum, b) => sum + b.count, 0);
             const dominantMeaning = `${dominant.range} (${dominant.category})`;
             el.innerHTML = `
                 <p><b>Cara membaca:</b> grafik ini menghitung <b>jumlah benar per siswa</b>, bukan nomor soal. Batang tertinggi berarti <b>jumlah siswa terbanyak</b> berada pada rentang itu.</p>
                 <p class="mt-1">Pada data ini, kelompok terbesar ada di rentang <b>${escapeHtml(dominantMeaning)}</b>, yaitu <b>${dominant.count} siswa (${docxPercent(dominant.pct)})</b>. Maknanya: <b>${escapeHtml(dominant.meaning)}</b></p>
-                <p class="mt-1">Ringkasan tindak lanjut: <b>${lowCount} siswa (${docxPercent(lowCount / total)})</b> masuk area penguatan dasar, sedangkan <b>${highCount} siswa (${docxPercent(highCount / total)})</b> siap pengayaan.</p>
+                <p class="mt-1">Ringkasan tindak lanjut: <b>${lowCount} siswa (${docxPercent(lowCount / total)})</b> berada <b>di bawah Transisi</b> dan menjadi <b>Intervensi Prioritas</b>; <b>${transitionCount} siswa (${docxPercent(transitionCount / total)})</b> berada pada <b>Transisi</b>; <b>${highCount} siswa (${docxPercent(highCount / total)})</b> siap penguatan lanjutan/pengayaan.</p>
             `;
         }
 
         function topWeaknesses() {
             const kdWeak = (AppState.diagnostics.weakestKds || []).slice(0, 3).map(kd => `${kd.name} (${kd.pctCorrect.toFixed(1)}%)`);
-            const itemWeak = [...AppState.questions].sort((a,b) => a.p - b.p).slice(0, 3).map(q => `Soal ${q.id} (${docxPercent(q.p, 0)} benar)`);
+            const itemWeak = getProblemAuditItems(3).map(q => `Soal ${q.id} (${q.decision?.status || 'perlu telaah'}; ${docxPercent(q.p, 0)} benar)`);
             const distractorWeak = AppState.questions.filter(q => q.miskonsepsi || (q.pengecohKosong || []).length).slice(0, 3).map(q => `Soal ${q.id}: ${(q.auditReasons || []).join(', ') || 'distraktor perlu ditelaah'}`);
             return [...kdWeak, ...itemWeak, ...distractorWeak].slice(0, 3);
         }
 
         function followUpActions() {
             const weakKdActions = (AppState.diagnostics.weakestKds || []).slice(0, 3).map(kd => `Re-teaching ${kd.name} (${kd.material || 'materi terkait'}) karena capaian ${kd.pctCorrect.toFixed(1)}%.`);
-            const reviseItems = (AppState.diagnostics.problemItems || []).filter(q => q.decision?.status === 'Revisi').slice(0, 5).map(q => q.id);
+            const reviseItems = (AppState.diagnostics.problemItems || []).filter(q => isRevisionStatus(q.decision?.status)).slice(0, 5).map(q => q.id);
             const discardItems = (AppState.diagnostics.problemItems || []).filter(q => q.decision?.status === 'Buang').slice(0, 5).map(q => q.id);
-            const remedialStudents = [...AppState.students].filter(s => !s.isTuntas).sort((a,b) => a.score - b.score).slice(0, 8).map(s => s.nama);
+            const remedialPriority = getInterventionPriorityStudents();
+            const remedialStudents = remedialPriority.slice(0, 8).map(s => s.nama);
+            const dominantRevisionItems = getDominantRevisionItems();
             return {
                 guru: [
                     ...weakKdActions,
@@ -2448,13 +2628,13 @@
                     discardItems.length ? `Buang atau tulis ulang total soal nomor ${discardItems.join(', ')} sebelum dipakai ulang.` : 'Tidak ada butir prioritas buang berdasarkan konfigurasi saat ini.'
                 ],
                 siswa: [
-                    remedialStudents.length ? `Pendampingan prioritas untuk ${remedialStudents.join(', ')}.` : 'Mayoritas siswa telah tuntas; siapkan pengayaan.',
-                    'Berikan latihan ulang berbasis KD lemah dan bahas 10 butir tersulit secara klasikal.',
+                    remedialStudents.length ? `Pendampingan prioritas untuk ${remedialPriority.length} siswa Intervensi Prioritas di bawah Transisi; daftar lengkap tersedia pada tabel ekspor, contoh awal: ${remedialStudents.join(', ')}.` : 'Tidak ada siswa berlabel Intervensi Prioritas; tindak lanjut dapat difokuskan pada Remedial Intensif/Ringan sesuai kebutuhan.',
+                    dominantRevisionItems.length ? `Berikan latihan ulang berbasis KD lemah dan bahas ${dominantRevisionItems.length} butir Revisi Dominan secara klasikal.` : 'Berikan latihan ulang berbasis KD lemah; tidak ada butir Revisi Dominan yang perlu dibahas khusus.',
                     'Lakukan konfirmasi lisan untuk siswa dengan blank tinggi atau pola respons tidak konsisten.'
                 ],
                 sekolah: [
-                    `Gunakan KR-20 ${AppState.reliabilitas.toFixed(2)} dan split-half ${AppState.splitHalfReliability.toFixed(2)} sebagai indikator mutu paket.`,
-                    `Tetapkan ${AppState.diagnostics.itemDecision.keep} butir layak simpan, ${AppState.diagnostics.itemDecision.revise} revisi, dan ${AppState.diagnostics.itemDecision.discard} buang sebagai tindak lanjut bank soal.`,
+                    ...(AppState.diagnostics.leadership || []),
+                    `Tetapkan ${AppState.diagnostics.itemDecision.keep} butir layak simpan, ${AppState.diagnostics.itemDecision.revise} revisi, dan ${AppState.diagnostics.itemDecision.discard} buang. Label telaah: ${AppState.diagnostics.itemDecision.reviseDominan || 0} Revisi Dominan dan ${AppState.diagnostics.itemDecision.reviseLemah || 0} Revisi Lemah.`,
                     'Arsipkan laporan ini bersama file rekap dan catatan perubahan kunci untuk audit kurikulum.'
                 ]
             };
@@ -2465,14 +2645,15 @@
             const avg = AppState.students.reduce((a,b) => a + b.score, 0) / AppState.students.length;
             const tuntas = AppState.students.filter(s => s.isTuntas).length;
             const tuntasPct = tuntas / AppState.students.length;
-            const itemDecision = AppState.diagnostics.itemDecision || { keep: 0, revise: 0, discard: 0 };
-            const problemItems = (AppState.diagnostics.problemItems || []).slice(0, 12);
-            const weakestItems = [...AppState.questions].sort((a,b) => a.p - b.p).slice(0, 10);
-            const weakestItemsByNumber = [...weakestItems].sort((a,b) => a.id - b.id);
-            const remedial = [...AppState.students]
-                .filter(s => !s.isTuntas)
-                .sort((a,b) => String(a.kelas).localeCompare(String(b.kelas), 'id-ID', { numeric: true }) || String(a.nama).localeCompare(String(b.nama), 'id-ID'))
-                .slice(0, 15);
+            const itemDecision = AppState.diagnostics.itemDecision || { keep: 0, revise: 0, reviseDominan: 0, reviseLemah: 0, discard: 0 };
+            const auditProblemItems = getProblemAuditItems(5);
+            const dominantRevisionItems = getDominantRevisionItems();
+            const remedialItemsByNumber = [...dominantRevisionItems].sort((a,b) => a.id - b.id);
+            const remedial = getInterventionPriorityStudents();
+            const totalQuestionSafe = Math.max(1, Number(AppState.totalQuestions) || 0);
+            const priorityMaxCorrect = Math.floor(totalQuestionSafe * 0.4);
+            const priorityMaxScore = (priorityMaxCorrect / totalQuestionSafe) * 100;
+            const priorityKds = (AppState.diagnostics.weakestKds || []).slice(0, 4);
             const c = AppState.blueprint.cognitive || {};
             const lots = (c.C1 || 0) + (c.C2 || 0) + (c.C3 || 0);
             const hots = (c.C4 || 0) + (c.C5 || 0) + (c.C6 || 0);
@@ -2491,7 +2672,9 @@
             const sInv = AppState.questions.filter(q => q.dayaBeda < AppState.analysisConfig.item.reviseDiscrimination);
             const sMis = AppState.questions.filter(q => q.miskonsepsi !== null);
             const weakKdNames = (AppState.diagnostics.weakestKds || []).slice(0, 3).map(kd => `${kd.name} (${kd.pctCorrect.toFixed(1)}%)`).join(', ') || 'belum ada KD lemah terpetakan';
-            const weakItemNames = weakestItems.slice(0, 5).map(q => `No. ${q.id}`).join(', ') || '-';
+            const weakItemNames = auditProblemItems.map(q => `No. ${q.id}`).join(', ') || '-';
+            const dominantItemNames = dominantRevisionItems.map(q => `No. ${q.id}`).join(', ') || 'tidak ada butir Revisi Dominan';
+            const leadershipNarrative = (AppState.diagnostics.leadership || []).join(' ');
             const reliabilityLabel = AppState.reliabilitas >= 0.70 ? 'konsistensi internal cukup kuat' : 'konsistensi internal masih perlu dievaluasi';
             const executiveNarrative = `Secara umum, rerata kelas berada pada ${avg.toFixed(1)} dengan ketuntasan ${pctT}% (${tuntas} dari ${AppState.students.length} siswa). ${classInterpretation} ${programDirection} Tiga sinyal utama yang perlu dibaca bersama adalah kelemahan KD (${weakKdNames}), butir paling lemah (${weakItemNames}), dan mutu instrumen (${itemDecision.keep} simpan, ${itemDecision.revise} revisi, ${itemDecision.discard} buang).`;
             const classNarrative = `Berdasarkan hasil evaluasi empiris, rerata agregat klasikal berada pada ${avg.toFixed(1)} dengan rasio penguasaan kompetensi sebesar ${pctT}%. Standar deviasi ${AppState.standarDeviasi.toFixed(1)} dan koefisien variasi ${AppState.heterogenitas.toFixed(1)}% menunjukkan bahwa kelas ini ${AppState.heterogenitas > 15 ? 'memiliki rentang kemampuan yang cukup lebar' : 'memiliki kemampuan yang relatif merata'}.`;
@@ -2500,14 +2683,16 @@
                 : (tuntasPct < 0.80
                     ? 'Capaian kelas berada pada fase berkembang. Saran tindak lanjutnya adalah remedial terarah untuk siswa belum tuntas, tutor sebaya dari siswa tuntas, dan latihan bertahap pada butir dengan akurasi rendah.'
                     : 'Capaian kelas sudah relatif kuat. Tindak lanjut terbaik adalah pengayaan, latihan HOTS, dan penutupan gap kecil pada KD yang masih berada di bawah target.');
-            const studentNarrative = 'Bagian ini membaca kelemahan siswa bukan hanya dari nilai akhir, tetapi juga dari learning path per KD. Siswa dengan kategori Intervensi Prioritas atau Remedial Intensif sebaiknya mendapat pendampingan singkat, latihan ulang pada KD paling lemah, dan konfirmasi lisan jika pola jawabannya tidak konsisten.';
+            const studentNarrative = `Bagian ini membaca kelemahan siswa bukan hanya dari nilai akhir, tetapi juga dari learning path per KD. Tabel Siswa Prioritas Pendampingan hanya menampilkan peserta didik berlabel Intervensi Prioritas, yaitu siswa pada dua rentang terendah Distribusi Frekuensi atau di bawah Transisi (maksimal ${priorityMaxCorrect} benar dari ${totalQuestionSafe} butir / sekitar ${priorityMaxScore.toFixed(1)}%). Dengan demikian daftar pada dokumen sinkron dengan grafik Distribusi Frekuensi dan label Ketuntasan di aplikasi; Remedial Intensif/Ringan dapat ditangani melalui program kelas atau kelompok belajar terpisah.`;
             const studentPatternNarrative = `Dari pola respons individu, terdeteksi ${sRagu} siswa dengan blank/omission tinggi, ${sTebak} siswa dengan Guttman-like response pattern (indikasi benar pada soal sukar tetapi lemah pada soal dasar), ${sErr} siswa dengan pengisian ganda, dan ${sCont} siswa dengan sinyal kemiripan respons ekstrem. Indikasi ini bukan vonis, melainkan sinyal audit awal yang perlu dikonfirmasi guru.`;
-            const studentAdvice = 'Saran tindak lanjut siswa: gunakan daftar prioritas remedial untuk menentukan kelompok kecil, berikan latihan ulang per KD, lalu lakukan cek pemahaman singkat sebelum siswa masuk ke latihan pengayaan.';
+            const studentAdvice = `Saran tindak lanjut siswa: gunakan daftar prioritas remedial untuk menentukan kelompok kecil, bahas butir Revisi Dominan (${dominantItemNames}), berikan latihan ulang per KD, lalu lakukan cek pemahaman singkat sebelum siswa masuk ke latihan pengayaan.`;
             const itemNarrative = `Evaluasi instrumen menunjukkan KR-20 ${AppState.reliabilitas.toFixed(2)} (${reliabilityLabel}) dengan CI aproksimasi ${AppState.reliabilityCI.lower.toFixed(2)}-${AppState.reliabilityCI.upper.toFixed(2)} dan pembanding split-half ${AppState.splitHalfReliability.toFixed(2)}. Komposisi kesukaran adalah ${AppState.proporsiKesukaran.mudah} mudah, ${AppState.proporsiKesukaran.sedang} sedang, dan ${AppState.proporsiKesukaran.sukar} sukar.`;
-            const itemAdvice = `Catatan kritik soal: ${sInv.length} butir memiliki daya beda rendah, ${sZonk.length} butir memiliki kesukaran ekstrem, dan ${sMis.length} butir memuat indikasi miskonsepsi dominan. Butir dengan status revisi perlu dicek stimulus, kunci, bahasa soal, dan fungsi pengecoh; butir dengan status buang sebaiknya tidak langsung masuk bank soal.`;
-            const curriculumNarrative = `Pemetaan KD/TP/BAB digunakan untuk menelusuri bagian pembelajaran yang belum terserap. KD paling lemah saat ini adalah ${weakKdNames}. Jika KD lemah sekaligus memiliki banyak butir revisi, maka masalahnya perlu dibaca ganda: bisa berasal dari penguasaan materi, bisa juga dari kualitas butir yang kurang stabil.`;
+            const itemAdvice = `Catatan kritik soal: ${sInv.length} butir memiliki daya beda rendah, ${sZonk.length} butir memiliki kesukaran ekstrem, dan ${sMis.length} butir memuat indikasi miskonsepsi dominan. Status Revisi Dominan adalah gabungan unik butir dengan D < 0.20 dan/atau miskonsepsi, sehingga jumlahnya selaras dengan ringkasan Mendegradasi Validitas dan Indikasi Miskonsepsi. Butir Revisi Lemah cukup ditelaah ringan; butir dengan status Buang tetap diberi label revisi pendamping agar guru tahu apakah butir perlu direvisi dominan lalu diganti/ditulis ulang.`;
+            const curriculumNarrative = priorityKds.length
+                ? `Pemetaan KD/TP/BAB digunakan untuk menelusuri bagian pembelajaran yang belum terserap. Prioritas tindak lanjut sama dengan tabel gap kurikulum di aplikasi: ${priorityKds.map(kd => `${kd.name} (${kd.pctCorrect.toFixed(1)}%, butir ${kd.weakItems.map(q => q.id).join(', ') || '-'})`).join('; ')}. Jika KD lemah sekaligus memiliki banyak butir revisi, maka masalahnya perlu dibaca ganda: bisa berasal dari penguasaan materi, bisa juga dari kualitas butir yang kurang stabil.`
+                : 'Pemetaan KD/TP/BAB belum menunjukkan topik prioritas karena KD belum dipetakan atau seluruh topik berada di atas ambang KKM/KKTP.';
             const distributionNarrative = buildDistributionNarrative();
-            const conclusionNarrative = `Kesimpulan manajerial: mutu pembelajaran dan mutu soal harus dibaca bersamaan. Paket ini memiliki ${itemDecision.keep} butir layak simpan, ${itemDecision.revise} butir perlu revisi, dan ${itemDecision.discard} butir perlu dibuang atau ditulis ulang. Prioritas kebijakan sekolah adalah memastikan re-teaching KD lemah, telaah butir bermasalah, dan dokumentasi bank soal berbasis bukti statistik.`;
+            const conclusionNarrative = `Kesimpulan manajerial: mutu pembelajaran dan mutu soal harus dibaca bersamaan. Paket ini memiliki ${itemDecision.keep} butir layak simpan, ${itemDecision.revise} butir perlu revisi, dan ${itemDecision.discard} butir perlu dibuang atau ditulis ulang. Label telaah menunjukkan ${itemDecision.reviseDominan || 0} Revisi Dominan dan ${itemDecision.reviseLemah || 0} Revisi Lemah; butir Buang dapat membawa dua label jika perlu diganti sekaligus direvisi. Output Pimpinan: ${leadershipNarrative || 'belum ada ringkasan pimpinan yang tersedia.'} Prioritas kebijakan sekolah adalah memastikan re-teaching KD lemah, telaah butir bermasalah, dan dokumentasi bank soal berbasis bukti statistik.`;
             const policyCritique = `Kritik dan saran utama: jangan memakai nilai akhir sebagai satu-satunya dasar keputusan. Gunakan gabungan capaian KD, daya beda, korelasi item-total, fungsi distraktor, serta pola respons siswa agar tindak lanjut lebih adil dan dapat diaudit.`;
 
             const identityRows = [
@@ -2523,7 +2708,7 @@
                 ['Rata-rata kelas', avg.toFixed(1), { text: avg >= AppState.kkm ? 'Baik' : 'Di bawah KKM/KKTP', fill: avg >= AppState.kkm ? REPORT_COLORS.green : REPORT_COLORS.red, bold: true }],
                 ['Ketuntasan', `${tuntas}/${AppState.students.length} siswa (${docxPercent(tuntasPct)})`, { text: tuntasPct >= 0.80 ? 'Baik' : (tuntasPct >= 0.50 ? 'Perlu remedial terarah' : 'Perlu remedial massal'), fill: tuntasPct >= 0.80 ? REPORT_COLORS.green : (tuntasPct >= 0.50 ? REPORT_COLORS.yellow : REPORT_COLORS.red), bold: true }],
                 ['Reliabilitas tes', `KR-20 ${AppState.reliabilitas.toFixed(2)}; split-half ${AppState.splitHalfReliability.toFixed(2)}`, { text: AppState.reliabilitas >= 0.70 ? 'Cukup reliabel' : 'Perlu evaluasi paket', fill: AppState.reliabilitas >= 0.70 ? REPORT_COLORS.green : REPORT_COLORS.yellow, bold: true }],
-                ['Mutu butir', `${itemDecision.keep} simpan, ${itemDecision.revise} revisi, ${itemDecision.discard} buang`, { text: itemDecision.discard ? 'Ada risiko instrumen' : 'Terkendali', fill: itemDecision.discard ? REPORT_COLORS.red : REPORT_COLORS.green, bold: true }],
+                ['Mutu butir', `${itemDecision.keep} simpan, ${itemDecision.revise} revisi, ${itemDecision.discard} buang; label: ${itemDecision.reviseDominan || 0} dominan, ${itemDecision.reviseLemah || 0} lemah`, { text: itemDecision.discard ? 'Ada risiko instrumen' : ((itemDecision.reviseDominan || 0) ? 'Perlu tindak lanjut' : 'Terkendali'), fill: itemDecision.discard ? REPORT_COLORS.red : ((itemDecision.reviseDominan || 0) ? REPORT_COLORS.orange : REPORT_COLORS.green), bold: true }],
                 ['3 kelemahan terbesar', weaknesses.join('\n') || '-', { text: 'Prioritas tindak lanjut', fill: REPORT_COLORS.yellow, bold: true }]
             ];
 
@@ -2537,45 +2722,59 @@
                 ])
             ];
 
+            const priorityKdKeys = new Set(priorityKds.map(kd => `${kd.name}||${kd.material || ''}||${(kd.qs || []).join(',')}`));
             const kdRows = [
                 ['KD/TP/BAB', 'Materi', 'Level', 'Butir', 'Capaian', 'Tindak lanjut'],
-                ...AppState.babResults.map(kd => [
-                    kd.name,
-                    kd.material || '-',
-                    kd.level || 'Belum dipetakan',
-                    kd.qs.join(', '),
-                    { text: `${kd.pctCorrect.toFixed(1)}%`, fill: kd.pctCorrect >= AppState.kkm ? REPORT_COLORS.green : REPORT_COLORS.red, bold: true, align: 'center' },
-                    kd.pctCorrect < AppState.kkm ? `Re-teaching ${kd.name}; bahas butir ${kd.weakItems.map(q => q.id).join(', ') || '-'}.` : `Pertahankan ${kd.name}; lanjutkan pengayaan.`
-                ])
+                ...AppState.babResults.map(kd => {
+                    const key = `${kd.name}||${kd.material || ''}||${(kd.qs || []).join(',')}`;
+                    const isBlueprintPriority = priorityKdKeys.has(key);
+                    const priorityFill = isBlueprintPriority ? (kd.pctCorrect < AppState.kkm ? REPORT_COLORS.red : REPORT_COLORS.yellow) : '';
+                    const priorityColor = isBlueprintPriority ? (kd.pctCorrect < AppState.kkm ? '7F1D1D' : '92400E') : '111827';
+                    return [
+                        { text: kd.name, fill: priorityFill, color: priorityColor, bold: isBlueprintPriority },
+                        { text: kd.material || '-', fill: priorityFill, color: priorityColor, bold: isBlueprintPriority },
+                        kd.level || 'Belum dipetakan',
+                        kd.qs.join(', '),
+                        { text: `${kd.pctCorrect.toFixed(1)}%`, fill: kd.pctCorrect >= AppState.kkm ? REPORT_COLORS.green : REPORT_COLORS.red, bold: true, align: 'center' },
+                        kd.pctCorrect < AppState.kkm ? `Re-teaching ${kd.name}; bahas butir ${kd.weakItems.map(q => q.id).join(', ') || '-'}.` : `Pertahankan ${kd.name}; lanjutkan pengayaan.`
+                    ];
+                })
             ];
 
             const remedialItemRows = [
                 ['Urut', 'Butir', 'Akurasi', 'KD terkait', 'Aksi guru'],
-                ...weakestItemsByNumber.map((q, idx) => {
+                ...(remedialItemsByNumber.length ? remedialItemsByNumber.map((q, idx) => {
                     const kd = AppState.babResults.find(k => k.qs.includes(q.id));
-                    return [String(idx + 1), `Soal ${q.id}`, docxPercent(q.p), kd?.name || '-', `Bahas konsep; ${q.decision?.status === 'Buang' ? 'tulis ulang butir' : 'validasi kunci dan revisi pengecoh'}.`];
-                })
+                    const action = hasDecisionLabel(q.decision, 'Buang')
+                        ? 'Ganti atau tulis ulang butir; validasi kunci, stimulus, dan pengecoh karena berlabel Revisi Dominan / Buang.'
+                        : 'Bahas konsep; validasi kunci, stimulus, dan revisi pengecoh karena berstatus Revisi Dominan.';
+                    return [String(idx + 1), `Soal ${q.id}`, docxPercent(q.p), kd?.name || '-', action];
+                }) : [['-', 'Tidak ada', '-', '-', 'Tidak ada butir yang berstatus Revisi Dominan.']])
             ];
             const remedialStudentRows = [
-                ['No', 'Nama', 'Kelas', 'Nilai', 'Kategori', 'Learning path'],
-                ...remedial.map(s => [
-                    String(s.no),
-                    s.nama,
-                    s.kelas,
-                    s.score.toFixed(1),
-                    { text: s.performanceCategory?.label || '-', fill: statusFill(s.performanceCategory?.label), bold: true, align: 'center' },
-                    (s.learningPath || []).map(kd => `${kd.name} ${kd.pct.toFixed(0)}%`).join('; ') || '-'
-                ])
+                ['No', 'Nama', 'Kelas', 'Benar', 'Nilai', 'Kategori', 'Learning path'],
+                ...(remedial.length ? remedial.map(s => {
+                    const category = s.performanceCategory;
+                    return [
+                        String(s.no),
+                        s.nama,
+                        s.kelas,
+                        `${s.benar}/${AppState.totalQuestions}`,
+                        s.score.toFixed(1),
+                        { text: category.label, fill: statusFill(category.label), bold: true, align: 'center' },
+                        (s.learningPath || []).map(kd => `${kd.name} ${kd.pct.toFixed(0)}%`).join('; ') || '-'
+                    ];
+                }) : [['-', 'Tidak ada siswa Intervensi Prioritas', '-', '-', '-', { text: 'Terkendali', fill: REPORT_COLORS.green, bold: true, align: 'center' }, '-']])
             ];
 
             const itemRows = [
-                ['No', 'Kunci', 'P', 'D', 'Status', 'Rekomendasi'],
+                ['No', 'Kunci', 'P', 'D', 'Status dan Keputusan', 'Rekomendasi'],
                 ...AppState.questions.map(q => [
                     String(q.id),
                     q.kunci,
-                    q.p.toFixed(2),
-                    q.dayaBeda.toFixed(2),
-                    { text: q.decision?.status || '-', fill: statusFill(q.decision?.status), bold: true, align: 'center' },
+                    { text: q.p.toFixed(2), fill: q.p < AppState.analysisConfig.item.zonkingP ? REPORT_COLORS.red : (q.p > AppState.analysisConfig.item.tooEasyP ? REPORT_COLORS.yellow : REPORT_COLORS.white), align: 'center' },
+                    { text: q.dayaBeda.toFixed(2), fill: q.dayaBeda < AppState.analysisConfig.item.reviseDiscrimination ? REPORT_COLORS.red : (q.dayaBeda < AppState.analysisConfig.item.goodDiscrimination ? REPORT_COLORS.yellow : REPORT_COLORS.white), align: 'center' },
+                    { text: decisionLabelText(q.decision), fill: statusFill(decisionLabelText(q.decision)), bold: true, align: 'center' },
                     (q.auditReasons || q.decision?.reasons || ['Layak dipakai']).join('; ')
                 ])
             ];
@@ -2648,12 +2847,12 @@
                 wTable(kdRows, { widths: [1450, 3900, 650, 900, 850, 3150], layout: 'fixed' }),
                 wParagraph('B. PEMETAAN DIAGNOSTIK INDIVIDU PESERTA DIDIK', 'Heading1'),
                 wNarrative('Deskripsi Diagnosis Siswa', [studentNarrative, studentPatternNarrative, studentAdvice]),
-                wParagraph('1. Sepuluh Butir Paling Lemah', 'Heading2'),
+                wParagraph(`1. Butir Revisi Dominan untuk Pembahasan (${remedialItemsByNumber.length} butir)`, 'Heading2'),
                 wTable(remedialItemRows, { widths: [1000, 1200, 1200, 1700, 4300] }),
                 wParagraph('2. Siswa Prioritas Pendampingan', 'Heading2'),
-                wTable(remedialStudentRows, { widths: [700, 2400, 900, 900, 1600, 3600] }),
+                wTable(remedialStudentRows, { widths: [600, 2200, 800, 850, 850, 1500, 3400] }),
                 wParagraph('C. EVALUASI KUALITAS SOAL UJIAN (Analisis Butir Instrumen)', 'Heading1'),
-                wNarrative('Cara Membaca Bagian C', [itemNarrative, itemAdvice, 'P adalah tingkat kesukaran, D adalah daya beda, dan status soal menggabungkan P, D, korelasi item-total, serta fungsi distraktor. Hijau berarti layak simpan, kuning perlu revisi, merah bermasalah/buang.']),
+                wNarrative('Cara Membaca Bagian C', [itemNarrative, itemAdvice, 'P adalah tingkat kesukaran, D adalah daya beda, dan status soal menggabungkan P, D, korelasi item-total, serta fungsi distraktor. Hijau berarti layak simpan, kuning berarti Revisi Lemah, oranye berarti Revisi Dominan (D < 0.20 dan/atau miskonsepsi), dan merah berarti Buang. Jika satu butir menampilkan Revisi Dominan / Buang, artinya butir tersebut bermasalah kuat dan sebaiknya diganti atau ditulis ulang.']),
                 wParagraph('1. Analisis Butir Soal per Nomor', 'Heading2'),
                 wTable(itemRows, { widths: [650, 850, 700, 700, 1500, 5200] }),
                 wParagraph('2. Analisis Distraktor', 'Heading2'),
@@ -2665,6 +2864,7 @@
                 wActionList('Rekomendasi untuk Guru', actions.guru),
                 wActionList('Rekomendasi untuk Siswa', actions.siswa),
                 wActionList('Rekomendasi untuk Sekolah/Kurikulum', actions.sekolah),
+                wPageBreak(),
                 wParagraph('LAMPIRAN AUDIT', 'Heading1'),
                 wParagraph('Kamus Istilah Singkat', 'Heading2'),
                 wTable(glossaryRows, { widths: [2500, 6500] }),
