@@ -26,7 +26,7 @@
         .analysis-table .wide-text { min-width: max-content; white-space: nowrap; }
     </style>
 </head>
-<body class="text-gray-800 antialiased h-screen flex flex-col overflow-hidden">
+<body class="text-gray-800 antialiased min-h-screen flex flex-col overflow-x-hidden bg-slate-50">
     <header class="bg-white shadow-sm z-20 flex-shrink-0">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-col sm:flex-row justify-between items-center py-3 sm:h-16 gap-3">
@@ -55,7 +55,7 @@
         </div>
     </header>
 
-    <main class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scroll bg-slate-50">
+    <main class="flex-1 min-h-0 overflow-x-hidden custom-scroll bg-slate-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
             <div id="view-upload" class="flex flex-col items-center justify-center mt-4 sm:mt-10">
                 <div class="bg-white p-6 sm:p-10 rounded-2xl shadow-xl max-w-3xl w-full text-center border border-gray-100">
@@ -339,7 +339,7 @@
         </div>
     </main>
 
-    <footer class="bg-white border-t border-gray-200 py-4 flex-shrink-0 relative z-20 block">
+    <footer id="app-footer" class="bg-white border-t border-gray-200 py-2 sm:py-4 flex-shrink-0 relative z-20 block">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs sm:text-sm text-gray-500">
             <p class="mb-1">Dikembangkan oleh: <b>YUSUF ARIS SYAMSUDDIN</b></p>
             <p>ID: 0762773674130202 | Guru IPA & Informatika - SMPN 2 Secang</p>
@@ -368,7 +368,7 @@
             distLabels: [], distData: [0,0,0,0,0], optionsList: ['A','B','C','D'],
             fileValidation: { valid: false, status: 'idle', message: 'Belum ada file aktif.', sheetName: '', signature: '', errors: [], warnings: [] },
             importMeta: { actualQuestionCount: 0, rowCount: 0, warnings: [] },
-            babConfig: [],
+            babConfig: [], mappingApplied: false,
             babResults: [], babLabels: [], babDataBenar: [], babDataSalah: [],
             mappingValidation: { valid: true, invalid: [], duplicates: [], missing: [], covered: 0, coveragePct: 0 },
             blueprint: { kd: [], cognitive: {}, difficulty: {}, distractorQuality: {} },
@@ -454,6 +454,110 @@
             return limit ? items.slice(0, limit) : items;
         }
 
+        function getAnalysisClasses(state = AppState) {
+            const classes = Array.isArray(state.classes) && state.classes.length
+                ? state.classes
+                : [...new Set((state.students || []).map(s => String(s.kelas || '').trim()).filter(Boolean))];
+            return classes.sort((a,b) => String(a).localeCompare(String(b), 'id-ID', { numeric: true }));
+        }
+
+        function misconceptionCoverage(q, state = AppState) {
+            const classes = getAnalysisClasses(state);
+            const opt = q?.miskonsepsi?.opt;
+            const byClass = classes.map(kelas => {
+                const students = (state.students || []).filter(s => String(s.kelas) === String(kelas));
+                const count = students.filter(s => (String(s.jawaban || '').charAt((q?.id || 1) - 1) || '-').toUpperCase() === opt).length;
+                return { kelas, count, total: students.length };
+            });
+            const covered = byClass.filter(row => row.count > 0).length;
+            return { opt, byClass, covered, totalClasses: classes.length, allClasses: classes.length > 0 && covered === classes.length };
+        }
+
+        function isClasswideMisconception(q, state = AppState) {
+            return !!q?.miskonsepsi && misconceptionCoverage(q, state).allClasses;
+        }
+
+        function getKdPriorityMetrics(kd) {
+            const cfg = AppState.analysisConfig?.item || {};
+            const pct = Number(kd?.pctCorrect) || 0;
+            const gap = Math.max(0, (Number(AppState.kkm) || 0) - pct);
+            const quality = kd?.quality || {};
+            const revise = Number(quality.revise) || 0;
+            const discard = Number(quality.discard) || 0;
+            const avgD = Number(quality.avgD) || 0;
+            const avgR = Number(quality.avgR) || 0;
+            const qIds = kd?.qs || [];
+            const classwideMisconception = (AppState.questions || []).filter(q => qIds.includes(q.id) && isClasswideMisconception(q)).length;
+            const weakD = avgD < (cfg.reviseDiscrimination ?? 0.20);
+            const weakR = avgR < (cfg.weakCorrectedR ?? 0.20);
+            const score = gap + (revise * 6) + (discard * 10) + (classwideMisconception * 8) + (weakD ? 5 : 0) + (weakR ? 3 : 0);
+            const problematic = gap > 0 || revise > 0 || discard > 0 || classwideMisconception > 0 || weakD || weakR;
+            const basis = [
+                gap > 0 ? `gap ${gap.toFixed(1)} poin dari KKM` : '',
+                revise || discard ? `${revise + discard} butir revisi/buang` : '',
+                classwideMisconception ? `${classwideMisconception} miskonsepsi lintas kelas` : '',
+                weakD ? `rata-rata D ${avgD.toFixed(2)}` : '',
+                weakR ? `r item-total ${avgR.toFixed(2)}` : ''
+            ].filter(Boolean).join('; ') || 'tidak ada sinyal risiko utama';
+            return { gap, revise, discard, avgD, avgR, classwideMisconception, weakD, weakR, score, problematic, basis };
+        }
+
+        function getBlueprintPriorityKds(limit = 4) {
+            if (!hasActiveCurriculumMapping()) return [];
+            const source = AppState.babResults?.length ? AppState.babResults : (AppState.diagnostics?.weakestKds || []);
+            const items = [...source]
+                .map(kd => ({ ...kd, priority: getKdPriorityMetrics(kd) }))
+                .filter(kd => kd.priority.problematic)
+                .sort((a,b) => b.priority.score - a.priority.score || a.pctCorrect - b.pctCorrect || String(a.name).localeCompare(String(b.name), 'id-ID', { numeric: true }));
+            return limit ? items.slice(0, limit) : items;
+        }
+
+        function getValidityDegradingItems() {
+            const threshold = AppState.analysisConfig?.item?.reviseDiscrimination ?? 0.20;
+            return [...(AppState.questions || [])]
+                .filter(q => Number(q.dayaBeda) < threshold)
+                .sort((a,b) => a.id - b.id);
+        }
+
+        function getExtremeDifficultyItems() {
+            const threshold = AppState.analysisConfig?.item?.zonkingP ?? 0.20;
+            return [...(AppState.questions || [])]
+                .filter(q => Number(q.p) < threshold)
+                .sort((a,b) => a.id - b.id);
+        }
+
+        function getMisconceptionItems() {
+            return [...(AppState.questions || [])]
+                .filter(q => isClasswideMisconception(q))
+                .sort((a,b) => a.id - b.id);
+        }
+
+        function getFocusedAuditItems(limit = 0) {
+            const map = new Map();
+            [...getValidityDegradingItems(), ...getMisconceptionItems()].forEach(q => map.set(q.id, q));
+            const items = [...map.values()].sort((a,b) => a.id - b.id);
+            return limit ? items.slice(0, limit) : items;
+        }
+
+        function hasActiveCurriculumMapping() {
+            const v = AppState.mappingValidation || {};
+            return !!AppState.mappingApplied && (AppState.babResults || []).length > 0 && (v.covered || 0) > 0 && !(v.invalid || []).length && !(v.duplicates || []).length;
+        }
+
+        function markCurriculumMappingDraft() {
+            AppState.mappingApplied = false;
+            const chartWrap = document.getElementById('bab-chart-wrapper');
+            if (chartWrap) chartWrap.classList.add('hidden');
+            if (chartBabInst) {
+                chartBabInst.destroy();
+                chartBabInst = null;
+            }
+        }
+
+        function idList(items) {
+            return items && items.length ? items.map(item => item.id).join(', ') : '-';
+        }
+
         function getDominantRevisionItems() {
             return [...(AppState.questions || [])]
                 .filter(q => hasDecisionLabel(q.decision, 'Revisi Dominan'))
@@ -462,7 +566,7 @@
 
         function isDominantRevisionTrigger(q, state = AppState) {
             const cfg = state.analysisConfig?.item || { reviseDiscrimination: 0.20 };
-            return (Number(q?.dayaBeda) || 0) < cfg.reviseDiscrimination || q?.miskonsepsi !== null;
+            return (Number(q?.dayaBeda) || 0) < cfg.reviseDiscrimination || isClasswideMisconception(q, state);
         }
 
         function distributionBandIndexFromCorrect(correctCount, totalQuestions = AppState.totalQuestions) {
@@ -498,6 +602,92 @@
                 .map(student => ({ ...student, performanceCategory: getStudentCategory(student) }))
                 .filter(student => student.performanceCategory.label === 'Intervensi Prioritas')
                 .sort((a,b) => String(a.kelas).localeCompare(String(b.kelas), 'id-ID', { numeric: true }) || String(a.nama).localeCompare(String(b.nama), 'id-ID'));
+        }
+
+        function classSummaryModel(totalStudents = AppState.students.length, totalPassed = AppState.students.filter(s => s.isTuntas).length, average = 0) {
+            const safeTotal = Math.max(1, Number(totalStudents) || 0);
+            const passed = Number(totalPassed) || 0;
+            const pct = (passed / safeTotal) * 100;
+            const heterogeneity = Number(AppState.heterogenitas) || 0;
+            const heterogeneityLabel = heterogeneity > 15 ? 'Heterogen (Kesenjangan kompetensi tinggi)' : 'Homogen (Kemampuan merata)';
+            const assimilation = pct < 50
+                ? {
+                    label: 'Asimilasi kompetensi klasikal tergolong krusial (Defisit).',
+                    color: 'red',
+                    advice: 'Penyelenggaraan pengajaran ulang (re-teaching) massal menggunakan pendekatan pedagogik alternatif teramat direkomendasikan pada indikator materi dengan kelemahan kolektif sebelum melanjutkan materi.'
+                }
+                : (pct < 80
+                    ? {
+                        label: 'Asimilasi kompetensi klasikal dikategorikan Moderat/Dalam Tahap Berkembang.',
+                        color: 'orange',
+                        advice: 'Optimalisasi program tutor sebaya (peer tutoring) berbasis kolaboratif. Peserta didik dengan pencapaian tuntas difungsikan sebagai agen pembimbing bagi rekannya yang mengalami deselerasi akademik.'
+                    }
+                    : {
+                        label: 'Asimilasi kompetensi klasikal terkategori Sangat Optimal.',
+                        color: 'green',
+                        advice: 'Eksekusi instruksional dapat diakselerasi menuju tahapan silabus berikutnya. Fasilitasi program pengayaan (enrichment) sangat disarankan untuk merangsang eskalasi nalar tinggi siswa.'
+                    });
+            return {
+                total: safeTotal,
+                passed,
+                average: Number(average) || 0,
+                pct,
+                pctText: pct.toFixed(1),
+                heterogeneity,
+                heterogeneityText: heterogeneity.toFixed(1),
+                heterogeneityLabel,
+                assimilation
+            };
+        }
+
+        function classSummaryParagraphs(model) {
+            return [
+                `Interpretasi Capaian Klasikal: Berdasarkan hasil evaluasi empiris, diperoleh rerata agregat klasikal (tendensi sentral) berada pada koefisien ${model.average.toFixed(1)} dengan rasio perolehan penguasaan kompetensi (mastery learning) sebesar ${model.pctText}% (${model.passed} dari ${model.total} peserta didik melampaui ambang batas KKM ${AppState.kkm}). Koefisien variasi kelas (indeks disparitas) berada di angka ${model.heterogeneityText}%, menandakan bahwa profil kognitif subjek bersifat ${model.heterogeneityLabel}.`,
+                `${model.assimilation.label} Rekomendasi Tindak Lanjut: ${model.assimilation.advice}`
+            ];
+        }
+
+        function classSummaryHtml(model) {
+            const colorClass = model.assimilation.color === 'red' ? 'text-red-600' : (model.assimilation.color === 'orange' ? 'text-orange-600' : 'text-green-600');
+            return `<p><b>Interpretasi Capaian Klasikal:</b> Berdasarkan hasil evaluasi empiris, diperoleh rerata agregat klasikal (tendensi sentral) berada pada koefisien <b>${model.average.toFixed(1)}</b> dengan rasio perolehan penguasaan kompetensi (<i>mastery learning</i>) sebesar <b>${model.pctText}%</b> (${model.passed} dari ${model.total} peserta didik melampaui ambang batas KKM ${AppState.kkm}). Koefisien variasi kelas (indeks disparitas) berada di angka <b>${model.heterogeneityText}%</b>, menandakan bahwa profil kognitif subjek bersifat <b>${model.heterogeneityLabel}</b>.</p>
+            <p class="mt-2"><span class="${colorClass} font-bold">${model.assimilation.label}</span><br><b>Rekomendasi Tindak Lanjut:</b> ${escapeHtml(model.assimilation.advice).replace(/\((re-teaching|peer tutoring|enrichment)\)/g, '(<i>$1</i>)')}</p>`;
+        }
+
+        function priorityKdLabel(kd) {
+            if (!kd) return '-';
+            const weakItems = (kd.weakItems || []).map(q => q.id).filter(Boolean).join(', ');
+            return `${kd.name} (${kd.pctCorrect.toFixed(1)}%; ${weakItems ? `bahas No. ${weakItems}` : 'cek butir terkait'})`;
+        }
+
+        function reteachingPriorityNarrative() {
+            if (!hasActiveCurriculumMapping()) return 'Peta KD belum aktif -> proses atau impor kisi-kisi -> rekomendasi pengajaran ulang baru valid.';
+            const kds = getBlueprintPriorityKds(4);
+            if (!kds.length) return 'Peta KD terbaca -> tidak ada KD prioritas bermasalah -> lanjutkan pengayaan dan pemeliharaan bank soal.';
+            const first = kds[0];
+            const other = kds.slice(1).map(priorityKdLabel).join('; ') || 'tidak ada prioritas tambahan';
+            return `Prioritas: ${priorityKdLabel(first)} -> Alasan: ${first.priority.basis} -> Aksi: ajar ulang ${first.material || first.name}, lalu bahas butir lemah -> Cek ulang: kuis pendek. Prioritas berikutnya: ${other}.`;
+        }
+
+        function auditTraceNarrative() {
+            const invalidItems = getValidityDegradingItems();
+            const misconceptionItems = getMisconceptionItems();
+            const focused = getFocusedAuditItems(0);
+            if (!focused.length) return 'Audit butir terkendali: tidak ada butir prioritas dari daya beda rendah atau miskonsepsi lintas kelas. Lanjutkan validasi kunci dan pemeliharaan bank soal.';
+            const both = focused.filter(q => invalidItems.some(item => item.id === q.id) && misconceptionItems.some(item => item.id === q.id));
+            const action = both.length ? `No. ${idList(both)} paling mendesak karena bermasalah secara statistik dan konsep.` : 'Revisi statistik dan pembahasan miskonsepsi dapat dipisah.';
+            return `Audit butir: fokus No. ${idList(focused)}. Daya beda rendah: ${idList(invalidItems)}. Miskonsepsi lintas kelas: ${idList(misconceptionItems)}. Makna: ${action} Aksi: cek kunci/stimulus -> revisi pengecoh -> gunakan sebagai bahan pembahasan.`;
+        }
+
+        function curriculumMeaningNarrative(mappingActive = hasActiveCurriculumMapping(), priorityKds = getBlueprintPriorityKds(4)) {
+            if (!mappingActive) return 'Makna kurikulum belum dapat disimpulkan karena pemetaan KD/TP/BAB belum diproses. Aktifkan Proses Pemetaan atau Impor Kisi-Kisi terlebih dahulu.';
+            if (!priorityKds.length) return 'Makna kurikulum: cakupan KD sudah terbaca dan tidak ada topik prioritas bermasalah. Lanjutkan pengayaan, pertahankan materi yang stabil, dan tetap validasi butir sebelum masuk bank soal.';
+            const first = priorityKds[0];
+            const focus = priorityKds.map(kd => kd.name).join(', ');
+            return `Makna kurikulum: tidak semua materi perlu diulang. Fokus utama adalah ${first.name} karena ${first.priority.basis}. Urutan kerja: ajar ulang ${first.material || first.name} -> bahas butir lemah -> kuis pendek -> revisi butir yang mengganggu validitas. KD/topik prioritas: ${focus}.`;
+        }
+
+        function flowImportantHtml(value) {
+            return richImportantHtml(value).replace(/\s*-&gt;\s*/g, ' <span class="inline-flex items-center px-1.5 font-bold text-blue-600">&rarr;</span> ');
         }
 
         function importantHtmlClass(token) {
@@ -563,6 +753,7 @@
             AppState.questions = Array.isArray(AppState.questions) ? AppState.questions : [];
             AppState.classes = Array.isArray(AppState.classes) ? AppState.classes : [];
             AppState.babConfig = Array.isArray(AppState.babConfig) ? AppState.babConfig : [];
+            AppState.mappingApplied = !!AppState.mappingApplied;
             AppState.babResults = Array.isArray(AppState.babResults) ? AppState.babResults : [];
             AppState.importMeta = AppState.importMeta || { actualQuestionCount: AppState.totalQuestions || 0, rowCount: AppState.students.length, warnings: [] };
             AppState.fileValidation = AppState.fileValidation || { valid: false, status: 'idle', message: 'Belum ada file aktif.', sheetName: '', signature: '', errors: [], warnings: [] };
@@ -1177,8 +1368,8 @@
                 const invalid = [];
                 const duplicates = [];
                 const empty = [];
-            state.babConfig.forEach((bab, idx) => {
-                const qList = parseQStr(bab.qs);
+                state.babConfig.forEach((bab, idx) => {
+                    const qList = parseQStr(bab.qs);
                     if (!qList.length) empty.push(bab.name || `KD ${idx + 1}`);
                     qList.forEach(q => {
                         if (q < 1 || q > maxQ) invalid.push({ kd: bab.name || `KD ${idx + 1}`, q });
@@ -1229,60 +1420,79 @@
                     state.babDataSalah.push(pctWrong.toFixed(1));
                 });
 
+                const mappingActive = !!state.mappingApplied && state.babResults.length > 0 && (state.mappingValidation.covered || 0) > 0 && !state.mappingValidation.invalid.length && !state.mappingValidation.duplicates.length;
                 state.students.forEach(s => {
-                    s.kdProfile = state.babResults.map(kd => {
-                        const correct = s.detailBenar.filter(q => kd.qs.includes(q)).length;
-                        const pct = kd.qs.length ? (correct / kd.qs.length) * 100 : 0;
-                        return { name: kd.name, material: kd.material, level: kd.level, pct, wrong: kd.qs.filter(q => !s.detailBenar.includes(q)) };
-                    }).sort((a,b) => a.pct - b.pct);
-                    s.learningPath = s.kdProfile.filter(kd => kd.pct < state.kkm).slice(0, 2);
+                    if (mappingActive) {
+                        s.kdProfile = state.babResults.map(kd => {
+                            const correct = s.detailBenar.filter(q => kd.qs.includes(q)).length;
+                            const pct = kd.qs.length ? (correct / kd.qs.length) * 100 : 0;
+                            return { name: kd.name, material: kd.material, level: kd.level, pct, wrong: kd.qs.filter(q => !s.detailBenar.includes(q)) };
+                        }).sort((a,b) => a.pct - b.pct);
+                        s.learningPath = s.kdProfile.filter(kd => kd.pct < state.kkm).slice(0, 2);
+                    } else {
+                        s.kdProfile = [];
+                        s.learningPath = [];
+                    }
                 });
 
-                const cognitive = {};
-                state.babResults.forEach(kd => {
-                    kd.qs.forEach(qid => {
-                        const level = kd.levelDetail?.[qid] || kd.level;
-                        cognitive[level || 'Belum dipetakan'] = (cognitive[level || 'Belum dipetakan'] || 0) + 1;
+                const cognitive = mappingActive ? {} : { 'Belum dipetakan': state.totalQuestions || 0 };
+                if (mappingActive) {
+                    state.babResults.forEach(kd => {
+                        kd.qs.forEach(qid => {
+                            const level = kd.levelDetail?.[qid] || kd.level;
+                            cognitive[level || 'Belum dipetakan'] = (cognitive[level || 'Belum dipetakan'] || 0) + 1;
+                        });
                     });
-                });
+                }
                 const lowDistractorItems = state.questions.filter(q => q.pengecohKosong.length >= Math.max(1, Math.floor((state.optionsList.length - 1) / 2))).length;
                 state.blueprint = {
-                    kd: state.babResults,
+                    kd: mappingActive ? state.babResults : [],
                     cognitive,
                     difficulty: state.proporsiKesukaran,
                     distractorQuality: { lowDistractorItems, total: state.questions.length }
                 };
 
-                state.diagnostics.weakestKds = [...state.babResults].sort((a,b) => a.pctCorrect - b.pctCorrect).slice(0, 5);
+                state.diagnostics.weakestKds = mappingActive ? [...state.babResults].sort((a,b) => a.pctCorrect - b.pctCorrect).slice(0, 5) : [];
                 state.diagnostics.teacher = this.teacherRecommendations(state);
                 state.diagnostics.student = this.studentRecommendations(state);
                 state.diagnostics.curriculum = this.curriculumRecommendations(state);
                 state.diagnostics.leadership = this.leadershipRecommendations(state);
             },
             teacherRecommendations(state) {
-                const weakKdText = state.diagnostics.weakestKds.length ? state.diagnostics.weakestKds.map(kd => `${kd.name} (${kd.pctCorrect.toFixed(1)}%)`).join(', ') : 'belum ada KD lemah terpetakan';
+                const mappingActive = hasActiveCurriculumMapping();
+                const weakKds = getBlueprintPriorityKds(4);
+                const weakKdText = weakKds.length ? weakKds.map(kd => `${kd.name} (${kd.pctCorrect.toFixed(1)}%)`).join(', ') : 'belum ada KD lemah terpetakan';
                 const badItems = getProblemAuditItems(5).map(q => `No. ${q.id}`).join(', ') || '-';
                 const interventionCount = state.students.filter(s => this.classifyStudent(s, state.kkm, state.totalQuestions).label === 'Intervensi Prioritas').length;
                 const remedialTotal = state.students.filter(s => !s.isTuntas).length;
                 return [
-                    `KD paling lemah: ${weakKdText}. Prioritaskan re-teaching pada KD tersebut.`,
+                    mappingActive ? `KD paling lemah: ${weakKdText}. Prioritaskan re-teaching pada KD tersebut.` : `KD paling lemah belum dapat dinyatakan karena pemetaan KD/TP/BAB belum diproses. Aktifkan pemetaan sebelum mengambil keputusan re-teaching berbasis KD.`,
                     `Butir bermasalah prioritas: ${badItems}. Periksa kunci, stimulus, dan fungsi pengecoh sebelum masuk bank soal.`,
                     `Siswa prioritas pendampingan: ${interventionCount} siswa Intervensi Prioritas (di bawah Transisi) dari ${remedialTotal} siswa di bawah KKM ${state.kkm}.`
                 ];
             },
             studentRecommendations(state) {
+                const mappingActive = hasActiveCurriculumMapping();
                 const highBlank = state.students.filter(s => s.raguRagu).length;
                 const lowConsistency = state.students.filter(s => s.konsistensiRendah || s.isTebakan).length;
                 return [
-                    `Profil kelemahan siswa sekarang diturunkan dari KD yang dipetakan, bukan hanya nilai akhir.`,
+                    mappingActive ? `Profil kelemahan siswa sekarang diturunkan dari KD yang dipetakan, bukan hanya nilai akhir.` : `Profil kelemahan per KD belum aktif karena pemetaan KD/TP/BAB belum diproses; sementara gunakan nilai, distribusi frekuensi, dan pola respons individu.`,
                     `${highBlank} siswa memiliki blank/omission tinggi; ${lowConsistency} siswa perlu pengecekan pola tebakan atau konsistensi.`,
-                    `Learning path individu menampilkan maksimal dua KD terlemah untuk latihan ulang.`
+                    mappingActive ? `Learning path individu menampilkan maksimal dua KD terlemah untuk latihan ulang.` : `Learning path individu berbasis KD akan muncul setelah Proses Pemetaan atau Impor Kisi-Kisi.`
                 ];
             },
             curriculumRecommendations(state) {
+                const mappingActive = hasActiveCurriculumMapping();
                 const missing = state.mappingValidation.missing.length;
                 const under = state.babResults.filter(kd => kd.pctCorrect < state.kkm).length;
                 const tooEasy = state.babResults.filter(kd => kd.pctCorrect >= 90).length;
+                if (!mappingActive) {
+                    return [
+                        `Coverage blueprint masih draft: ${state.mappingValidation.covered}/${state.totalQuestions} butir terbaca, tetapi belum dipakai untuk keputusan kurikulum.`,
+                        `Gap analysis KD belum dinyatakan agar laporan tidak menyimpulkan kelemahan materi dari slot otomatis yang belum divalidasi guru.`,
+                        `Isi atau impor kisi-kisi, lalu tekan Proses Pemetaan untuk mengaktifkan evaluasi C1-C6, KD prioritas, dan rekomendasi re-teaching.`
+                    ];
+                }
                 return [
                     `Coverage blueprint: ${state.mappingValidation.covered}/${state.totalQuestions} butir (${state.mappingValidation.coveragePct.toFixed(1)}%). ${missing} butir belum dipetakan.`,
                     `${under} KD di bawah KKM dan ${tooEasy} KD terlalu mudah. Gunakan ini sebagai gap analysis materi.`,
@@ -1300,7 +1510,7 @@
                 return [
                     `Reliabilitas KR-20: ${state.reliabilitas.toFixed(2)} (CI aproks. ${state.reliabilityCI.lower.toFixed(2)}-${state.reliabilityCI.upper.toFixed(2)}); split-half ${state.splitHalfReliability.toFixed(2)}. Proporsi soal layak: ${((decisions.keep / total) * 100).toFixed(1)}%.`,
                     `Soal perlu revisi/buang: ${state.diagnostics.problemItems.length} dari ${total} butir (${decisions.reviseDominan || 0} Revisi Dominan, ${decisions.reviseLemah || 0} Revisi Lemah, ${decisions.discard || 0} Buang).`,
-                    `Rombel/topik risiko: ${classStats[0] ? `${classStats[0].kelas} (rerata ${classStats[0].avg.toFixed(1)})` : '-'}; ${state.diagnostics.weakestKds[0] ? state.diagnostics.weakestKds[0].name : 'KD belum dipetakan'}.`
+                    `Rombel/topik risiko: ${classStats[0] ? `${classStats[0].kelas} (rerata ${classStats[0].avg.toFixed(1)})` : '-'}; ${hasActiveCurriculumMapping() && state.diagnostics.weakestKds[0] ? state.diagnostics.weakestKds[0].name : 'KD belum diproses'}.`
                 ];
             }
         };
@@ -1351,9 +1561,11 @@
                         PedagogyRules.updateMappingDiagnostics(AppState);
                         updateUI();
                         renderBabInputs();
-                        if (AppState.babLabels && AppState.babLabels.length > 0) {
+                        if (hasActiveCurriculumMapping() && AppState.babLabels && AppState.babLabels.length > 0) {
                             document.getElementById('bab-chart-wrapper').classList.remove('hidden');
                             drawBabChart();
+                        } else {
+                            document.getElementById('bab-chart-wrapper')?.classList.add('hidden');
                         }
                     }
                 } catch (e) {
@@ -1419,7 +1631,7 @@
             if(AppState.students.length > 0) {
                 analyzeData(false);
                 updateUI();
-                if(chartBabInst) applyBabAnalysis(false);
+                if(AppState.mappingApplied) applyBabAnalysis(true);
                 saveState();
             }
         });
@@ -1506,6 +1718,7 @@
             AppState.babDataBenar = [];
             AppState.babDataSalah = [];
             AppState.babResults = [];
+            markCurriculumMappingDraft();
 
             if (AppState.students.length === 0) {
                 alert('Tidak ada data siswa ditemukan.');
@@ -1521,7 +1734,6 @@
 
             syncBabConfigWithQuestionCount(true);
             analyzeData(false);
-            applyBabAnalysis(false);
             switchToDashboard();
             updateUI();
             saveState();
@@ -1549,7 +1761,7 @@
                 analyzeData(true); 
                 saveState();
                 updateUI();
-                if(chartBabInst) applyBabAnalysis(false);
+                if(AppState.mappingApplied) applyBabAnalysis(true);
             }
         };
 
@@ -1578,11 +1790,13 @@
                 AppState.babConfig.every((bab, idx) => /^BAB\s+\d+$/i.test(bab.name || '') && parseQStr(bab.qs).some(q => q > idx * 5));
             if (force || hasNoMapping || (isOldDefault35 && AppState.totalQuestions !== 35)) {
                 AppState.babConfig = autoGenerateBabConfig(AppState.totalQuestions);
+                markCurriculumMappingDraft();
             } else if (validation.invalid.length > 0) {
                 AppState.babConfig = AppState.babConfig.map(bab => ({
                     ...bab,
                     qs: qNumsToRange(parseQStr(bab.qs).filter(q => q >= 1 && q <= AppState.totalQuestions))
                 }));
+                markCurriculumMappingDraft();
             }
             PedagogyRules.updateMappingDiagnostics(AppState);
         }
@@ -1615,8 +1829,11 @@
             if (v.empty?.length) warnings.push(`${v.empty.length} KD belum berisi rentang`);
             if (v.missing.length) warnings.push(`${v.missing.length} butir belum masuk KD`);
             if (AppState.importMeta?.warnings?.length) warnings.push(`${AppState.importMeta.warnings.length} catatan validasi impor`);
-            const statusClass = warnings.length ? 'text-amber-800' : 'text-emerald-800';
-            const detail = warnings.length ? warnings.join(' | ') : 'Mapping konsisten dengan jumlah butir aktual.';
+            const isDraft = AppState.totalQuestions > 0 && !AppState.mappingApplied;
+            const statusClass = (isDraft || warnings.length) ? 'text-amber-800' : 'text-emerald-800';
+            const detail = isDraft
+                ? `Draft belum aktif. Klik Proses Pemetaan, Auto Slot KD, atau Impor Kisi-Kisi agar analisis KD dipakai dalam laporan.${warnings.length ? ` Catatan: ${warnings.join(' | ')}` : ''}`
+                : (warnings.length ? warnings.join(' | ') : 'Mapping konsisten dengan jumlah butir aktual.');
             el.innerHTML = `
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 ${statusClass}">
                     <div><b>Butir aktual:</b> ${AppState.totalQuestions || 0} | <b>Terpetakan:</b> ${v.covered || 0}/${AppState.totalQuestions || 0} (${(v.coveragePct || 0).toFixed(1)}%)</div>
@@ -1627,6 +1844,7 @@
         function updateBabField(idx, field, value) {
             if (!AppState.babConfig[idx]) return;
             AppState.babConfig[idx][field] = value;
+            markCurriculumMappingDraft();
             if (field === 'qs' || field === 'level') {
                 AppState.babConfig[idx].itemLevels = {};
                 AppState.babConfig[idx].source = '';
@@ -1634,6 +1852,9 @@
             PedagogyRules.updateMappingDiagnostics(AppState);
             renderMappingStatus();
             renderBlueprintCoverage();
+            renderKlasikalInsights();
+            renderStakeholderBrief();
+            renderStudentTable();
             saveState();
         }
 
@@ -1643,7 +1864,7 @@
                 return;
             }
             AppState.babConfig = autoGenerateBabConfig(AppState.totalQuestions);
-            applyBabAnalysis(false);
+            applyBabAnalysis(true);
             renderBabInputs();
             renderBlueprintCoverage();
             renderStudentTable();
@@ -1740,7 +1961,7 @@
             if (!config.length) throw new Error('Tidak ada nomor soal kisi-kisi yang cocok dengan jumlah soal aktual.');
             AppState.babConfig = config;
             AppState.importMeta.warnings = [...new Set([...(AppState.importMeta.warnings || []), ...warnings])].slice(0, 12);
-            applyBabAnalysis(false);
+            applyBabAnalysis(true);
             renderBabInputs();
             renderStudentTable();
             alert(`Kisi-kisi berhasil diimpor: ${config.length} materi/topik aktif.${warnings.length ? `\n\nCatatan: ${warnings.slice(0,3).join(' ')}` : ''}`);
@@ -1829,17 +2050,25 @@
 
         function addBabRow() {
             AppState.babConfig.push({ name: `KD ${AppState.babConfig.length + 1}`, material: '', level: '', qs: '' });
+            markCurriculumMappingDraft();
             PedagogyRules.updateMappingDiagnostics(AppState);
             renderBabInputs();
             renderBlueprintCoverage();
+            renderKlasikalInsights();
+            renderStakeholderBrief();
+            renderStudentTable();
             saveState();
         }
 
         function removeBabRow(idx) {
             AppState.babConfig.splice(idx, 1);
+            markCurriculumMappingDraft();
             PedagogyRules.updateMappingDiagnostics(AppState);
             renderBabInputs();
             renderBlueprintCoverage();
+            renderKlasikalInsights();
+            renderStakeholderBrief();
+            renderStudentTable();
             saveState();
         }
 
@@ -1860,14 +2089,27 @@
         }
 
         function applyBabAnalysis(draw = true) {
+            const validation = PedagogyRules.validateMapping(AppState);
+            AppState.mappingValidation = validation;
+            AppState.mappingApplied = AppState.babConfig.length > 0 && (validation.covered || 0) > 0 && !(validation.invalid || []).length && !(validation.duplicates || []).length;
             PedagogyRules.updateMappingDiagnostics(AppState);
             renderMappingStatus();
-            document.getElementById('bab-chart-wrapper').classList.remove('hidden');
+            const chartWrap = document.getElementById('bab-chart-wrapper');
+            if (AppState.mappingApplied) chartWrap?.classList.remove('hidden');
+            else {
+                chartWrap?.classList.add('hidden');
+                if (chartBabInst) {
+                    chartBabInst.destroy();
+                    chartBabInst = null;
+                }
+            }
             document.getElementById('bab-recommendation-container').innerHTML = '';
             renderBlueprintCoverage();
+            renderKlasikalInsights();
             renderStakeholderBrief();
+            renderStudentTable();
 
-            if (draw) drawBabChart();
+            if (AppState.mappingApplied && draw) drawBabChart();
             saveState();
         }
 
@@ -1990,6 +2232,23 @@
         function renderBlueprintCoverage() {
             const el = document.getElementById('blueprint-coverage-container');
             if (!el || !AppState.students.length) return;
+            const v = AppState.mappingValidation || {};
+            if (!hasActiveCurriculumMapping()) {
+                el.innerHTML = `
+                <div class="bg-white rounded-xl shadow-sm border border-amber-100 p-4 sm:p-5">
+                    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                        <div>
+                            <h4 class="font-bold text-gray-800"><i class="fas fa-project-diagram text-amber-600 mr-2"></i>Blueprint Coverage & Gap Kurikulum</h4>
+                            <p class="text-[10px] sm:text-xs text-gray-600 mt-1">Pemetaan KD/TP/BAB masih berstatus <b>draft</b>. Agar deskripsi, grafik KD, HOTS, dan rekomendasi re-teaching tidak bersifat asumtif, bagian ini baru aktif setelah guru menekan <b>Proses Pemetaan</b>, <b>Auto Slot KD</b>, atau berhasil <b>Impor Kisi-Kisi</b>.</p>
+                        </div>
+                        <div class="text-[10px] sm:text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800">Draft: <b>${v.covered || 0}/${AppState.totalQuestions || 0}</b> butir terbaca</div>
+                    </div>
+                    <div class="mt-3 text-[10px] sm:text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                        Setelah aktif, aplikasi menampilkan <b>maksimal 4 KD/topik prioritas</b> berdasarkan skor gabungan: gap terhadap KKM, butir revisi/buang, miskonsepsi lintas kelas, daya beda D, dan korelasi item-total.
+                    </div>
+                </div>`;
+                return;
+            }
             const cognitive = AppState.blueprint?.cognitive || {};
             const displayedLevels = ['C1','C2','C3','C4','C5','C6'].filter(level => (cognitive[level] || 0) > 0);
             if ((cognitive['Belum dipetakan'] || 0) > 0) displayedLevels.push('Belum dipetakan');
@@ -1999,25 +2258,28 @@
                 const note = level === 'Belum ada level' ? 'Import/isi level C1-C6' : `${count} butir (${pct.toFixed(1)}%)`;
                 return `<div class="bg-white border border-slate-200 rounded-lg p-2"><div class="font-bold text-slate-800">${level}</div><div class="text-slate-500">${note}</div></div>`;
             }).join('');
-            const weakHtml = (AppState.diagnostics.weakestKds || []).slice(0,4).map(kd => {
-                const action = kd.pctCorrect < AppState.kkm ? `Re-teaching; bahas ${kd.weakItems.map(q => `No. ${q.id}`).join(', ') || 'butir lemah'}` : 'Pengayaan/pertahankan';
+            const weakHtml = getBlueprintPriorityKds(4).map(kd => {
+                const action = kd.priority.gap > 0
+                    ? `Re-teaching; bahas ${(kd.weakItems || []).map(q => `No. ${q.id}`).join(', ') || 'butir lemah'}; cek ulang dengan kuis pendek.`
+                    : (kd.priority.revise + kd.priority.discard > 0 || kd.priority.classwideMisconception > 0
+                        ? 'Telaah mutu butir dan bahas miskonsepsi sebelum masuk bank soal.'
+                        : 'Pengayaan/pertahankan.');
                 return `
                 <tr>
                     <td class="px-2 py-1 font-semibold">${escapeHtml(kd.name)}</td>
                     <td class="px-2 py-1 wide-text">${escapeHtml(kd.material || '-')}</td>
                     <td class="px-2 py-1 text-center">${escapeHtml(kd.level || 'Belum')}</td>
                     <td class="px-2 py-1 text-center font-bold ${kd.pctCorrect < AppState.kkm ? 'text-red-600' : 'text-green-600'}">${kd.pctCorrect.toFixed(1)}%</td>
-                    <td class="px-2 py-1 text-center">D ${kd.quality.avgD.toFixed(2)} | r ${kd.quality.avgR.toFixed(2)} | Revisi ${kd.quality.revise + kd.quality.discard}</td>
+                    <td class="px-2 py-1 text-center">Skor ${kd.priority.score.toFixed(1)} | Gap ${kd.priority.gap.toFixed(1)} | Revisi ${kd.priority.revise + kd.priority.discard} | Misk ${kd.priority.classwideMisconception}</td>
                     <td class="px-2 py-1 wide-text">${escapeHtml(action)}</td>
                 </tr>`;
             }).join('');
-            const v = AppState.mappingValidation || {};
             el.innerHTML = `
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5">
                     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 border-b pb-3 mb-3">
                         <div>
                             <h4 class="font-bold text-gray-800"><i class="fas fa-project-diagram text-emerald-600 mr-2"></i>Blueprint Coverage & Gap Kurikulum</h4>
-                            <p class="text-[10px] sm:text-xs text-gray-500">Memantau apakah butir soal sudah mewakili materi dan level C1-C6. Jika ada level belum dipetakan, import kisi-kisi atau lengkapi level pada matriks di atas.</p>
+                            <p class="text-[10px] sm:text-xs text-gray-500">Menampilkan maksimal 4 KD/topik prioritas berdasarkan skor gabungan: gap terhadap KKM, butir revisi/buang, miskonsepsi lintas kelas, D, dan r item-total. Jika ada level belum dipetakan, import kisi-kisi atau lengkapi level pada matriks di atas.</p>
                         </div>
                         <div class="text-[10px] sm:text-xs bg-slate-50 border rounded-lg px-3 py-2 text-slate-700">Coverage: <b>${v.covered || 0}/${AppState.totalQuestions || 0}</b> (${(v.coveragePct || 0).toFixed(1)}%)</div>
                     </div>
@@ -2025,7 +2287,7 @@
                     <div class="custom-scroll overflow-x-auto border rounded-lg">
                         <table class="analysis-table text-[10px] sm:text-xs">
                             <thead class="bg-gray-100 text-gray-600 uppercase">
-                                <tr><th class="px-2 py-2 text-left">KD/Topik Prioritas</th><th class="px-2 py-2 text-left">Materi/Indikator</th><th class="px-2 py-2 text-center">Level</th><th class="px-2 py-2 text-center">Capaian</th><th class="px-2 py-2 text-center">Kualitas KD</th><th class="px-2 py-2 text-left">Aksi Tindak Lanjut</th></tr>
+                                <tr><th class="px-2 py-2 text-left">KD/Topik Prioritas</th><th class="px-2 py-2 text-left">Materi/Indikator</th><th class="px-2 py-2 text-center">Level</th><th class="px-2 py-2 text-center">Capaian</th><th class="px-2 py-2 text-center">Skor Prioritas</th><th class="px-2 py-2 text-left">Aksi Tindak Lanjut</th></tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">${weakHtml || '<tr><td colspan="6" class="px-2 py-3 text-center text-gray-500 italic">KD belum dipetakan.</td></tr>'}</tbody>
                         </table>
@@ -2074,6 +2336,7 @@
             AppState.fileValidation = { valid: false, status: 'idle', message: 'Belum ada file aktif.', sheetName: '', signature: '', errors: [], warnings: [] };
             PendingFile = null;
             AppState.babConfig = [];
+            AppState.mappingApplied = false;
             AppState.babResults = [];
             AppState.babLabels = [];
             AppState.babDataBenar = [];
@@ -2118,13 +2381,8 @@
         }
 
         function generateSummaries(totS, totT, avg) {
-            const pctT = ((totT / totS) * 100).toFixed(1);
-            let kTxt = `<p><b>Interpretasi Capaian Klasikal:</b> Berdasarkan hasil evaluasi empiris, diperoleh rerata agregat klasikal (tendensi sentral) berada pada koefisien <b>${avg.toFixed(1)}</b> dengan rasio perolehan penguasaan kompetensi (<i>mastery learning</i>) sebesar <b>${pctT}%</b> (${totT} dari ${totS} peserta didik melampaui ambang batas KKM ${AppState.kkm}). Koefisien variasi kelas (indeks disparitas) berada di angka <b>${AppState.heterogenitas.toFixed(1)}%</b>, menandakan bahwa profil kognitif subjek bersifat <b>${AppState.heterogenitas > 15 ? "Heterogen (Kesenjangan kompetensi tinggi)" : "Homogen (Kemampuan merata)"}</b>.</p>`;
-            
-            if (pctT < 50) kTxt += `<p class="mt-2"><span class="text-red-600 font-bold">Asimilasi kompetensi klasikal tergolong krusial (Defisit).</span><br><b>Rekomendasi Tindak Lanjut:</b> Penyelenggaraan pengajaran ulang (<i>re-teaching</i>) massal menggunakan pendekatan pedagogik alternatif teramat direkomendasikan pada indikator materi dengan kelemahan kolektif sebelum melanjutkan konstruksi silabus.</p>`;
-            else if (pctT < 80) kTxt += `<p class="mt-2"><span class="text-orange-600 font-bold">Asimilasi kompetensi klasikal dikategorikan Moderat/Dalam Tahap Berkembang.</span><br><b>Rekomendasi Tindak Lanjut:</b> Optimalisasi program tutor sebaya (<i>peer tutoring</i>) berbasis kolaboratif. Peserta didik dengan pencapaian tuntas difungsikan sebagai agen pembimbing bagi rekannya yang mengalami deselerasi akademik.</p>`;
-            else kTxt += `<p class="mt-2"><span class="text-green-600 font-bold">Asimilasi kompetensi klasikal terkategori Sangat Optimal.</span><br><b>Rekomendasi Tindak Lanjut:</b> Eksekusi instruksional dapat diakselerasi menuju tahapan silabus berikutnya. Fasilitasi program pengayaan (<i>enrichment</i>) sangat disarankan untuk merangsang eskalasi nalar tinggi siswa.</p>`;
-            document.getElementById('summary-klasikal-text').innerHTML = kTxt;
+            const classModel = classSummaryModel(totS, totT, avg);
+            document.getElementById('summary-klasikal-text').innerHTML = classSummaryHtml(classModel);
 
             const sRagu = AppState.students.filter(s => s.raguRagu).length, sTebak = AppState.students.filter(s => s.isTebakan).length, sErr = AppState.students.filter(s => s.jawabanGanda > 0).length, sCont = AppState.students.filter(s => s.isMencontek).length;
             document.getElementById('summary-siswa-text').innerHTML = `<p><b>Deskripsi Perilaku Asesmen:</b> Terdeteksi <b>${sRagu} responden</b> dengan tingkat pengosongan jawaban tinggi, <b>${sTebak} responden</b> dengan <i>Guttman-like response pattern</i> berbasis heuristik (benar di soal sukar namun lemah pada soal dasar), <b>${sErr} responden</b> melakukan pengisian ganda, dan <b>${sCont} responden</b> memiliki indikasi kemiripan respons ekstrem berdasarkan WIC & Harpp-Hogan. Indikasi ini adalah sinyal audit awal, bukan vonis.</p><p class="mt-2"><b>Rekomendasi Tindak Lanjut:</b> Lakukan pendampingan atau evaluasi lisan bagi siswa yang terindikasi anomali untuk memvalidasi pemahaman dan integritas datanya.</p>`;
@@ -2136,25 +2394,26 @@
                 ? dominantRevisionItems.map(q => `<div class="bg-white border border-orange-200 px-2 py-1 sm:px-3 sm:py-1.5 rounded-md shadow-sm text-xs sm:text-sm"><b>Soal No. ${q.id}</b> <span class="text-[10px] sm:text-xs text-gray-500">(${((1 - q.p) * 100).toFixed(0)}% Gagal; ${escapeHtml(q.auditReasons.slice(0,2).join(', ') || 'perlu revisi')})</span></div>`).join('')
                 : '<div class="bg-white border border-emerald-200 px-3 py-2 rounded-md text-xs sm:text-sm text-emerald-700 font-semibold">Tidak ada butir berstatus Revisi Dominan.</div>';
 
-            const sZonk = AppState.questions.filter(q => q.p < 0.2), sInv = AppState.questions.filter(q => q.dayaBeda < 0.2), sMis = AppState.questions.filter(q => q.miskonsepsi !== null);
+            const sZonk = getExtremeDifficultyItems(), sInv = getValidityDegradingItems(), sMis = getMisconceptionItems();
             const itemDecision = AppState.diagnostics.itemDecision || { keep: 0, revise: 0, reviseDominan: 0, reviseLemah: 0, discard: 0 };
             
             let infoReliabilitas = AppState.reliabilitas > 0.7 ? "Konsistensi Tinggi (Sangat Reliabel)" : "Konsistensi Rendah (Butuh Revisi)";
             let soalText = `<p><b>Evaluasi Validitas & Reliabilitas Instrumen:</b> Berdasarkan pengukuran statistik atas ${AppState.totalQuestions} butir soal, diperoleh <b>KR-20 ${AppState.reliabilitas.toFixed(2)}</b> (<b>${infoReliabilitas}</b>) dengan CI aproksimasi <b>${AppState.reliabilityCI.lower.toFixed(2)}-${AppState.reliabilityCI.upper.toFixed(2)}</b> dan pembanding split-half <b>${AppState.splitHalfReliability.toFixed(2)}</b>. Komposisi tingkat kesukaran tes: <b>${AppState.proporsiKesukaran.mudah} Mudah, ${AppState.proporsiKesukaran.sedang} Sedang, ${AppState.proporsiKesukaran.sukar} Sukar</b>.</p>`;
             soalText += `<ul class="list-disc ml-5 mt-1 mb-2 text-xs sm:text-sm">`;
-            soalText += `<li><b>${sInv.length} Mendegradasi Validitas:</b> ${sInv.length > 0 ? sInv.map(q=>q.id).join(', ') : '-'} (Daya Diskriminasi/Pembeda &lt; 0.20, tidak mampu mendistingsi kemampuan tinggi/rendah peserta didik).</li>`;
-            soalText += `<li><b>${sZonk.length} Kesukaran Ekstrem (Zonking):</b> ${sZonk.length > 0 ? sZonk.map(q=>q.id).join(', ') : '-'} (Rasio kebenaran &lt; 20%).</li>`;
-            soalText += `<li><b>${sMis.length} Indikasi Miskonsepsi:</b> ${sMis.length > 0 ? sMis.map(q=>q.id).join(', ') : '-'} (Kehadiran distraktor/pengecoh salah yang menyerap atensi populasi dalam kadar masif).</li>`;
-            soalText += `<li><b>Keputusan Bank Soal:</b> ${itemDecision.keep} simpan, ${itemDecision.revise} revisi, ${itemDecision.discard} buang. Label telaah: ${itemDecision.reviseDominan || 0} Revisi Dominan (gabungan unik D &lt; 0.20 dan miskonsepsi) dan ${itemDecision.reviseLemah || 0} Revisi Lemah; butir Buang dapat tetap membawa label revisi agar guru tahu perlu diganti/ditulis ulang.</li>`;
+            soalText += `<li><b>${sInv.length} Mendegradasi Validitas:</b> ${idList(sInv)} (Daya Diskriminasi/Pembeda &lt; ${AppState.analysisConfig.item.reviseDiscrimination.toFixed(2)}, tidak mampu mendistingsi kemampuan tinggi/rendah peserta didik).</li>`;
+            soalText += `<li><b>${sZonk.length} Kesukaran Ekstrem (Zonking):</b> ${idList(sZonk)} (Rasio kebenaran &lt; ${AppState.analysisConfig.item.zonkingP.toFixed(2)}).</li>`;
+            soalText += `<li><b>${sMis.length} Indikasi Miskonsepsi Lintas Kelas:</b> ${idList(sMis)} (Pengecoh dominan muncul minimal pada satu siswa di setiap kelas/rombel).</li>`;
+            soalText += `<li><b>Keputusan Bank Soal:</b> ${itemDecision.keep} simpan, ${itemDecision.revise} revisi, ${itemDecision.discard} buang. Label telaah: ${itemDecision.reviseDominan || 0} Revisi Dominan (gabungan unik D &lt; ${AppState.analysisConfig.item.reviseDiscrimination.toFixed(2)} dan miskonsepsi lintas kelas) dan ${itemDecision.reviseLemah || 0} Revisi Lemah; butir Buang dapat tetap membawa label revisi agar guru tahu perlu diganti/ditulis ulang.</li>`;
             soalText += `</ul>`;
             soalText += `<p class="text-[10px] sm:text-xs"><b>Rekomendasi Pemeliharaan Instrumen:</b> <br>1. Melakukan penyusutan (<i>drop</i>) terhadap butir tak-valid dari perhitungan komposit.<br>2. Verifikasi triangulasi silabus dan kunci jawaban bagi soal Zonking.<br>3. Menganulir atau meredaksional ulang pengecoh tidak berfungsi (<i>non-functioning distractors</i>) sebagaimana rincian tabel di bawah.</p>`;
             document.getElementById('summary-soal-text').innerHTML = soalText;
         }
 
         function renderKlasikalInsights() {
-            const h = [...AppState.questions].sort((a,b) => a.p - b.p).filter(q => q.p < 0.2);
-            const m = AppState.questions.filter(q => q.miskonsepsi && (q.miskonsepsi.count / AppState.students.length) > 0.4);
-            const weakKds = AppState.diagnostics.weakestKds || [];
+            const h = getExtremeDifficultyItems();
+            const m = getMisconceptionItems();
+            const weakKds = getBlueprintPriorityKds(4);
+            const invalidItems = getValidityDegradingItems();
             let html = '';
             
             if(h.length > 0) {
@@ -2166,20 +2425,24 @@
             if(m.length > 0) {
                 html += `<div class="insight-card insight-warning p-2 sm:p-3 rounded-r-lg border border-yellow-200">
                     <p class="font-bold text-yellow-800 text-[11px] sm:text-sm"><i class="fas fa-exclamation-circle"></i> Indikasi Miskonsepsi Kelas (Perlu Konfirmasi Guru)</p>
-                    <p class="text-[10px] sm:text-xs text-yellow-800 mt-1">Maknanya: banyak siswa memilih pengecoh yang sama, sehingga kemungkinan ada konsep yang dipahami keliru atau redaksi pengecoh terlalu menarik. Rinciannya: ${m.map(q => `<br>- <b>Butir No. ${q.id}</b>: kunci [${q.kunci}], <b>${((q.miskonsepsi.count / AppState.students.length)*100).toFixed(0)}% responden memilih opsi [${q.miskonsepsi.opt}]</b>, terutama pada ${q.miskonsepsi.group}.`).join('')}</p>
+                    <p class="text-[10px] sm:text-xs text-yellow-800 mt-1">Ditampilkan hanya jika pengecoh dominan muncul di semua kelas. Asumsinya: jika setiap rombel memiliki wakil siswa yang memilih pengecoh sama, masalahnya berpotensi lintas kelas, bukan hanya kasus lokal. ${m.map(q => {
+                        const coverage = misconceptionCoverage(q);
+                        const classText = coverage.byClass.map(row => `${row.kelas}: ${row.count}`).join(', ');
+                        return `<br>- <b>Butir No. ${q.id}</b>: kunci [${q.kunci}], opsi [${q.miskonsepsi.opt}] dipilih ${q.miskonsepsi.count} siswa (${((q.miskonsepsi.count / AppState.students.length)*100).toFixed(0)}%); sebaran kelas: ${escapeHtml(classText)}.`;
+                    }).join('')} <br><b>Saran:</b> bahas konsep inti dan alasan pengecoh tersebut keliru sebelum latihan ulang.</p>
                 </div>`;
             }
             if(weakKds.length > 0) {
                 html += `<div class="insight-card p-2 sm:p-3 rounded-r-lg border border-blue-200 bg-blue-50" style="border-left-color:#3b82f6">
                     <p class="font-bold text-blue-800 text-[11px] sm:text-sm"><i class="fas fa-route"></i> Peta Pengajaran Ulang Berbasis KD</p>
-                    <p class="text-[10px] sm:text-xs text-blue-800 mt-1">Prioritas re-teaching: ${weakKds.slice(0,3).map(kd => `<b>${escapeHtml(kd.name)}</b> (${kd.pctCorrect.toFixed(1)}%, butir hot spot: ${kd.weakItems.map(q => q.id).join(', ') || '-'})`).join('; ')}.</p>
+                    <p class="text-[10px] sm:text-xs text-blue-800 mt-1 leading-relaxed">${flowImportantHtml(reteachingPriorityNarrative())}</p>
                 </div>`;
             }
-            const auditItems = getProblemAuditItems(5);
+            const auditItems = getFocusedAuditItems(0);
             if(auditItems.length > 0) {
                 html += `<div class="insight-card p-2 sm:p-3 rounded-r-lg border border-slate-200 bg-slate-50" style="border-left-color:#64748b">
                     <p class="font-bold text-slate-800 text-[11px] sm:text-sm"><i class="fas fa-clipboard-list"></i> Jejak Audit Statistik Butir</p>
-                    <p class="text-[10px] sm:text-xs text-slate-700 mt-1">${auditItems.map(q => `<b>No. ${q.id}</b>: P=${q.p.toFixed(2)}, D=${q.dayaBeda.toFixed(2)}, r=${q.correctedR.toFixed(2)}, keputusan=${q.decision.status}, alasan=${q.auditReasons.join(', ')}`).join('<br>')}</p>
+                    <p class="text-[10px] sm:text-xs text-slate-700 mt-1">${richImportantHtml(auditTraceNarrative())}</p>
                 </div>`;
             }
             document.getElementById('insight-klasikal-container').innerHTML = html || '<p class="text-xs sm:text-sm text-gray-500 italic p-2 bg-gray-50 rounded border border-gray-200">Tidak terdiagnosis preseden anomali yang mencolok dari representasi data klasikal.</p>';
@@ -2221,7 +2484,9 @@
                 if(s.isMencontek) d.push(`<span class="bg-gray-800 text-white text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-gray-900" title="Analisis Spasial: WIC / Harpp-Hogan ekstrem">Indikasi Kolusi</span>`);
                 const learningPath = (s.learningPath && s.learningPath.length)
                     ? s.learningPath.map(kd => `${escapeHtml(kd.name)} (${kd.pct.toFixed(0)}%)`).join(' | ')
-                    : (s.detailSalah.length>0 ? `Defisit di No: ${s.detailSalah.slice(0,5).join(',')}${s.detailSalah.length>5?'...':''}` : 'Penguasaan Penuh');
+                    : (hasActiveCurriculumMapping()
+                        ? (s.detailSalah.length>0 ? `Defisit di No: ${s.detailSalah.slice(0,5).join(',')}${s.detailSalah.length>5?'...':''}` : 'Penguasaan Penuh')
+                        : 'Pemetaan KD belum aktif');
                 
                 const category = getStudentCategory(s);
                 return `<tr class="hover:bg-slate-50 transition-colors border-b border-gray-100">
@@ -2246,8 +2511,10 @@
                 icon.innerHTML = `<i class="fas ${iconClass} ml-1"></i>`;
             });
             const z = document.getElementById('chk-zonking').checked, m = document.getElementById('chk-miskonsepsi').checked, inv = document.getElementById('chk-tidakvalid').checked, norm = document.getElementById('chk-normal').checked;
+            const zonkingThreshold = AppState.analysisConfig.item.zonkingP;
+            const invalidThreshold = AppState.analysisConfig.item.reviseDiscrimination;
             const rows = AppState.questions.filter(q => {
-                const isZ = q.p < 0.2, isI = q.dayaBeda < 0.2, hasM = q.miskonsepsi !== null;
+                const isZ = q.p < zonkingThreshold, isI = q.dayaBeda < invalidThreshold, hasM = q.miskonsepsi !== null;
                 let show = false;
                 if (!isZ && !hasM && !isI && norm) show = true;
                 if (isZ && z) show = true;
@@ -2583,7 +2850,7 @@
                 : (dominant.index === 2
                     ? 'Hasil utama menunjukkan banyak siswa berada pada kelompok transisi, sehingga diperlukan latihan terarah dan pembahasan ulang konsep inti.'
                     : 'Hasil utama menunjukkan banyak siswa berada pada rentang tinggi, sehingga pengayaan dapat disiapkan sambil tetap menutup gap pada siswa yang masih rendah.');
-            return `Grafik dan tabel ini membaca jumlah benar per siswa, bukan urutan nomor soal. Kolom proporsi menunjukkan banyaknya siswa yang berada pada rentang skor tersebut, sedangkan makna ditentukan oleh posisi rentang skor. Kelompok terbanyak berada pada rentang ${dominant.range} (${dominant.category}) sebanyak ${dominant.count} siswa (${docxPercent(dominant.pct)}), yang bermakna ${dominant.meaning} ${direction} Ringkasnya, ${lowCount} siswa (${docxPercent(lowCount / total)}) berada pada dua rentang penguatan dasar di bawah Transisi dan otomatis menjadi Intervensi Prioritas, ${transitionCount} siswa (${docxPercent(transitionCount / total)}) berada pada kelompok transisi, dan ${highCount} siswa (${docxPercent(highCount / total)}) berada pada rentang siap pengayaan.`;
+            return `Grafik dan tabel ini membaca jumlah benar per siswa. Kolom proporsi menunjukkan banyaknya siswa yang berada pada rentang skor tersebut, sedangkan makna ditentukan oleh posisi rentang skor. Kelompok terbanyak berada pada rentang ${dominant.range} (${dominant.category}) sebanyak ${dominant.count} siswa (${docxPercent(dominant.pct)}), yang bermakna ${dominant.meaning} ${direction} Ringkasnya, ${lowCount} siswa (${docxPercent(lowCount / total)}) berada pada dua rentang penguatan dasar di bawah Transisi dan otomatis menjadi Intervensi Prioritas, ${transitionCount} siswa (${docxPercent(transitionCount / total)}) berada pada kelompok transisi, dan ${highCount} siswa (${docxPercent(highCount / total)}) berada pada rentang siap pengayaan.`;
         }
 
         function renderDistributionExplanation() {
@@ -2608,15 +2875,16 @@
         }
 
         function topWeaknesses() {
-            const kdWeak = (AppState.diagnostics.weakestKds || []).slice(0, 3).map(kd => `${kd.name} (${kd.pctCorrect.toFixed(1)}%)`);
-            const itemWeak = getProblemAuditItems(3).map(q => `Soal ${q.id} (${q.decision?.status || 'perlu telaah'}; ${docxPercent(q.p, 0)} benar)`);
+            const kdWeak = getBlueprintPriorityKds(3).map(kd => `${kd.name} (${kd.pctCorrect.toFixed(1)}%)`);
+            const itemWeak = getProblemAuditItems(3).map(q => `Soal ${q.id} (${decisionLabelText(q.decision) || 'perlu telaah'}; ${docxPercent(q.p, 0)} benar)`);
             const distractorWeak = AppState.questions.filter(q => q.miskonsepsi || (q.pengecohKosong || []).length).slice(0, 3).map(q => `Soal ${q.id}: ${(q.auditReasons || []).join(', ') || 'distraktor perlu ditelaah'}`);
             return [...kdWeak, ...itemWeak, ...distractorWeak].slice(0, 3);
         }
 
         function followUpActions() {
-            const weakKdActions = (AppState.diagnostics.weakestKds || []).slice(0, 3).map(kd => `Re-teaching ${kd.name} (${kd.material || 'materi terkait'}) karena capaian ${kd.pctCorrect.toFixed(1)}%.`);
-            const reviseItems = (AppState.diagnostics.problemItems || []).filter(q => isRevisionStatus(q.decision?.status)).slice(0, 5).map(q => q.id);
+            const mappingActive = hasActiveCurriculumMapping();
+            const weakKdActions = getBlueprintPriorityKds(4).map(kd => `Re-teaching ${kd.name} (${kd.material || 'materi terkait'}) karena capaian ${kd.pctCorrect.toFixed(1)}%.`);
+            const reviseItems = (AppState.diagnostics.problemItems || []).filter(q => hasDecisionLabel(q.decision, 'Revisi Dominan') || hasDecisionLabel(q.decision, 'Revisi Lemah')).slice(0, 5).map(q => q.id);
             const discardItems = (AppState.diagnostics.problemItems || []).filter(q => q.decision?.status === 'Buang').slice(0, 5).map(q => q.id);
             const remedialPriority = getInterventionPriorityStudents();
             const remedialStudents = remedialPriority.slice(0, 8).map(s => s.nama);
@@ -2629,7 +2897,9 @@
                 ],
                 siswa: [
                     remedialStudents.length ? `Pendampingan prioritas untuk ${remedialPriority.length} siswa Intervensi Prioritas di bawah Transisi; daftar lengkap tersedia pada tabel ekspor, contoh awal: ${remedialStudents.join(', ')}.` : 'Tidak ada siswa berlabel Intervensi Prioritas; tindak lanjut dapat difokuskan pada Remedial Intensif/Ringan sesuai kebutuhan.',
-                    dominantRevisionItems.length ? `Berikan latihan ulang berbasis KD lemah dan bahas ${dominantRevisionItems.length} butir Revisi Dominan secara klasikal.` : 'Berikan latihan ulang berbasis KD lemah; tidak ada butir Revisi Dominan yang perlu dibahas khusus.',
+                    dominantRevisionItems.length
+                        ? (mappingActive ? `Berikan latihan ulang berbasis KD lemah dan bahas ${dominantRevisionItems.length} butir Revisi Dominan secara klasikal.` : `Bahas ${dominantRevisionItems.length} butir Revisi Dominan secara klasikal; latihan berbasis KD menunggu pemetaan aktif.`)
+                        : (mappingActive ? 'Berikan latihan ulang berbasis KD lemah; tidak ada butir Revisi Dominan yang perlu dibahas khusus.' : 'Gunakan latihan berdasarkan butir salah dominan; latihan berbasis KD menunggu pemetaan aktif.'),
                     'Lakukan konfirmasi lisan untuk siswa dengan blank tinggi atau pola respons tidak konsisten.'
                 ],
                 sekolah: [
@@ -2653,54 +2923,52 @@
             const totalQuestionSafe = Math.max(1, Number(AppState.totalQuestions) || 0);
             const priorityMaxCorrect = Math.floor(totalQuestionSafe * 0.4);
             const priorityMaxScore = (priorityMaxCorrect / totalQuestionSafe) * 100;
-            const priorityKds = (AppState.diagnostics.weakestKds || []).slice(0, 4);
-            const c = AppState.blueprint.cognitive || {};
+            const mappingActive = hasActiveCurriculumMapping();
+            const priorityKds = getBlueprintPriorityKds(4);
+            const c = mappingActive ? (AppState.blueprint.cognitive || {}) : { 'Belum dipetakan': AppState.totalQuestions || 0 };
             const lots = (c.C1 || 0) + (c.C2 || 0) + (c.C3 || 0);
             const hots = (c.C4 || 0) + (c.C5 || 0) + (c.C6 || 0);
             const unmapped = c['Belum dipetakan'] || 0;
             const manualKeys = AppState.questions.filter(q => q.keyLocked);
             const actions = followUpActions();
             const weaknesses = topWeaknesses();
-            const classInterpretation = AppState.heterogenitas > 15 ? 'Kelas heterogen (sebaran kemampuan lebar), sehingga tindak lanjut perlu dibedakan antara kelompok prioritas dan kelompok pengayaan.' : 'Kelas relatif homogen (sebaran kemampuan rapat), sehingga intervensi dapat dilakukan lebih klasikal.';
-            const programDirection = tuntasPct < 0.50 ? 'Remedial massal perlu diprioritaskan sebelum melanjutkan materi berikutnya.' : (tuntasPct < 0.80 ? 'Remedial terarah, tutor sebaya, dan latihan KD lemah disarankan.' : 'Pengayaan dapat diberikan sambil menutup gap kecil pada KD yang belum kuat.');
             const pctT = (tuntasPct * 100).toFixed(1);
             const sRagu = AppState.students.filter(s => s.raguRagu).length;
             const sTebak = AppState.students.filter(s => s.isTebakan).length;
             const sErr = AppState.students.filter(s => s.jawabanGanda > 0).length;
             const sCont = AppState.students.filter(s => s.isMencontek).length;
-            const sZonk = AppState.questions.filter(q => q.p < 0.20);
-            const sInv = AppState.questions.filter(q => q.dayaBeda < AppState.analysisConfig.item.reviseDiscrimination);
-            const sMis = AppState.questions.filter(q => q.miskonsepsi !== null);
-            const weakKdNames = (AppState.diagnostics.weakestKds || []).slice(0, 3).map(kd => `${kd.name} (${kd.pctCorrect.toFixed(1)}%)`).join(', ') || 'belum ada KD lemah terpetakan';
+            const sZonk = getExtremeDifficultyItems();
+            const sInv = getValidityDegradingItems();
+            const sMis = getMisconceptionItems();
+            const weakKdNames = priorityKds.slice(0, 3).map(kd => `${kd.name} (${kd.pctCorrect.toFixed(1)}%)`).join(', ') || 'belum ada KD lemah terpetakan';
             const weakItemNames = auditProblemItems.map(q => `No. ${q.id}`).join(', ') || '-';
             const dominantItemNames = dominantRevisionItems.map(q => `No. ${q.id}`).join(', ') || 'tidak ada butir Revisi Dominan';
             const leadershipNarrative = (AppState.diagnostics.leadership || []).join(' ');
             const reliabilityLabel = AppState.reliabilitas >= 0.70 ? 'konsistensi internal cukup kuat' : 'konsistensi internal masih perlu dievaluasi';
-            const executiveNarrative = `Secara umum, rerata kelas berada pada ${avg.toFixed(1)} dengan ketuntasan ${pctT}% (${tuntas} dari ${AppState.students.length} siswa). ${classInterpretation} ${programDirection} Tiga sinyal utama yang perlu dibaca bersama adalah kelemahan KD (${weakKdNames}), butir paling lemah (${weakItemNames}), dan mutu instrumen (${itemDecision.keep} simpan, ${itemDecision.revise} revisi, ${itemDecision.discard} buang).`;
-            const classNarrative = `Berdasarkan hasil evaluasi empiris, rerata agregat klasikal berada pada ${avg.toFixed(1)} dengan rasio penguasaan kompetensi sebesar ${pctT}%. Standar deviasi ${AppState.standarDeviasi.toFixed(1)} dan koefisien variasi ${AppState.heterogenitas.toFixed(1)}% menunjukkan bahwa kelas ini ${AppState.heterogenitas > 15 ? 'memiliki rentang kemampuan yang cukup lebar' : 'memiliki kemampuan yang relatif merata'}.`;
-            const classAdvice = tuntasPct < 0.50
-                ? 'Kritik utama pada hasil kelas adalah rendahnya penguasaan kolektif. Guru sebaiknya menunda percepatan materi, melakukan re-teaching pada KD paling lemah, memakai contoh konkret, dan menguji ulang butir kunci setelah penguatan konsep.'
-                : (tuntasPct < 0.80
-                    ? 'Capaian kelas berada pada fase berkembang. Saran tindak lanjutnya adalah remedial terarah untuk siswa belum tuntas, tutor sebaya dari siswa tuntas, dan latihan bertahap pada butir dengan akurasi rendah.'
-                    : 'Capaian kelas sudah relatif kuat. Tindak lanjut terbaik adalah pengayaan, latihan HOTS, dan penutupan gap kecil pada KD yang masih berada di bawah target.');
-            const studentNarrative = `Bagian ini membaca kelemahan siswa bukan hanya dari nilai akhir, tetapi juga dari learning path per KD. Tabel Siswa Prioritas Pendampingan hanya menampilkan peserta didik berlabel Intervensi Prioritas, yaitu siswa pada dua rentang terendah Distribusi Frekuensi atau di bawah Transisi (maksimal ${priorityMaxCorrect} benar dari ${totalQuestionSafe} butir / sekitar ${priorityMaxScore.toFixed(1)}%). Dengan demikian daftar pada dokumen sinkron dengan grafik Distribusi Frekuensi dan label Ketuntasan di aplikasi; Remedial Intensif/Ringan dapat ditangani melalui program kelas atau kelompok belajar terpisah.`;
+            const classModel = classSummaryModel(AppState.students.length, tuntas, avg);
+            const [classNarrative, classAdvice] = classSummaryParagraphs(classModel);
+            const classInterpretation = classModel.heterogeneity > 15 ? 'Kelas heterogen (sebaran kemampuan lebar), sehingga tindak lanjut perlu dibedakan antara kelompok prioritas dan kelompok pengayaan.' : 'Kelas relatif homogen (sebaran kemampuan rapat), sehingga intervensi dapat dilakukan lebih klasikal.';
+            const programDirection = classModel.assimilation.label;
+            const executiveNarrative = `Secara umum, rerata kelas adalah: ${avg.toFixed(1)} dengan ketuntasan ${pctT}% (${tuntas} dari ${AppState.students.length} siswa). ${classInterpretation} ${programDirection} Tiga sinyal utama yang perlu dibaca bersama adalah kelemahan KD (${weakKdNames}), butir paling lemah (${weakItemNames}), dan mutu instrumen (${itemDecision.keep} simpan, ${itemDecision.revise} revisi, ${itemDecision.discard} buang).`;
+            const studentNarrative = mappingActive
+                ? `Bagian ini membaca kelemahan siswa bukan hanya dari nilai akhir, tetapi juga dari learning path per KD. Tabel Siswa Prioritas Pendampingan hanya menampilkan peserta didik berlabel Intervensi Prioritas, yaitu siswa pada dua rentang terendah Distribusi Frekuensi atau di bawah Transisi (maksimal ${priorityMaxCorrect} benar dari ${totalQuestionSafe} butir / sekitar ${priorityMaxScore.toFixed(1)}%). Remedial Intensif/Ringan dapat ditangani melalui program kelas atau kelompok belajar terpisah.`
+                : `Bagian ini membaca kelemahan siswa dari nilai, distribusi frekuensi, dan pola respons karena pemetaan KD/TP/BAB belum diproses. Tabel Siswa Prioritas Pendampingan tetap hanya menampilkan peserta didik berlabel Intervensi Prioritas, yaitu siswa pada dua rentang terendah Distribusi Frekuensi atau di bawah Transisi (maksimal ${priorityMaxCorrect} benar dari ${totalQuestionSafe} butir / sekitar ${priorityMaxScore.toFixed(1)}%). Learning path per KD akan aktif setelah Proses Pemetaan atau Impor Kisi-Kisi.`;
             const studentPatternNarrative = `Dari pola respons individu, terdeteksi ${sRagu} siswa dengan blank/omission tinggi, ${sTebak} siswa dengan Guttman-like response pattern (indikasi benar pada soal sukar tetapi lemah pada soal dasar), ${sErr} siswa dengan pengisian ganda, dan ${sCont} siswa dengan sinyal kemiripan respons ekstrem. Indikasi ini bukan vonis, melainkan sinyal audit awal yang perlu dikonfirmasi guru.`;
             const studentAdvice = `Saran tindak lanjut siswa: gunakan daftar prioritas remedial untuk menentukan kelompok kecil, bahas butir Revisi Dominan (${dominantItemNames}), berikan latihan ulang per KD, lalu lakukan cek pemahaman singkat sebelum siswa masuk ke latihan pengayaan.`;
             const itemNarrative = `Evaluasi instrumen menunjukkan KR-20 ${AppState.reliabilitas.toFixed(2)} (${reliabilityLabel}) dengan CI aproksimasi ${AppState.reliabilityCI.lower.toFixed(2)}-${AppState.reliabilityCI.upper.toFixed(2)} dan pembanding split-half ${AppState.splitHalfReliability.toFixed(2)}. Komposisi kesukaran adalah ${AppState.proporsiKesukaran.mudah} mudah, ${AppState.proporsiKesukaran.sedang} sedang, dan ${AppState.proporsiKesukaran.sukar} sukar.`;
-            const itemAdvice = `Catatan kritik soal: ${sInv.length} butir memiliki daya beda rendah, ${sZonk.length} butir memiliki kesukaran ekstrem, dan ${sMis.length} butir memuat indikasi miskonsepsi dominan. Status Revisi Dominan adalah gabungan unik butir dengan D < 0.20 dan/atau miskonsepsi, sehingga jumlahnya selaras dengan ringkasan Mendegradasi Validitas dan Indikasi Miskonsepsi. Butir Revisi Lemah cukup ditelaah ringan; butir dengan status Buang tetap diberi label revisi pendamping agar guru tahu apakah butir perlu direvisi dominan lalu diganti/ditulis ulang.`;
-            const curriculumNarrative = priorityKds.length
-                ? `Pemetaan KD/TP/BAB digunakan untuk menelusuri bagian pembelajaran yang belum terserap. Prioritas tindak lanjut sama dengan tabel gap kurikulum di aplikasi: ${priorityKds.map(kd => `${kd.name} (${kd.pctCorrect.toFixed(1)}%, butir ${kd.weakItems.map(q => q.id).join(', ') || '-'})`).join('; ')}. Jika KD lemah sekaligus memiliki banyak butir revisi, maka masalahnya perlu dibaca ganda: bisa berasal dari penguasaan materi, bisa juga dari kualitas butir yang kurang stabil.`
-                : 'Pemetaan KD/TP/BAB belum menunjukkan topik prioritas karena KD belum dipetakan atau seluruh topik berada di atas ambang KKM/KKTP.';
+            const itemAdvice = `Catatan kritik soal: ${sInv.length} butir memiliki daya beda rendah, ${sZonk.length} butir memiliki kesukaran ekstrem, dan ${sMis.length} butir memuat indikasi miskonsepsi lintas kelas. Status Revisi Dominan adalah gabungan unik butir dengan D < ${AppState.analysisConfig.item.reviseDiscrimination.toFixed(2)} dan/atau miskonsepsi lintas kelas, sehingga jumlahnya selaras dengan ringkasan Mendegradasi Validitas dan Indikasi Miskonsepsi. Butir Revisi Lemah cukup ditelaah ringan; butir dengan status Buang tetap diberi label revisi pendamping agar guru tahu apakah butir perlu direvisi dominan lalu diganti/ditulis ulang.`;
+            const curriculumNarrative = curriculumMeaningNarrative(mappingActive, priorityKds);
             const distributionNarrative = buildDistributionNarrative();
+            const detailDiagnosticNarrative = [reteachingPriorityNarrative(), auditTraceNarrative()];
             const conclusionNarrative = `Kesimpulan manajerial: mutu pembelajaran dan mutu soal harus dibaca bersamaan. Paket ini memiliki ${itemDecision.keep} butir layak simpan, ${itemDecision.revise} butir perlu revisi, dan ${itemDecision.discard} butir perlu dibuang atau ditulis ulang. Label telaah menunjukkan ${itemDecision.reviseDominan || 0} Revisi Dominan dan ${itemDecision.reviseLemah || 0} Revisi Lemah; butir Buang dapat membawa dua label jika perlu diganti sekaligus direvisi. Output Pimpinan: ${leadershipNarrative || 'belum ada ringkasan pimpinan yang tersedia.'} Prioritas kebijakan sekolah adalah memastikan re-teaching KD lemah, telaah butir bermasalah, dan dokumentasi bank soal berbasis bukti statistik.`;
-            const policyCritique = `Kritik dan saran utama: jangan memakai nilai akhir sebagai satu-satunya dasar keputusan. Gunakan gabungan capaian KD, daya beda, korelasi item-total, fungsi distraktor, serta pola respons siswa agar tindak lanjut lebih adil dan dapat diaudit.`;
+            const policyCritique = 'Catatan keputusan: nilai akhir tidak dipakai sendirian. Keputusan tindak lanjut membaca capaian KD, daya beda, korelasi item-total, fungsi distraktor, dan pola respons siswa secara bersama.';
 
             const identityRows = [
                 ['Nama Sekolah', REPORT_SCHOOL_NAME, 'Tanggal Analisis', analysisDate],
                 ['Mata Pelajaran', AppState.subject || '-', 'Kelas / Fase', AppState.gradeLevel || '-'],
                 ['Guru', AppState.teacherName || '-', 'Jenis Ujian', AppState.examType || '-'],
                 ['Jumlah Siswa', `${AppState.students.length} siswa`, 'Jumlah Soal', `${AppState.totalQuestions} butir`],
-                ['KKM/KKTP', String(AppState.kkm), 'Sumber Data', `${AppState.fileName || '-'} / ${AppState.importMeta.sheetName || AppState.fileValidation.sheetName || '-'}`]
+                ['KKM/KKTP', String(AppState.kkm), 'Sumber Data', `${AppState.fileName || AppState.importMeta.sheetName || AppState.fileValidation.sheetName || '-'}`]
             ];
 
             const executiveRows = [
@@ -2722,23 +2990,33 @@
                 ])
             ];
 
-            const priorityKdKeys = new Set(priorityKds.map(kd => `${kd.name}||${kd.material || ''}||${(kd.qs || []).join(',')}`));
             const kdRows = [
                 ['KD/TP/BAB', 'Materi', 'Level', 'Butir', 'Capaian', 'Tindak lanjut'],
-                ...AppState.babResults.map(kd => {
+                ...(mappingActive ? AppState.babResults.map(kd => {
                     const key = `${kd.name}||${kd.material || ''}||${(kd.qs || []).join(',')}`;
-                    const isBlueprintPriority = priorityKdKeys.has(key);
+                    const priorityMatch = priorityKds.find(item => `${item.name}||${item.material || ''}||${(item.qs || []).join(',')}` === key);
+                    const isBlueprintPriority = !!priorityMatch;
                     const priorityFill = isBlueprintPriority ? (kd.pctCorrect < AppState.kkm ? REPORT_COLORS.red : REPORT_COLORS.yellow) : '';
                     const priorityColor = isBlueprintPriority ? (kd.pctCorrect < AppState.kkm ? '7F1D1D' : '92400E') : '111827';
+                    const actionText = isBlueprintPriority
+                        ? `Prioritas skor ${priorityMatch.priority.score.toFixed(1)}: ${priorityMatch.priority.basis}. ${kd.pctCorrect < AppState.kkm ? `Re-teaching ${kd.name}; bahas butir ${(kd.weakItems || []).map(q => q.id).join(', ') || '-'}.` : `Telaah mutu butir ${kd.name}; lanjutkan penguatan/pengayaan terarah.`}`
+                        : (kd.pctCorrect < AppState.kkm ? `Re-teaching ${kd.name}; bahas butir ${(kd.weakItems || []).map(q => q.id).join(', ') || '-'}.` : `Pertahankan ${kd.name}; lanjutkan pengayaan.`);
                     return [
                         { text: kd.name, fill: priorityFill, color: priorityColor, bold: isBlueprintPriority },
                         { text: kd.material || '-', fill: priorityFill, color: priorityColor, bold: isBlueprintPriority },
                         kd.level || 'Belum dipetakan',
                         kd.qs.join(', '),
                         { text: `${kd.pctCorrect.toFixed(1)}%`, fill: kd.pctCorrect >= AppState.kkm ? REPORT_COLORS.green : REPORT_COLORS.red, bold: true, align: 'center' },
-                        kd.pctCorrect < AppState.kkm ? `Re-teaching ${kd.name}; bahas butir ${kd.weakItems.map(q => q.id).join(', ') || '-'}.` : `Pertahankan ${kd.name}; lanjutkan pengayaan.`
+                        actionText
                     ];
-                })
+                }) : [[
+                    'Belum aktif',
+                    'Pemetaan KD/TP/BAB masih draft atau belum diproses.',
+                    '-',
+                    '-',
+                    '-',
+                    'Tekan Proses Pemetaan atau impor kisi-kisi sebelum memakai analisis kurikulum dalam dokumen resmi.'
+                ]])
             ];
 
             const remedialItemRows = [
@@ -2762,7 +3040,7 @@
                         `${s.benar}/${AppState.totalQuestions}`,
                         s.score.toFixed(1),
                         { text: category.label, fill: statusFill(category.label), bold: true, align: 'center' },
-                        (s.learningPath || []).map(kd => `${kd.name} ${kd.pct.toFixed(0)}%`).join('; ') || '-'
+                        mappingActive ? ((s.learningPath || []).map(kd => `${kd.name} ${kd.pct.toFixed(0)}%`).join('; ') || '-') : 'Pemetaan KD belum aktif'
                     ];
                 }) : [['-', 'Tidak ada siswa Intervensi Prioritas', '-', '-', '-', { text: 'Terkendali', fill: REPORT_COLORS.green, bold: true, align: 'center' }, '-']])
             ];
@@ -2828,8 +3106,8 @@
             ];
 
             const body = [
-                wParagraph('LAPORAN DIAGNOSTIK ASESMEN', 'Title', { align: 'center', color: REPORT_COLORS.blue, after: 20 }),
-                wParagraph('EduAnalyzer Pro - dokumen ringkas untuk guru, kurikulum, kepala sekolah, dan pengawas', '', { align: 'center', bold: true, color: '475569', after: 160 }),
+                wParagraph('Laporan Analisis Diagnostik Asesmen Pembelajaran - EduAnalyzer Pro', 'Title', { align: 'center', color: REPORT_COLORS.blue, after: 20 }),
+                // wParagraph('EduAnalyzer Pro - dokumen ringkas untuk guru, kurikulum, kepala sekolah, dan pengawas', '', { align: 'center', bold: true, color: '475569', after: 160 }),
                 wParagraph('IDENTITAS DAN DASAR ANALISIS', 'Heading1'),
                 wTable(identityRows, { header: false, widths: [1700, 3000, 1700, 3000] }),
                 wParagraph('RINGKASAN EKSEKUTIF', 'Heading1'),
@@ -2842,6 +3120,7 @@
                 wNarrative('Cara Membaca Distribusi Frekuensi', distributionNarrative, 'D97706'),
                 chartRelId ? wImageDrawing(chartRelId) : wNarrative('Distribusi Nilai', 'Grafik kanvas tidak tersedia saat ekspor. Sebagai gantinya, distribusi nilai disajikan dalam tabel proporsi berwarna di bawah ini.', 'D97706'),
                 wTable(distRows, { widths: [2200, 1600, 1600, 3800] }),
+                wNarrative('Laporan Detail (Diagnostik Miskonsepsi & Kesulitan)', detailDiagnosticNarrative),
                 wParagraph('3. Pemetaan KD/TP/BAB', 'Heading2'),
                 wNarrative('Makna Kurikulum', curriculumNarrative),
                 wTable(kdRows, { widths: [1450, 3900, 650, 900, 850, 3150], layout: 'fixed' }),
@@ -2852,7 +3131,7 @@
                 wParagraph('2. Siswa Prioritas Pendampingan', 'Heading2'),
                 wTable(remedialStudentRows, { widths: [600, 2200, 800, 850, 850, 1500, 3400] }),
                 wParagraph('C. EVALUASI KUALITAS SOAL UJIAN (Analisis Butir Instrumen)', 'Heading1'),
-                wNarrative('Cara Membaca Bagian C', [itemNarrative, itemAdvice, 'P adalah tingkat kesukaran, D adalah daya beda, dan status soal menggabungkan P, D, korelasi item-total, serta fungsi distraktor. Hijau berarti layak simpan, kuning berarti Revisi Lemah, oranye berarti Revisi Dominan (D < 0.20 dan/atau miskonsepsi), dan merah berarti Buang. Jika satu butir menampilkan Revisi Dominan / Buang, artinya butir tersebut bermasalah kuat dan sebaiknya diganti atau ditulis ulang.']),
+                wNarrative('Cara Membaca Bagian C', [itemNarrative, itemAdvice, `P adalah tingkat kesukaran, D adalah daya beda, dan status soal menggabungkan P, D, korelasi item-total, serta fungsi distraktor. Hijau berarti layak simpan, kuning berarti Revisi Lemah, oranye berarti Revisi Dominan (D < ${AppState.analysisConfig.item.reviseDiscrimination.toFixed(2)} dan/atau miskonsepsi lintas kelas), dan merah berarti Buang. Jika satu butir menampilkan Revisi Dominan / Buang, artinya butir tersebut bermasalah kuat dan sebaiknya diganti atau ditulis ulang.`]),
                 wParagraph('1. Analisis Butir Soal per Nomor', 'Heading2'),
                 wTable(itemRows, { widths: [650, 850, 700, 700, 1500, 5200] }),
                 wParagraph('2. Analisis Distraktor', 'Heading2'),
@@ -2883,6 +3162,7 @@
         }
 
         function buildDocxBlob() {
+            PedagogyRules.updateMappingDiagnostics(AppState);
             const chartBytes = getCanvasPngBytes('chartDistribusi');
             const chartRelId = chartBytes ? 'rIdChartDistribusi' : null;
             const pngContentType = chartBytes ? '<Default Extension="png" ContentType="image/png"/>' : '';
@@ -2904,6 +3184,11 @@
 
         function exportToWord() {
             if(AppState.students.length === 0) { alert("Tidak ada data untuk diekspor!"); return; }
+            PedagogyRules.updateMappingDiagnostics(AppState);
+            renderMappingStatus();
+            renderBlueprintCoverage();
+            renderKlasikalInsights();
+            renderStakeholderBrief();
             const bFnRaw = `${AppState.gradeLevel} ${AppState.subject} ${AppState.examType} ${AppState.teacherName} ${new Date().toISOString().slice(0,10)}`.replace(/[\\/:*?"<>|]/g, '').trim();
             const bFn = bFnRaw ? `Analisis Soal_${bFnRaw}` : `Analisis_Soal_${new Date().toISOString().slice(0,10)}`;
             const link = document.createElement('a');
