@@ -248,7 +248,12 @@
                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 w-full">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                             <h3 class="text-base sm:text-lg font-bold text-gray-800">Tabel Performa Individu & Catatan Diagnostik</h3>
-                            <select id="filter-kelas" class="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-1.5 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 outline-none"><option value="all">Semua Kelas</option></select>
+                            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                <select id="filter-kelas" class="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-1.5 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 outline-none"><option value="all">Semua Kelas</option></select>
+                                <button onclick="downloadStudentPerformanceExcel()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-3 py-1.5 text-xs sm:text-sm font-bold shadow-sm transition-colors flex items-center justify-center gap-2">
+                                    <i class="fas fa-file-excel"></i> Unduh Excel
+                                </button>
+                            </div>
                         </div>
                         <div class="bg-blue-50 p-3 rounded-lg mb-4 text-[10px] sm:text-xs text-blue-800 flex gap-2 items-start">
                             <i class="fas fa-info-circle mt-0.5"></i>
@@ -278,6 +283,9 @@
                                         </th>
                                         <th class="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold text-gray-600 uppercase">
                                             Identifikasi Profil Respons (Learning Path)
+                                        </th>
+                                        <th class="px-3 sm:px-4 py-2 sm:py-3 text-left text-[10px] sm:text-xs font-bold text-gray-600 uppercase">
+                                            Rekomendasi Materi Ulang
                                         </th>
                                     </tr>
                                 </thead>
@@ -2556,6 +2564,63 @@
             document.getElementById('insight-klasikal-container').innerHTML = html || '<p class="text-xs sm:text-sm text-gray-500 italic p-2 bg-gray-50 rounded border border-gray-200">Tidak terdiagnosis preseden anomali yang mencolok dari representasi data klasikal.</p>';
         }
 
+        function getSortedStudentRows() {
+            const fk = document.getElementById('filter-kelas')?.value || 'all';
+            const rows = AppState.students.filter(s => fk === 'all' || s.kelas === fk);
+            return rows.sort((a, b) => {
+                let valA, valB;
+                if (sortColSiswa === 'no') { valA = a.no; valB = b.no; }
+                else if (sortColSiswa === 'nama') { valA = String(a.nama || '').toLowerCase(); valB = String(b.nama || '').toLowerCase(); }
+                else if (sortColSiswa === 'nilai') { valA = a.score; valB = b.score; }
+                else if (sortColSiswa === 'ketuntasan') { valA = getStudentCategory(a).rank; valB = getStudentCategory(b).rank; }
+                else { valA = a.no; valB = b.no; }
+                if (valA < valB) return sortAscSiswa ? -1 : 1;
+                if (valA > valB) return sortAscSiswa ? 1 : -1;
+                return String(a.nama || '').localeCompare(String(b.nama || ''), 'id-ID', { numeric: true });
+            });
+        }
+
+        function studentLearningPathText(student) {
+            if (student.learningPath && student.learningPath.length) {
+                return student.learningPath.map(kd => `${kd.name} (${kd.pct.toFixed(0)}%)`).join(' | ');
+            }
+            if (hasActiveCurriculumMapping()) {
+                return student.detailSalah.length > 0 ? `Defisit di No: ${student.detailSalah.slice(0,5).join(',')}${student.detailSalah.length > 5 ? '...' : ''}` : 'Penguasaan Penuh';
+            }
+            return 'Pemetaan KD belum aktif';
+        }
+
+        function studentMaterialRecommendations(student, limit = 2) {
+            if (!student) return [];
+            if (hasActiveCurriculumMapping() && student.learningPath && student.learningPath.length) {
+                return student.learningPath.slice(0, limit).map(kd => {
+                    const material = kd.material && kd.material !== kd.name ? `${kd.name} - ${kd.material}` : kd.name;
+                    const wrong = (kd.wrong || []).slice(0, 4);
+                    const focus = wrong.length ? `fokus butir ${wrong.join(', ')}` : 'cek pemahaman konsep inti';
+                    return `Ulangi ${material} (${kd.pct.toFixed(0)}%; ${focus})`;
+                });
+            }
+            const category = getStudentCategory(student);
+            if (category.label === 'Tuntas' || category.label === 'Pengayaan') {
+                return ['Pertahankan capaian; lanjutkan pengayaan atau latihan HOTS.'];
+            }
+            if (!hasActiveCurriculumMapping()) {
+                const wrong = (student.detailSalah || []).slice(0, 6);
+                return [`Aktifkan pemetaan KD untuk rekomendasi materi; sementara bahas butir salah${wrong.length ? ` No. ${wrong.join(', ')}` : ''}.`];
+            }
+            return ['Belum ada KD lemah spesifik; gunakan remedial umum sesuai butir yang salah.'];
+        }
+
+        function studentDiagnosticNotes(student) {
+            const notes = [];
+            if(student.raguRagu) notes.push(`Jawaban kosong tinggi (${student.kosong} kosong)`);
+            if(student.jawabanGanda > 0) notes.push(`Pengisian ganda (${student.jawabanGanda} butir)`);
+            if(student.isTebakan) notes.push('Pola tidak konsisten/Guttman misfit');
+            if(student.konsistensiRendah) notes.push('Konsistensi rendah');
+            if(student.isMencontek) notes.push('Indikasi kemiripan respons ekstrem');
+            return notes.join('; ') || '-';
+        }
+
         function renderStudentTable() {
             const iconNo = document.getElementById('sort-icon-no');
             const iconNama = document.getElementById('sort-icon-nama');
@@ -2567,21 +2632,7 @@
             if(iconNilai) iconNilai.innerHTML = sortColSiswa === 'nilai' ? (sortAscSiswa ? '<i class="fas fa-sort-numeric-up ml-1 text-blue-600"></i>' : '<i class="fas fa-sort-numeric-down ml-1 text-blue-600"></i>') : '<i class="fas fa-sort text-gray-300 ml-1"></i>';
             if(iconKetuntasan) iconKetuntasan.innerHTML = sortColSiswa === 'ketuntasan' ? (sortAscSiswa ? '<i class="fas fa-sort-amount-up ml-1 text-blue-600"></i>' : '<i class="fas fa-sort-amount-down ml-1 text-blue-600"></i>') : '<i class="fas fa-sort text-gray-300 ml-1"></i>';
 
-            const fk = document.getElementById('filter-kelas').value;
-            let filtered = AppState.students.filter(s => fk === 'all' || s.kelas === fk);
-
-            filtered.sort((a, b) => {
-                let valA, valB;
-                if (sortColSiswa === 'no') { valA = a.no; valB = b.no; }
-                else if (sortColSiswa === 'nama') { valA = a.nama.toLowerCase(); valB = b.nama.toLowerCase(); }
-                else if (sortColSiswa === 'nilai') { valA = a.score; valB = b.score; }
-                else if (sortColSiswa === 'ketuntasan') { valA = getStudentCategory(a).rank; valB = getStudentCategory(b).rank; }
-                else { valA = a.no; valB = b.no; }
-                
-                if (valA < valB) return sortAscSiswa ? -1 : 1;
-                if (valA > valB) return sortAscSiswa ? 1 : -1;
-                return 0;
-            });
+            const filtered = getSortedStudentRows();
 
             document.getElementById('table-body-siswa').innerHTML = filtered.map(s => {
                 let d = []; 
@@ -2590,11 +2641,8 @@
                 if(s.isTebakan) d.push(`<span class="bg-purple-100 text-purple-800 text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-purple-200">Guttman Misfit (Anomali IRT)</span>`);
                 if(s.konsistensiRendah) d.push(`<span class="bg-indigo-100 text-indigo-800 text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-indigo-200">Konsistensi Rendah</span>`);
                 if(s.isMencontek) d.push(`<span class="bg-gray-800 text-white text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-gray-900" title="Analisis Spasial: WIC / Harpp-Hogan ekstrem">Indikasi Kolusi</span>`);
-                const learningPath = (s.learningPath && s.learningPath.length)
-                    ? s.learningPath.map(kd => `${escapeHtml(kd.name)} (${kd.pct.toFixed(0)}%)`).join(' | ')
-                    : (hasActiveCurriculumMapping()
-                        ? (s.detailSalah.length>0 ? `Defisit di No: ${s.detailSalah.slice(0,5).join(',')}${s.detailSalah.length>5?'...':''}` : 'Penguasaan Penuh')
-                        : 'Pemetaan KD belum aktif');
+                const learningPath = studentLearningPathText(s);
+                const materialRecommendations = studentMaterialRecommendations(s, 2);
                 
                 const category = getStudentCategory(s);
                 return `<tr class="hover:bg-slate-50 transition-colors border-b border-gray-100">
@@ -2603,8 +2651,92 @@
                     <td class="px-2 sm:px-4 py-2 sm:py-3 text-center font-bold text-xs sm:text-sm ${s.isTuntas?'text-green-600':'text-red-600'} align-middle">${s.score.toFixed(1)}</td>
                     <td class="px-2 sm:px-4 py-2 sm:py-3 text-center align-middle"><span class="${category.className} text-[9px] sm:text-xs px-2 py-1 rounded font-bold">${category.label}</span></td>
                     <td class="px-2 sm:px-4 py-2 sm:py-3 align-middle wide-text"><div class="flex gap-1 mb-1 whitespace-nowrap">${d.join('')}</div><div class="text-[9px] sm:text-xs text-gray-600 bg-gray-50 inline-block px-1 rounded whitespace-nowrap leading-relaxed"><b>Learning path:</b> ${learningPath}</div></td>
+                    <td class="px-3 sm:px-4 py-2 sm:py-3 align-middle wide-text">
+                        <ol class="list-decimal ml-4 text-[10px] sm:text-xs text-slate-700 leading-relaxed whitespace-nowrap">
+                            ${materialRecommendations.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+                        </ol>
+                    </td>
                 </tr>`;
             }).join('');
+        }
+
+        function downloadStudentPerformanceExcel() {
+            if (!AppState.students.length) {
+                alert('Tidak ada data siswa untuk diekspor.');
+                return;
+            }
+            if (!window.XLSX || !XLSX.utils) {
+                alert('Library Excel belum siap. Muat ulang aplikasi lalu coba lagi.');
+                return;
+            }
+            PedagogyRules.updateMappingDiagnostics(AppState);
+            const filterKelas = document.getElementById('filter-kelas')?.value || 'all';
+            const filterLabel = filterKelas === 'all' ? 'Semua Kelas' : `Kelas ${filterKelas}`;
+            const rows = getSortedStudentRows();
+            const analysisDate = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+            const aoa = [
+                ['TABEL PERFORMA INDIVIDU & CATATAN DIAGNOSTIK'],
+                [`${REPORT_SCHOOL_NAME} | ${AppState.subject || '-'} | ${AppState.examType || '-'} | ${filterLabel}`],
+                [`Guru: ${AppState.teacherName || '-'} | KKM/KKTP: ${AppState.kkm} | Tanggal: ${analysisDate} | Pemetaan KD: ${hasActiveCurriculumMapping() ? 'Aktif' : 'Draft/belum aktif'}`],
+                [],
+                ['No', 'Nama Peserta Didik', 'Kelas', 'Benar', 'Salah', 'Kosong', 'Nilai', 'Ketuntasan', 'Rekomendasi Materi Ulang 1', 'Rekomendasi Materi Ulang 2', 'Learning Path', 'Catatan Diagnostik']
+            ];
+            rows.forEach(s => {
+                const category = getStudentCategory(s);
+                const recs = studentMaterialRecommendations(s, 2);
+                aoa.push([
+                    s.no,
+                    s.nama,
+                    s.kelas,
+                    s.benar,
+                    s.salah,
+                    s.kosong,
+                    Number(s.score.toFixed(1)),
+                    category.label,
+                    recs[0] || '-',
+                    recs[1] || '-',
+                    studentLearningPathText(s),
+                    studentDiagnosticNotes(s)
+                ]);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(aoa);
+            ws['!merges'] = [
+                { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
+                { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
+                { s: { r: 2, c: 0 }, e: { r: 2, c: 11 } }
+            ];
+            ws['!cols'] = [
+                { wch: 8 }, { wch: 34 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+                { wch: 10 }, { wch: 22 }, { wch: 48 }, { wch: 48 }, { wch: 42 }, { wch: 42 }
+            ];
+            ws['!rows'] = [{ hpt: 24 }, { hpt: 20 }, { hpt: 20 }, { hpt: 8 }, { hpt: 28 }];
+            if (aoa.length >= 5) ws['!autofilter'] = { ref: `A5:L${aoa.length}` };
+
+            const headerRow = 4;
+            for (let c = 0; c < 12; c++) {
+                const ref = XLSX.utils.encode_cell({ r: headerRow, c });
+                if (ws[ref]) {
+                    ws[ref].s = {
+                        font: { bold: true, color: { rgb: 'FFFFFF' } },
+                        fill: { fgColor: { rgb: '2563EB' } },
+                        alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
+                    };
+                }
+            }
+            ['A1','A2','A3'].forEach((ref, idx) => {
+                if (ws[ref]) {
+                    ws[ref].s = {
+                        font: { bold: idx === 0, sz: idx === 0 ? 15 : 11, color: { rgb: idx === 0 ? '1E3A8A' : '475569' } },
+                        alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
+                    };
+                }
+            });
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Performa Siswa');
+            const safeName = `${AppState.gradeLevel || 'Kelas'} ${AppState.subject || 'Mapel'} ${filterLabel} ${new Date().toISOString().slice(0,10)}`.replace(/[\\/:*?"<>|]/g, '').trim();
+            XLSX.writeFile(wb, `Tabel_Performa_Individu_${safeName || 'EduAnalyzer'}.xlsx`);
         }
 
         function renderQuestionTable() {
