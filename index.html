@@ -508,13 +508,18 @@
             return { gap, revise, discard, avgD, avgR, classwideMisconception, weakD, weakR, score, problematic, basis };
         }
 
-        function getBlueprintPriorityKds(limit = 4) {
+        function getAllMappedKdsWithPriority() {
             if (!hasActiveCurriculumMapping()) return [];
             const source = AppState.babResults?.length ? AppState.babResults : (AppState.diagnostics?.weakestKds || []);
-            const items = [...source]
+            return [...source]
                 .map(kd => ({ ...kd, priority: getKdPriorityMetrics(kd) }))
-                .filter(kd => kd.priority.problematic)
                 .sort((a,b) => b.priority.score - a.priority.score || a.pctCorrect - b.pctCorrect || String(a.name).localeCompare(String(b.name), 'id-ID', { numeric: true }));
+        }
+
+        // Catatan penting: fungsi ini HANYA dipakai untuk ringkasan naratif (mis. "3 KD terlemah untuk narasi eksekutif").
+        // Untuk tabel/laporan resmi yang harus mencakup SELURUH KD/topik (tanpa batas jumlah), gunakan getAllMappedKdsWithPriority().
+        function getBlueprintPriorityKds(limit = 0) {
+            const items = getAllMappedKdsWithPriority().filter(kd => kd.priority.problematic);
             return limit ? items.slice(0, limit) : items;
         }
 
@@ -546,8 +551,10 @@
         }
 
         function hasActiveCurriculumMapping() {
+            // Catatan: butir lintas-KD (satu nomor soal dipetakan ke >1 KD/topik) TIDAK menghalangi aktivasi,
+            // karena itu praktik kisi-kisi yang sah. Hanya nomor di luar rentang (invalid) yang menghalangi.
             const v = AppState.mappingValidation || {};
-            return !!AppState.mappingApplied && (AppState.babResults || []).length > 0 && (v.covered || 0) > 0 && !(v.invalid || []).length && !(v.duplicates || []).length;
+            return !!AppState.mappingApplied && (AppState.babResults || []).length > 0 && (v.covered || 0) > 0 && !(v.invalid || []).length;
         }
 
         function markCurriculumMappingDraft() {
@@ -735,11 +742,13 @@
 
         function reteachingPriorityNarrative() {
             if (!hasActiveCurriculumMapping()) return 'Peta KD belum aktif -> proses atau impor kisi-kisi -> rekomendasi pengajaran ulang baru valid.';
-            const kds = getBlueprintPriorityKds(4);
-            if (!kds.length) return 'Peta KD terbaca -> tidak ada KD prioritas bermasalah -> lanjutkan pengayaan dan pemeliharaan bank soal.';
+            const allProblematic = getBlueprintPriorityKds();
+            if (!allProblematic.length) return `Peta KD terbaca (${getAllMappedKdsWithPriority().length} KD/topik dianalisis) -> tidak ada KD prioritas bermasalah -> lanjutkan pengayaan dan pemeliharaan bank soal.`;
+            const kds = allProblematic.slice(0, 4);
             const first = kds[0];
             const other = kds.slice(1).map(priorityKdLabel).join('; ') || 'tidak ada prioritas tambahan';
-            return `Prioritas: ${priorityKdLabel(first)} -> Alasan: ${first.priority.basis} -> Aksi: ajar ulang ${first.material || first.name}, lalu bahas butir lemah -> Cek ulang: kuis pendek. Prioritas berikutnya: ${other}.`;
+            const moreNote = allProblematic.length > kds.length ? ` Total ${allProblematic.length} dari ${getAllMappedKdsWithPriority().length} KD/topik berstatus prioritas; daftar lengkap tersedia pada tabel Blueprint Coverage & Gap Kurikulum.` : '';
+            return `Prioritas: ${priorityKdLabel(first)} -> Alasan: ${first.priority.basis} -> Aksi: ajar ulang ${first.material || first.name}, lalu bahas butir lemah -> Cek ulang: kuis pendek. Prioritas berikutnya: ${other}.${moreNote}`;
         }
 
         function auditTraceNarrative() {
@@ -752,12 +761,15 @@
             return `Audit butir: fokus No. ${idList(focused)}. Daya beda rendah: ${idList(invalidItems)}. Miskonsepsi lintas kelas: ${idList(misconceptionItems)}. Makna: ${action} Aksi: cek kunci/stimulus -> revisi pengecoh -> gunakan sebagai bahan pembahasan.`;
         }
 
-        function curriculumMeaningNarrative(mappingActive = hasActiveCurriculumMapping(), priorityKds = getBlueprintPriorityKds(4)) {
+        function curriculumMeaningNarrative(mappingActive = hasActiveCurriculumMapping(), priorityKdsFull = getBlueprintPriorityKds()) {
             if (!mappingActive) return 'Makna kurikulum belum dapat disimpulkan karena pemetaan KD/TP/BAB belum diproses. Aktifkan Proses Pemetaan atau Impor Kisi-Kisi terlebih dahulu.';
-            if (!priorityKds.length) return 'Makna kurikulum: cakupan KD sudah terbaca dan tidak ada topik prioritas bermasalah. Lanjutkan pengayaan, pertahankan materi yang stabil, dan tetap validasi butir sebelum masuk bank soal.';
+            const totalKd = getAllMappedKdsWithPriority().length;
+            if (!priorityKdsFull.length) return `Makna kurikulum: cakupan KD sudah terbaca (${totalKd} KD/topik dianalisis) dan tidak ada topik prioritas bermasalah. Lanjutkan pengayaan, pertahankan materi yang stabil, dan tetap validasi butir sebelum masuk bank soal.`;
+            const priorityKds = priorityKdsFull.slice(0, 4);
             const first = priorityKds[0];
             const focus = priorityKds.map(kd => kd.name).join(', ');
-            return `Makna kurikulum: tidak semua materi perlu diulang. Fokus utama adalah ${first.name} karena ${first.priority.basis}. Urutan kerja: ajar ulang ${first.material || first.name} -> bahas butir lemah -> kuis pendek -> revisi butir yang mengganggu validitas. KD/topik prioritas: ${focus}.`;
+            const moreNote = priorityKdsFull.length > priorityKds.length ? ` Total ${priorityKdsFull.length} dari ${totalKd} KD/topik berstatus prioritas; daftar lengkap dan status seluruh KD tersedia pada tabel Blueprint Coverage & Gap Kurikulum.` : '';
+            return `Makna kurikulum: tidak semua materi perlu diulang. Fokus utama adalah ${first.name} karena ${first.priority.basis}. Urutan kerja: ajar ulang ${first.material || first.name} -> bahas butir lemah -> kuis pendek -> revisi butir yang mengganggu validitas. KD/topik prioritas: ${focus}.${moreNote}`;
         }
 
         function flowImportantHtml(value) {
@@ -1199,13 +1211,19 @@
                 const warning = confidence < state.analysisConfig.keyConfidenceThreshold ? `Butir ${q.id}: inferensi kunci rendah (${key}, ${(confidence*100).toFixed(0)}%; runner-up ${second} respons).` : '';
                 return { key, confidence, source: 'mayoritas Detail Benar', warning };
             },
-            reliabilityBand(reliability, n) {
-                if (!Number.isFinite(reliability) || n < 3) return { lower: 0, upper: 0, method: 'tidak cukup data' };
-                const se = Math.sqrt(Math.max(0, 2 * Math.pow(1 - reliability, 2) / Math.max(1, n - 1)));
+            reliabilityBand(reliability, n, k) {
+                // Aproksimasi standard error koefisien reliabilitas (KR-20 sebagai bentuk khusus Cronbach's Alpha
+                // untuk data dikotomis) mengikuti van Zyl, Neudecker & Nel (2000) / Charter (2000) / Duhachek &
+                // Iacobucci (2004): SE(alpha) ~ sqrt(2k / ((k-1)(n-2))) * (1 - alpha), dengan k = jumlah butir dan
+                // n = jumlah peserta. CI 95% dihitung dari SE ini dan tetap bersifat pendekatan (bukan eksak),
+                // sehingga label "aproksimasi" tetap dipertahankan pada seluruh tampilan/laporan.
+                const items = Number(k) || 0;
+                if (!Number.isFinite(reliability) || n < 4 || items < 2) return { lower: 0, upper: 0, method: 'tidak cukup data (minimal 4 peserta dan 2 butir)' };
+                const se = Math.sqrt(Math.max(0, (2 * items) / ((items - 1) * (n - 2)))) * Math.max(0, 1 - reliability);
                 return {
                     lower: Math.max(0, reliability - 1.96 * se),
                     upper: Math.min(1, reliability + 1.96 * se),
-                    method: 'aproksimasi SE reliabilitas'
+                    method: 'aproksimasi SE reliabilitas (van Zyl/Charter/Duhachek-Iacobucci, 95% CI)'
                 };
             },
             splitHalfReliability(state) {
@@ -1454,7 +1472,7 @@
                 });
 
                 state.reliabilitas = (varRaw > 0 && maxQ > 1) ? (maxQ / (maxQ - 1)) * (1 - (sumPQ / varRaw)) : 0;
-                state.reliabilityCI = this.reliabilityBand(state.reliabilitas, totS);
+                state.reliabilityCI = this.reliabilityBand(state.reliabilitas, totS, maxQ);
                 state.splitHalfReliability = this.splitHalfReliability(state);
                 state.students.sort((a, b) => a.no - b.no);
                 PedagogyRules.enrichItems(state);
@@ -1541,7 +1559,12 @@
                 });
                 const missing = [];
                 for (let q = 1; q <= maxQ; q++) if (!seen.has(q)) missing.push(q);
-                return { valid: invalid.length === 0 && duplicates.length === 0 && empty.length === 0, invalid, duplicates, empty, missing, covered: seen.size, coveragePct: maxQ ? (seen.size / maxQ) * 100 : 0 };
+                // Catatan penting: satu butir soal boleh menguji lebih dari satu KD/topik sekaligus (butir lintas-KD),
+                // ini praktik yang sah dalam kisi-kisi/blueprint asesmen. Karena itu "duplicates" TIDAK dijadikan
+                // syarat valid/aktifnya pemetaan -- hanya ditampilkan sebagai catatan informatif. Untuk perhitungan
+                // Capaian per-KD, butir yang tumpang tindih tetap dihitung pada KD pertama yang menyebutkannya
+                // (lihat updateMappingDiagnostics), sehingga total cakupan kurikulum tidak menghitung ganda.
+                return { valid: invalid.length === 0 && empty.length === 0, invalid, duplicates, empty, missing, covered: seen.size, coveragePct: maxQ ? (seen.size / maxQ) * 100 : 0 };
             },
             updateMappingDiagnostics(state) {
                 state.mappingValidation = this.validateMapping(state);
@@ -1582,7 +1605,7 @@
                     state.babDataSalah.push(pctWrong.toFixed(1));
                 });
 
-                const mappingActive = !!state.mappingApplied && state.babResults.length > 0 && (state.mappingValidation.covered || 0) > 0 && !state.mappingValidation.invalid.length && !state.mappingValidation.duplicates.length;
+                const mappingActive = !!state.mappingApplied && state.babResults.length > 0 && (state.mappingValidation.covered || 0) > 0 && !state.mappingValidation.invalid.length;
                 state.students.forEach(s => {
                     if (mappingActive) {
                         s.kdProfile = state.babResults.map(kd => {
@@ -1622,13 +1645,16 @@
             },
             teacherRecommendations(state) {
                 const mappingActive = hasActiveCurriculumMapping();
-                const weakKds = getBlueprintPriorityKds(4);
+                const weakKdsAll = getBlueprintPriorityKds();
+                const weakKds = weakKdsAll.slice(0, 4);
+                const totalKdMapped = getAllMappedKdsWithPriority().length;
                 const weakKdText = weakKds.length ? weakKds.map(kd => `${kd.name} (${kd.pctCorrect.toFixed(1)}%)`).join(', ') : 'belum ada KD lemah terpetakan';
+                const weakKdMoreNote = weakKdsAll.length > weakKds.length ? ` (${weakKdsAll.length} dari ${totalKdMapped} KD/topik berstatus prioritas; lihat tabel Blueprint Coverage & Gap Kurikulum untuk daftar lengkap)` : '';
                 const badItems = getProblemAuditItems(5).map(q => `No. ${q.id}`).join(', ') || '-';
                 const interventionCount = state.students.filter(s => this.classifyStudent(s, state.kkm, state.totalQuestions).label === 'Intervensi Prioritas').length;
                 const remedialTotal = state.students.filter(s => !s.isTuntas).length;
                 return [
-                    mappingActive ? `KD paling lemah: ${weakKdText}. Prioritaskan re-teaching pada KD tersebut.` : `KD paling lemah belum dapat dinyatakan karena pemetaan KD/TP/BAB belum diproses. Aktifkan pemetaan sebelum mengambil keputusan re-teaching berbasis KD.`,
+                    mappingActive ? `KD paling lemah: ${weakKdText}${weakKdMoreNote}. Prioritaskan re-teaching pada KD tersebut.` : `KD paling lemah belum dapat dinyatakan karena pemetaan KD/TP/BAB belum diproses. Aktifkan pemetaan sebelum mengambil keputusan re-teaching berbasis KD.`,
                     `Butir bermasalah prioritas: ${badItems}. Periksa kunci, stimulus, dan fungsi pengecoh sebelum masuk bank soal.`,
                     `Siswa prioritas pendampingan: ${interventionCount} siswa Intervensi Prioritas (di bawah Transisi) dari ${remedialTotal} siswa di bawah KKM ${state.kkm}.`
                 ];
@@ -1931,7 +1957,10 @@
         function autoGenerateBabConfig(totalQuestions, preferredSlots = null) {
             const total = Math.max(0, parseInt(totalQuestions, 10) || 0);
             if (!total) return [];
-            const slots = preferredSlots || Math.max(1, Math.min(8, Math.ceil(total / 7)));
+            // Batas atas slot otomatis dinaikkan agar tidak membatasi guru yang memiliki banyak KD/sub-bab (mis. 9+).
+            // Guru tetap disarankan memakai "Tambah KD" manual atau "Impor Kisi-Kisi" untuk penamaan KD yang akurat;
+            // Auto Slot KD hanya perkiraan pembagian butir merata dan boleh diedit/ditambah/dikurangi setelahnya.
+            const slots = preferredSlots || Math.max(1, Math.min(20, Math.ceil(total / 5)));
             const base = Math.floor(total / slots);
             const extra = total % slots;
             const config = [];
@@ -1987,11 +2016,15 @@
             if (!el) return;
             const v = AppState.mappingValidation || PedagogyRules.validateMapping(AppState);
             const warnings = [];
-            if (v.invalid.length) warnings.push(`${v.invalid.length} nomor di luar rentang 1-${AppState.totalQuestions}`);
-            if (v.duplicates.length) warnings.push(`${v.duplicates.length} nomor ganda`);
-            if (v.empty?.length) warnings.push(`${v.empty.length} KD belum berisi rentang`);
-            if (v.missing.length) warnings.push(`${v.missing.length} butir belum masuk KD`);
+            if (v.invalid.length) warnings.push(`${v.invalid.length} nomor di luar rentang 1-${AppState.totalQuestions} (wajib diperbaiki)`);
+            if (v.empty?.length) warnings.push(`${v.empty.length} KD belum berisi rentang nomor soal`);
+            if (v.missing.length) warnings.push(`${v.missing.length} butir belum masuk KD manapun`);
             if (AppState.importMeta?.warnings?.length) warnings.push(`${AppState.importMeta.warnings.length} catatan validasi impor`);
+            const infoNotes = [];
+            if (v.duplicates.length) {
+                const dupCount = new Set(v.duplicates.map(d => d.q)).size;
+                infoNotes.push(`${dupCount} nomor soal dipetakan ke lebih dari satu KD/topik (butir lintas-KD). Ini tidak menghalangi analisis; untuk perhitungan Capaian per-KD, butir tersebut dihitung pada KD yang disebut lebih dulu. Periksa apakah ini disengaja.`);
+            }
             const isDraft = AppState.totalQuestions > 0 && !AppState.mappingApplied;
             const statusClass = (isDraft || warnings.length) ? 'text-amber-800' : 'text-emerald-800';
             const detail = isDraft
@@ -2001,7 +2034,8 @@
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 ${statusClass}">
                     <div><b>Butir aktual:</b> ${AppState.totalQuestions || 0} | <b>Terpetakan:</b> ${v.covered || 0}/${AppState.totalQuestions || 0} (${(v.coveragePct || 0).toFixed(1)}%)</div>
                     <div class="font-semibold">${detail}</div>
-                </div>`;
+                </div>
+                ${infoNotes.length ? `<div class="mt-1 text-blue-700"><i class="fas fa-info-circle mr-1"></i>${infoNotes.map(escapeHtml).join(' ')}</div>` : ''}`;
         }
 
         function updateBabField(idx, field, value) {
@@ -2257,7 +2291,7 @@
         function applyBabAnalysis(draw = true) {
             const validation = PedagogyRules.validateMapping(AppState);
             AppState.mappingValidation = validation;
-            AppState.mappingApplied = AppState.babConfig.length > 0 && (validation.covered || 0) > 0 && !(validation.invalid || []).length && !(validation.duplicates || []).length;
+            AppState.mappingApplied = AppState.babConfig.length > 0 && (validation.covered || 0) > 0 && !(validation.invalid || []).length;
             PedagogyRules.updateMappingDiagnostics(AppState);
             renderMappingStatus();
             const chartWrap = document.getElementById('bab-chart-wrapper');
@@ -2442,7 +2476,7 @@
                         <div class="text-[10px] sm:text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-800">Draft: <b>${v.covered || 0}/${AppState.totalQuestions || 0}</b> butir terbaca</div>
                     </div>
                     <div class="mt-3 text-[10px] sm:text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3">
-                        Setelah aktif, aplikasi menampilkan <b>maksimal 4 KD/topik prioritas</b> berdasarkan skor gabungan: gap terhadap KKM, butir revisi/buang, miskonsepsi lintas kelas, daya beda D, dan korelasi item-total.
+                        Setelah aktif, aplikasi menganalisis <b>seluruh KD/topik yang dipetakan</b> (tidak dibatasi jumlahnya) dan mengurutkannya dari yang paling perlu tindak lanjut, berdasarkan skor gabungan: gap terhadap KKM, butir revisi/buang, miskonsepsi lintas kelas, daya beda D, dan korelasi item-total.
                     </div>
                 </div>`;
                 return;
@@ -2456,14 +2490,25 @@
                 const note = level === 'Belum ada level' ? 'Import/isi level C1-C6' : `${count} butir (${pct.toFixed(1)}%)`;
                 return `<div class="bg-white border border-slate-200 rounded-lg p-2"><div class="font-bold text-slate-800">${level}</div><div class="text-slate-500">${note}</div></div>`;
             }).join('');
-            const weakHtml = getBlueprintPriorityKds(4).map(kd => {
-                const action = kd.priority.gap > 0
-                    ? `Re-teaching; bahas ${(kd.weakItems || []).map(q => `No. ${q.id}`).join(', ') || 'butir lemah'}; cek ulang dengan kuis pendek.`
-                    : (kd.priority.revise + kd.priority.discard > 0 || kd.priority.classwideMisconception > 0
-                        ? 'Telaah mutu butir dan bahas miskonsepsi sebelum masuk bank soal.'
-                        : 'Pengayaan/pertahankan.');
+            const allKds = getAllMappedKdsWithPriority();
+            const totalKd = allKds.length;
+            const priorityCount = allKds.filter(kd => kd.priority.problematic).length;
+            const safeCount = totalKd - priorityCount;
+            const weakHtml = allKds.map(kd => {
+                const isPriority = kd.priority.problematic;
+                const action = isPriority
+                    ? (kd.priority.gap > 0
+                        ? `Re-teaching; bahas ${(kd.weakItems || []).map(q => `No. ${q.id}`).join(', ') || 'butir lemah'}; cek ulang dengan kuis pendek.`
+                        : (kd.priority.revise + kd.priority.discard > 0 || kd.priority.classwideMisconception > 0
+                            ? 'Telaah mutu butir dan bahas miskonsepsi sebelum masuk bank soal.'
+                            : 'Perkuat capaian; pantau pada evaluasi berikutnya.'))
+                    : 'Pertahankan capaian; lanjutkan pengayaan/materi berikutnya.';
+                const statusBadge = isPriority
+                    ? '<span class="inline-block px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-bold bg-red-100 text-red-700 whitespace-nowrap">Prioritas</span>'
+                    : '<span class="inline-block px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-bold bg-emerald-100 text-emerald-700 whitespace-nowrap">Aman</span>';
                 return `
                 <tr>
+                    <td class="px-2 py-1 text-center">${statusBadge}</td>
                     <td class="px-2 py-1 font-semibold">${escapeHtml(kd.name)}</td>
                     <td class="px-2 py-1 wide-text">${escapeHtml(kd.material || '-')}</td>
                     <td class="px-2 py-1 text-center">${escapeHtml(kd.level || 'Belum')}</td>
@@ -2477,17 +2522,17 @@
                     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 border-b pb-3 mb-3">
                         <div>
                             <h4 class="font-bold text-gray-800"><i class="fas fa-project-diagram text-emerald-600 mr-2"></i>Blueprint Coverage & Gap Kurikulum</h4>
-                            <p class="text-[10px] sm:text-xs text-gray-500">Menampilkan maksimal 4 KD/topik prioritas berdasarkan skor gabungan: gap terhadap KKM, butir revisi/buang, miskonsepsi lintas kelas, D, dan r item-total. Jika ada level belum dipetakan, import kisi-kisi atau lengkapi level pada matriks di atas.</p>
+                            <p class="text-[10px] sm:text-xs text-gray-500">Menampilkan seluruh <b>${totalKd} KD/topik</b> yang telah dipetakan &mdash; <b class="text-red-600">${priorityCount} berstatus Prioritas</b> dan <b class="text-emerald-600">${safeCount} berstatus Aman</b> &mdash; diurutkan dari yang paling perlu tindak lanjut berdasarkan skor gabungan: gap terhadap KKM, butir revisi/buang, miskonsepsi lintas kelas, D, dan r item-total. Jika ada level belum dipetakan, import kisi-kisi atau lengkapi level pada matriks di atas.</p>
                         </div>
                         <div class="text-[10px] sm:text-xs bg-slate-50 border rounded-lg px-3 py-2 text-slate-700">Coverage: <b>${v.covered || 0}/${AppState.totalQuestions || 0}</b> (${(v.coveragePct || 0).toFixed(1)}%)</div>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 text-[10px] sm:text-xs mb-4">${cognitiveHtml}</div>
-                    <div class="custom-scroll overflow-x-auto border rounded-lg">
+                    <div class="custom-scroll overflow-x-auto overflow-y-auto border rounded-lg" style="max-height: 26rem;">
                         <table class="analysis-table text-[10px] sm:text-xs">
-                            <thead class="bg-gray-100 text-gray-600 uppercase">
-                                <tr><th class="px-2 py-2 text-left">KD/Topik Prioritas</th><th class="px-2 py-2 text-left">Materi/Indikator</th><th class="px-2 py-2 text-center">Level</th><th class="px-2 py-2 text-center">Capaian</th><th class="px-2 py-2 text-center">Skor Prioritas</th><th class="px-2 py-2 text-left">Aksi Tindak Lanjut</th></tr>
+                            <thead class="bg-gray-100 text-gray-600 uppercase sticky top-0 z-10">
+                                <tr><th class="px-2 py-2 text-center">Status</th><th class="px-2 py-2 text-left">KD/Topik</th><th class="px-2 py-2 text-left">Materi/Indikator</th><th class="px-2 py-2 text-center">Level</th><th class="px-2 py-2 text-center">Capaian</th><th class="px-2 py-2 text-center">Skor Prioritas</th><th class="px-2 py-2 text-left">Aksi Tindak Lanjut</th></tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100">${weakHtml || '<tr><td colspan="6" class="px-2 py-3 text-center text-gray-500 italic">KD belum dipetakan.</td></tr>'}</tbody>
+                            <tbody class="divide-y divide-gray-100">${weakHtml || '<tr><td colspan="7" class="px-2 py-3 text-center text-gray-500 italic">KD belum dipetakan.</td></tr>'}</tbody>
                         </table>
                     </div>
                 </div>`;
@@ -2618,7 +2663,7 @@
             if(h.length > 0) {
                 html += `<div class="insight-card insight-danger p-2 sm:p-3 rounded-r-lg border border-red-200">
                     <p class="font-bold text-red-800 text-[11px] sm:text-sm"><i class="fas fa-radiation-alt"></i> Peringatan Kesukaran Ekstrem (<i>Zonking Case</i>) / Anomali Kunci Jawaban</p>
-                    <p class="text-[10px] sm:text-xs text-red-700 mt-1"><b>${h.slice(0,3).map(q => `Soal ${q.id} (Kebenaran ${(q.p*100).toFixed(0)}%)`).join(', ')}</b> dijawab benar oleh sangat sedikit populasi. Wajib dilakukan verifikasi keabsahan kunci rujukan atau kesesuaian materi.</p>
+                    <p class="text-[10px] sm:text-xs text-red-700 mt-1"><b>${h.map(q => `Soal ${q.id} (Kebenaran ${(q.p*100).toFixed(0)}%)`).join(', ')}</b> (${h.length} butir) dijawab benar oleh sangat sedikit populasi. Wajib dilakukan verifikasi keabsahan kunci rujukan atau kesesuaian materi.</p>
                 </div>`;
             }
             if(m.length > 0) {
@@ -3247,7 +3292,7 @@
             const priorityMaxCorrect = Math.floor(totalQuestionSafe * 0.4);
             const priorityMaxScore = (priorityMaxCorrect / totalQuestionSafe) * 100;
             const mappingActive = hasActiveCurriculumMapping();
-            const priorityKds = getBlueprintPriorityKds(4);
+            const priorityKds = getBlueprintPriorityKds(); // seluruh KD/topik berstatus prioritas, tidak dibatasi jumlahnya
             const c = mappingActive ? (AppState.blueprint.cognitive || {}) : { 'Belum dipetakan': AppState.totalQuestions || 0 };
             const lots = (c.C1 || 0) + (c.C2 || 0) + (c.C3 || 0);
             const hots = (c.C4 || 0) + (c.C5 || 0) + (c.C6 || 0);
