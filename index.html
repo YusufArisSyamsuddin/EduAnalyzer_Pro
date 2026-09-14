@@ -226,6 +226,8 @@
                             <div id="bab-recommendation-container" class="mt-4"></div>
                         </div>
                         <div id="blueprint-coverage-container" class="mt-4"></div>
+                        <div id="cognitive-achievement-container" class="mt-4"></div>
+                        <div id="cognitive-level-mapping-container" class="mt-4"></div>
                     </div>
                 </div>
 
@@ -313,6 +315,7 @@
                                     <li><strong>r Item-Total:</strong> Kesesuaian satu butir dengan arah tes secara keseluruhan. Nilai rendah berarti butir kurang sejalan dengan paket tes.</li>
                                     <li><strong>Distraktor Tidak Efektif:</strong> Opsi pengecoh yang tidak dipilih atau hanya dipilih sangat sedikit siswa, sehingga perlu diperbaiki.</li>
                                     <li><strong>KR-20:</strong> Reliabilitas untuk skor benar-salah. Ini membaca konsistensi tes, bukan otomatis menilai kualitas pembelajaran.</li>
+                                    <li><strong>Level (C1-C6):</strong> Level kognitif butir menurut kisi-kisi guru. C1 Mengingat, C2 Memahami, C3 Menerapkan (LOTS); C4 Menganalisis, C5 Mengevaluasi, C6 Mencipta (HOTS). Tanda <b>?</b> berarti level butir belum diisi.</li>
                                 </ul>
                             </div>
                         </div>
@@ -327,6 +330,7 @@
                                         <tr>
                                             <th onclick="sortTableSoal('no')" class="cursor-pointer hover:bg-gray-200 transition-colors px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">No <span id="sort-icon-soal-no"><i class="fas fa-sort-numeric-down ml-1 text-blue-600"></i></span></th>
                                             <th class="px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">Kunci</th>
+                                            <th onclick="sortTableSoal('level')" class="cursor-pointer hover:bg-gray-200 transition-colors px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase" title="Level kognitif butir menurut kisi-kisi (C1-C6)">Level <span id="sort-icon-soal-level"><i class="fas fa-sort text-gray-300 ml-1"></i></span></th>
                                             <th onclick="sortTableSoal('p')" class="cursor-pointer hover:bg-gray-200 transition-colors px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">P (Kesukaran) <span id="sort-icon-soal-p"><i class="fas fa-sort text-gray-300 ml-1"></i></span></th>
                                             <th onclick="sortTableSoal('d')" class="cursor-pointer hover:bg-gray-200 transition-colors px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">D (Daya Beda) <span id="sort-icon-soal-d"><i class="fas fa-sort text-gray-300 ml-1"></i></span></th>
                                             <th onclick="sortTableSoal('r')" class="cursor-pointer hover:bg-gray-200 transition-colors px-2 sm:px-3 py-2 sm:py-3 text-center text-[10px] sm:text-xs font-bold text-gray-600 uppercase">r Item-Total <span id="sort-icon-soal-r"><i class="fas fa-sort text-gray-300 ml-1"></i></span></th>
@@ -375,9 +379,16 @@
             fileValidation: { valid: false, status: 'idle', message: 'Belum ada file aktif.', sheetName: '', signature: '', errors: [], warnings: [] },
             importMeta: { actualQuestionCount: 0, rowCount: 0, warnings: [] },
             babConfig: [], mappingApplied: false,
+            // itemLevels: peta Level Kognitif (C1-C6) PER BUTIR SOAL, terpisah dari pengelompokan KD/topik.
+            // Ini sumber utama untuk analisis C1-C6 -- diisi otomatis oleh Impor Kisi-Kisi dan dapat
+            // diverifikasi/diperbaiki manual lewat panel "Pemetaan Level Kognitif (C1-C6) per Butir Soal".
+            itemLevels: {},
             babResults: [], babLabels: [], babDataBenar: [], babDataSalah: [],
             mappingValidation: { valid: true, invalid: [], duplicates: [], missing: [], covered: 0, coveragePct: 0 },
             blueprint: { kd: [], cognitive: {}, difficulty: {}, distractorQuality: {} },
+            // Hasil analisis Level Kognitif (C1-C6): ketercapaian, mutu butir, dan komposisi per level.
+            // Diisi oleh PedagogyRules.cognitiveAnalysis() setiap kali diagnostik diperbarui.
+            cognitiveResults: { active: false, levels: [], groups: {}, missingLevels: [], unmappedQs: [], mappedCount: 0, unmappedCount: 0 },
             diagnostics: { teacher: [], student: [], curriculum: [], leadership: [], itemDecision: { keep: 0, revise: 0, reviseDominan: 0, reviseLemah: 0, discard: 0 }, weakestKds: [], problemItems: [] },
             analysisConfig: {
                 upperLowerPercent: 0.30,
@@ -387,13 +398,45 @@
                 misconceptionPct: 0.30,
                 difficulty: { easy: 0.70, medium: 0.30 },
                 item: { reviseDiscrimination: 0.20, goodDiscrimination: 0.30, weakCorrectedR: 0.20, discardCorrectedR: 0, extremeLowP: 0.10, zonkingP: 0.20, tooEasyP: 0.95 },
+                // Ambang analisis Level Kognitif (C1-C6). Angka berikut adalah PITA RUJUKAN TELAAH, bukan
+                // ketentuan hukum: dipakai hanya untuk memberi status baca cepat atas komposisi butir dan
+                // besarnya penurunan capaian LOTS -> HOTS. Nilainya selalu dinyatakan apa adanya di laporan
+                // agar guru/pengawas dapat menyesuaikan dengan kebijakan sekolah dan karakter mata pelajaran.
+                cognitive: {
+                    hotsMinProportion: 0.20,
+                    hotsMaxProportion: 0.45,
+                    minItemsPerLevel: 2,
+                    gapModerate: 10,
+                    gapSevere: 25
+                },
                 distractor: { veryWeakPct: 0.02, weakPct: 0.05 },
                 collusion: { minWrongInCommon: 4, wrongInCommonRatio: 0.60, identicalRate: 0.90, minWrongForIdentical: 3, harppHoganRate: 0.85, minHardIdentical: 3 }
             }
         };
 
+        // ---- Metadata Taksonomi Bloom (revisi Anderson & Krathwohl) untuk analisis Level Kognitif ----
+        const COGNITIVE_LEVELS = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'];
+        const COGNITIVE_META = {
+            C1: { label: 'Mengingat', group: 'LOTS', verbs: 'menyebutkan, mengidentifikasi, mengenali fakta', teach: 'penguatan konsep dasar dan penguasaan istilah kunci' },
+            C2: { label: 'Memahami', group: 'LOTS', verbs: 'menjelaskan, membandingkan, memberi contoh', teach: 'penjelasan ulang konsep dengan contoh kontekstual dan analogi' },
+            C3: { label: 'Menerapkan', group: 'LOTS', verbs: 'menghitung, menggunakan prosedur, menerapkan rumus', teach: 'latihan terbimbing bertahap pada soal prosedural/perhitungan' },
+            C4: { label: 'Menganalisis', group: 'HOTS', verbs: 'menganalisis data, membedakan, menghubungkan variabel', teach: 'latihan membaca data/tabel/grafik dan menguraikan hubungan sebab-akibat' },
+            C5: { label: 'Mengevaluasi', group: 'HOTS', verbs: 'menilai, mengkritisi, memilih dengan alasan', teach: 'diskusi beralasan dan pembiasaan memberi justifikasi atas pilihan jawaban' },
+            C6: { label: 'Mencipta', group: 'HOTS', verbs: 'merancang, merumuskan, menyusun solusi baru', teach: 'tugas proyek/perancangan percobaan sederhana dengan rubrik jelas' }
+        };
+        const COGNITIVE_UNMAPPED = 'Belum dipetakan';
+
+        function cognitiveMeta(level) {
+            return COGNITIVE_META[level] || { label: COGNITIVE_UNMAPPED, group: '-', verbs: '-', teach: 'lengkapi Level Kognitif butir ini pada panel pemetaan C1-C6' };
+        }
+
+        function cognitiveGroupOf(level) {
+            return COGNITIVE_META[level]?.group || '-';
+        }
+
         let chartDistribusiInst = null;
         let chartBabInst = null;
+        let chartCognitiveInst = null;
         
         let sortColSiswa = 'no';
         let sortAscSiswa = true;
@@ -521,6 +564,110 @@
         function getBlueprintPriorityKds(limit = 0) {
             const items = getAllMappedKdsWithPriority().filter(kd => kd.priority.problematic);
             return limit ? items.slice(0, limit) : items;
+        }
+
+        // ---- Pemetaan Level Kognitif (C1-C6) per butir soal ----
+        // Sumber kebenaran level kognitif satu butir soal: AppState.itemLevels (peta global, independen dari
+        // pengelompokan KD/topik) -- diisi otomatis oleh Impor Kisi-Kisi, dan dapat diperbaiki manual oleh guru.
+
+        function findKdOwningQuestion(qid) {
+            return (AppState.babConfig || []).find(bab => parseQStr(bab.qs).includes(Number(qid))) || null;
+        }
+
+        function getQuestionLevel(qid) {
+            const fromGlobal = (AppState.itemLevels || {})[qid];
+            if (fromGlobal) return fromGlobal;
+            const kd = findKdOwningQuestion(qid);
+            if (kd?.itemLevels?.[qid]) return kd.itemLevels[qid];
+            if (kd?.level && kd.level !== 'Campuran') return kd.level;
+            return '';
+        }
+
+        function setItemLevel(qid, level) {
+            AppState.itemLevels = AppState.itemLevels || {};
+            if (level) AppState.itemLevels[qid] = level;
+            else delete AppState.itemLevels[qid];
+            // Sinkronkan juga cache level per-KD (bab.itemLevels). Tanpa langkah ini, ketika guru MENGOSONGKAN
+            // level satu butir, nilai lama pada cache per-KD masih terbaca sebagai fallback sehingga perubahan
+            // guru seolah tidak berpengaruh. Peta global tetap menjadi sumber kebenaran; cache per-KD hanya
+            // dipertahankan untuk kompatibilitas state lama.
+            const owner = findKdOwningQuestion(qid);
+            if (owner) {
+                owner.itemLevels = owner.itemLevels || {};
+                if (level) owner.itemLevels[qid] = level;
+                else { delete owner.itemLevels[qid]; delete owner.itemLevels[String(qid)]; }
+            }
+            // Catatan: mengubah level kognitif TIDAK mengubah struktur pemetaan KD (rentang nomor soal),
+            // jadi status "aktif/draft" pemetaan tidak perlu direset di sini.
+            PedagogyRules.updateMappingDiagnostics(AppState);
+            renderCognitiveLevelMapping();
+            renderCognitiveAchievement();
+            renderBlueprintCoverage();
+            renderKlasikalInsights();
+            renderStakeholderBrief();
+            renderReadinessAudit();
+            saveState();
+        }
+
+        function applyLevelToAllQuestionsInKd(idx, level) {
+            const bab = AppState.babConfig[idx];
+            if (!bab) return;
+            const qNums = parseQStr(bab.qs);
+            AppState.itemLevels = AppState.itemLevels || {};
+            qNums.forEach(q => {
+                if (level) AppState.itemLevels[q] = level; else delete AppState.itemLevels[q];
+            });
+        }
+
+        // Peta Level Kognitif untuk SELURUH butir 1..totalQuestions.
+        // Catatan metodologis: analisis C1-C6 sengaja TIDAK digantungkan pada status aktif/draft pemetaan KD,
+        // karena level kognitif adalah atribut butir soal (berasal dari kisi-kisi yang disusun guru), bukan
+        // turunan dari pengelompokan KD. Dengan begitu capaian per level tetap dapat dipertanggungjawabkan
+        // walau guru masih menata rentang nomor soal per KD.
+        // Urutan sumber: (1) AppState.itemLevels (impor kisi-kisi / koreksi manual guru),
+        // (2) bab.itemLevels lama (kompatibilitas state tersimpan), (3) bab.level tunggal bila bukan "Campuran".
+        function buildItemLevelMap(state = AppState) {
+            const map = {};
+            const total = Number(state.totalQuestions) || 0;
+            const global = state.itemLevels || {};
+            const babs = state.babConfig || [];
+            for (let q = 1; q <= total; q++) {
+                let level = global[q] || global[String(q)];
+                if (!level) {
+                    const owner = babs.find(bab => parseQStr(bab.qs).includes(q));
+                    if (owner) {
+                        const fromKd = owner.itemLevels?.[q] || owner.itemLevels?.[String(q)];
+                        if (fromKd) level = fromKd;
+                        else if (owner.level && owner.level !== 'Campuran') level = owner.level;
+                    }
+                }
+                if (COGNITIVE_LEVELS.includes(level)) map[q] = level;
+            }
+            return map;
+        }
+
+        // Ringkas komposisi level kognitif satu KD/topik menjadi teks pendek, mis. "C3(1), C4(2), C5(1)".
+        function kdLevelCompositionText(qs = [], levelMap = buildItemLevelMap()) {
+            const tally = {};
+            (qs || []).forEach(q => {
+                const level = levelMap[q] || COGNITIVE_UNMAPPED;
+                tally[level] = (tally[level] || 0) + 1;
+            });
+            const parts = COGNITIVE_LEVELS.filter(l => tally[l]).map(l => `${l}(${tally[l]})`);
+            if (tally[COGNITIVE_UNMAPPED]) parts.push(`?(${tally[COGNITIVE_UNMAPPED]})`);
+            return parts.join(', ') || '-';
+        }
+
+        function getCognitiveResults() {
+            return AppState.cognitiveResults || { active: false, levels: [], groups: {}, missingLevels: [], unmappedQs: [], mappedCount: 0, unmappedCount: 0 };
+        }
+
+        function getCognitiveLevel(level) {
+            return getCognitiveResults().levels.find(l => l.level === level) || null;
+        }
+
+        function hasActiveCognitiveMapping() {
+            return !!getCognitiveResults().active;
         }
 
         function getValidityDegradingItems() {
@@ -653,17 +800,34 @@
             };
         }
 
+        // Satu kalimat penutup interpretasi kelas dari sisi tuntutan berpikir. Dipakai bersama oleh ringkasan
+        // dashboard dan narasi laporan Word agar keduanya menyatakan hal yang sama.
+        function classCognitiveClause(cog = getCognitiveResults()) {
+            if (!cog.active) return 'Interpretasi dari sisi tuntutan berpikir (C1-C6) belum dapat ditambahkan karena Level Kognitif butir belum diisi.';
+            if (!cog.comparable) {
+                return `Dari sisi tuntutan berpikir, paket ini belum dapat dibandingkan antar kelompok karena LOTS ${cog.lots.count} butir dan HOTS ${cog.hots.count} butir; capaian tiap level tetap dilaporkan terpisah.`;
+            }
+            const arah = cog.gap < 0
+                ? `capaian HOTS (${cog.hots.pctCorrect.toFixed(1)}%) justru di atas LOTS (${cog.lots.pctCorrect.toFixed(1)}%), pola yang tidak lazim sehingga label level pada kisi-kisi perlu ditelaah sebelum kesimpulan tentang tingkat berpikir siswa diambil`
+                : (cog.gapSeverity === 'severe'
+                    ? `capaian turun tajam dari LOTS ${cog.lots.pctCorrect.toFixed(1)}% ke HOTS ${cog.hots.pctCorrect.toFixed(1)}%, sehingga tindak lanjut perlu menjembatani lompatan dari kemampuan dasar ke berpikir tingkat tinggi secara bertahap`
+                    : `capaian LOTS ${cog.lots.pctCorrect.toFixed(1)}% dan HOTS ${cog.hots.pctCorrect.toFixed(1)}%${cog.gapSeverity === 'moderate' ? ', selisih yang masih wajar namun menuntut penambahan latihan HOTS' : ', relatif berdekatan'}`);
+            return `Dari sisi tuntutan berpikir, ${arah}. Rincian per level tersedia pada bagian analisis Level Kognitif (C1-C6).`;
+        }
+
         function classSummaryParagraphs(model) {
             return [
                 `Interpretasi kelas: rata-rata nilai ${model.average.toFixed(1)}, ketuntasan ${model.pctText}% (${model.passed} dari ${model.total} siswa mencapai KKM ${AppState.kkm}). Sebaran kemampuan kelas ${model.heterogeneityLabel} dengan koefisien variasi ${model.heterogeneityText}%.`,
-                `${model.assimilation.label} Tindak lanjut: ${model.assimilation.advice}`
+                `${model.assimilation.label} Tindak lanjut: ${model.assimilation.advice}`,
+                classCognitiveClause()
             ];
         }
 
         function classSummaryHtml(model) {
             const colorClass = model.assimilation.color === 'red' ? 'text-red-600' : (model.assimilation.color === 'orange' ? 'text-orange-600' : 'text-green-600');
             return `<p><b>Interpretasi kelas:</b> Rata-rata nilai <b>${model.average.toFixed(1)}</b>, ketuntasan <b>${model.pctText}%</b> (${model.passed} dari ${model.total} siswa mencapai KKM ${AppState.kkm}). Sebaran kemampuan kelas <b>${model.heterogeneityLabel}</b> dengan koefisien variasi <b>${model.heterogeneityText}%</b>.</p>
-            <p class="mt-2"><span class="${colorClass} font-bold">${model.assimilation.label}</span><br><b>Tindak lanjut:</b> ${escapeHtml(model.assimilation.advice).replace(/\((re-teaching|peer tutoring|enrichment)\)/g, '(<i>$1</i>)')}</p>`;
+            <p class="mt-2"><span class="${colorClass} font-bold">${model.assimilation.label}</span><br><b>Tindak lanjut:</b> ${escapeHtml(model.assimilation.advice).replace(/\((re-teaching|peer tutoring|enrichment)\)/g, '(<i>$1</i>)')}</p>
+            <p class="mt-2">${richImportantHtml(classCognitiveClause())}</p>`;
         }
 
         function reliabilityInterpretation(value = AppState.reliabilitas) {
@@ -684,6 +848,7 @@
             const tallyMismatch = AppState.students.filter(s => (Number(s.benar) || 0) + (Number(s.salah) || 0) + (Number(s.kosong) || 0) !== AppState.totalQuestions).length;
             const v = AppState.mappingValidation || {};
             const mappingActive = hasActiveCurriculumMapping();
+            const cog = getCognitiveResults();
             const rel = reliabilityInterpretation();
             const decisions = AppState.diagnostics.itemDecision || { keep: 0, revise: 0, discard: 0, reviseDominan: 0, reviseLemah: 0 };
             const distributionBands = getDistributionBands();
@@ -706,6 +871,14 @@
                     detail: mappingActive
                         ? `${v.covered || 0}/${AppState.totalQuestions || 0} butir terpetakan (${(v.coveragePct || 0).toFixed(1)}%). ${v.missing?.length ? `${v.missing.length} butir belum masuk KD.` : 'Siap dipakai untuk diagnosis kurikulum.'}`
                         : 'Belum dipakai untuk keputusan KD. Tekan Proses Pemetaan atau impor kisi-kisi.'
+                },
+                {
+                    title: 'Level kognitif C1-C6',
+                    status: cog.active ? `${cog.mappedCount}/${AppState.totalQuestions || 0} butir berlevel — ${cog.readability.label}` : 'Belum diisi',
+                    tone: cog.active ? cog.readability.tone : 'yellow',
+                    detail: cog.active
+                        ? `${cog.readability.detail} Proporsi HOTS ${(cog.hotsProportion * 100).toFixed(1)}% (${cog.composition.label}); capaian LOTS ${cog.lots.pctCorrect.toFixed(1)}% vs HOTS ${cog.hots.pctCorrect.toFixed(1)}%. Sumber level: kisi-kisi guru, independen dari status pemetaan KD.`
+                        : 'Level Kognitif butir belum diisi, sehingga capaian C1-C6 dan klaim LOTS/HOTS belum dapat dipertanggungjawabkan. Impor kisi-kisi atau isi panel Pemetaan Level Kognitif (C1-C6).'
                 },
                 {
                     title: 'Keputusan butir',
@@ -758,7 +931,28 @@
             if (!focused.length) return 'Audit butir terkendali: tidak ada butir prioritas dari daya beda rendah atau miskonsepsi lintas kelas. Lanjutkan validasi kunci dan pemeliharaan bank soal.';
             const both = focused.filter(q => invalidItems.some(item => item.id === q.id) && misconceptionItems.some(item => item.id === q.id));
             const action = both.length ? `No. ${idList(both)} paling mendesak karena bermasalah secara statistik dan konsep.` : 'Revisi statistik dan pembahasan miskonsepsi dapat dipisah.';
-            return `Audit butir: fokus No. ${idList(focused)}. Daya beda rendah: ${idList(invalidItems)}. Miskonsepsi lintas kelas: ${idList(misconceptionItems)}. Makna: ${action} Aksi: cek kunci/stimulus -> revisi pengecoh -> gunakan sebagai bahan pembahasan.`;
+            // Sebaran level butir bermasalah: membedakan "instrumennya bermasalah di level tertentu" dari
+            // "siswanya belum menguasai level itu". Kalau butir bermasalah menumpuk pada satu level, capaian
+            // level tersebut harus dibaca dengan hati-hati sebelum dijadikan dasar keputusan pembelajaran.
+            const cog = getCognitiveResults();
+            let levelNote = '';
+            if (cog.active && focused.length) {
+                const tally = {};
+                focused.forEach(q => { const lv = q.cognitiveLevel || COGNITIVE_UNMAPPED; tally[lv] = (tally[lv] || 0) + 1; });
+                const parts = [...COGNITIVE_LEVELS, COGNITIVE_UNMAPPED].filter(lv => tally[lv]).map(lv => {
+                    const total = lv === COGNITIVE_UNMAPPED ? cog.unmappedCount : (cog.levels.find(l => l.level === lv)?.count || 0);
+                    return `${lv} ${tally[lv]}${total ? ` dari ${total} butir` : ''}`;
+                });
+                const worst = Object.entries(tally)
+                    .map(([lv, n]) => ({ lv, n, total: lv === COGNITIVE_UNMAPPED ? cog.unmappedCount : (cog.levels.find(l => l.level === lv)?.count || 0) }))
+                    .filter(x => x.total >= (cog.thresholds?.minItems ?? 2))
+                    .sort((a, b) => (b.n / b.total) - (a.n / a.total))[0];
+                const concentration = worst && worst.n / worst.total >= 0.5
+                    ? ` Butir bermasalah paling terkonsentrasi pada level ${worst.lv} (${worst.n} dari ${worst.total} butir), sehingga capaian level ${worst.lv} sebaiknya dibaca sebagai gabungan kelemahan siswa dan kelemahan instrumen, bukan murni kelemahan siswa.`
+                    : ' Sebarannya tidak terkonsentrasi pada satu level tertentu.';
+                levelNote = ` Sebaran level butir bermasalah: ${parts.join('; ')}.${concentration}`;
+            }
+            return `Audit butir: fokus No. ${idList(focused)}. Daya beda rendah: ${idList(invalidItems)}. Miskonsepsi lintas kelas: ${idList(misconceptionItems)}. Makna: ${action}${levelNote} Aksi: cek kunci/stimulus -> revisi pengecoh -> gunakan sebagai bahan pembahasan.`;
         }
 
         function curriculumMeaningNarrative(mappingActive = hasActiveCurriculumMapping(), priorityKdsFull = getBlueprintPriorityKds()) {
@@ -772,22 +966,84 @@
             return `Makna kurikulum: tidak semua materi perlu diulang. Fokus utama adalah ${first.name} karena ${first.priority.basis}. Urutan kerja: ajar ulang ${first.material || first.name} -> bahas butir lemah -> kuis pendek -> revisi butir yang mengganggu validitas. KD/topik prioritas: ${focus}.${moreNote}`;
         }
 
+        // ---- Narasi Level Kognitif (C1-C6) ----
+        function cognitiveLevelText(l) {
+            if (!l) return '-';
+            return `${l.level} ${l.label} ${l.pctCorrect.toFixed(1)}%`;
+        }
+
+        function cognitiveGapText(cog = getCognitiveResults()) {
+            if (!cog.comparable || cog.gap === null) {
+                return `selisih LOTS-HOTS belum dapat dibandingkan karena salah satu kelompok memiliki butir terlalu sedikit (LOTS ${cog.lots?.count || 0} butir, HOTS ${cog.hots?.count || 0} butir)`;
+            }
+            const g = cog.gap;
+            // Gap negatif (HOTS >= LOTS) selalu dinyatakan sebagai temuan, bukan sekadar "berdekatan",
+            // agar tidak terbaca seolah siswa menguasai HOTS lebih baik daripada kemampuan dasarnya.
+            if (g < 0) return `capaian HOTS justru ${Math.abs(g).toFixed(1)} poin lebih tinggi daripada LOTS${cog.gapSeverity === 'anomali' ? ', selisih yang cukup besar dan' : ', pola yang'} tidak lazim sehingga label level pada kisi-kisi perlu ditelaah ulang`;
+            if (cog.gapSeverity === 'severe') return `capaian turun tajam ${g.toFixed(1)} poin dari LOTS ke HOTS, menandakan lompatan dari kemampuan dasar ke berpikir tingkat tinggi belum terjembatani dalam pembelajaran`;
+            if (cog.gapSeverity === 'moderate') return `capaian turun ${g.toFixed(1)} poin dari LOTS ke HOTS, wajar secara arah tetapi masih perlu penguatan latihan HOTS`;
+            return `capaian LOTS dan HOTS relatif berdekatan (selisih ${g.toFixed(1)} poin)`;
+        }
+
+        function cognitiveMeaningNarrative(cog = getCognitiveResults()) {
+            if (!cog.active) {
+                return 'Analisis level kognitif belum dapat dinyatakan karena belum ada butir yang memiliki Level Kognitif -> impor kisi-kisi (kolom Level Kognitif) atau isi panel Pemetaan Level Kognitif (C1-C6) -> capaian C1-C6, klaim LOTS/HOTS, dan rekomendasi berbasis level baru dapat dipakai.';
+            }
+            const kkm = cog.kkm;
+            const ladder = cog.levels.map(l => `${l.level} ${l.pctCorrect.toFixed(1)}%`).join(' | ');
+            const weakest = cog.weakestLevel;
+            const belowText = cog.belowKkmLevels.length
+                ? `${cog.belowKkmLevels.length} level di bawah KKM ${kkm} (${cog.belowKkmLevels.map(l => l.level).join(', ')})`
+                : `seluruh level yang terukur sudah mencapai KKM ${kkm}`;
+            const focus = weakest
+                ? `Fokus terlemah: ${cognitiveLevelText(weakest)} (${weakest.count} butir: No. ${weakest.qs.join(', ')}; hanya ${weakest.studentsMastered} dari ${AppState.students.length} siswa tuntas pada level ini) -> Aksi: ${weakest.teach} -> Cek ulang: kuis singkat khusus level ${weakest.level}.`
+                : 'Belum ada level dengan butir cukup untuk ditetapkan sebagai fokus terlemah.';
+            return `Capaian per level kognitif: ${ladder} -> Makna: ${belowText}; ${cognitiveGapText(cog)}. ${focus}`;
+        }
+
+        function cognitiveCompositionNarrative(cog = getCognitiveResults()) {
+            if (!cog.active) return 'Komposisi C1-C6 belum dapat dinilai karena Level Kognitif butir belum diisi.';
+            const t = cog.thresholds || {};
+            const present = cog.levels.map(l => `${l.level} ${l.count} butir (${l.pctOfItems.toFixed(1)}%)`).join(', ');
+            const missing = cog.missingLevels.length ? ` Level yang tidak diwakili: ${cog.missingLevels.join(', ')}.` : '';
+            const unmapped = cog.unmappedCount ? ` ${cog.unmappedCount} butir belum berlevel (No. ${cog.unmappedQs.slice(0, 10).join(', ')}${cog.unmappedQs.length > 10 ? ', ...' : ''}).` : '';
+            return `Komposisi butir menurut kisi-kisi: ${present}. LOTS (C1-C3) ${cog.lots.count} butir dan HOTS (C4-C6) ${cog.hots.count} butir, sehingga proporsi HOTS ${(cog.hotsProportion * 100).toFixed(1)}% terhadap ${cog.totalQuestions} butir. Status: ${cog.composition.label} — ${cog.composition.detail} Pita ${(t.minProp * 100 || 20).toFixed(0)}-${(t.maxProp * 100 || 45).toFixed(0)}% di sini adalah rujukan telaah internal aplikasi, bukan ketentuan hukum, sehingga sekolah tetap dapat menetapkan proporsi lain secara terdokumentasi.${missing}${unmapped}`;
+        }
+
+        function cognitiveValidityNarrative(cog = getCognitiveResults()) {
+            if (!cog.active) return 'Uji kelayakan pembacaan level kognitif belum dijalankan karena Level Kognitif butir belum diisi.';
+            if (!cog.flags.length) return `Uji kelayakan pembacaan level kognitif: tidak ada catatan yang menghalangi. Capaian per level dapat dipakai sebagai dasar tindak lanjut dengan verifikasi guru sebagaimana bagian lain laporan ini.`;
+            return `Uji kelayakan pembacaan level kognitif (${cog.readability.label}): ` + cog.flags.map(f => `${f.title} — ${f.detail} ${f.action}`).join(' ');
+        }
+
+        function cognitiveActionItems(cog = getCognitiveResults(), limit = 0) {
+            if (!cog.active) return ['Lengkapi Level Kognitif butir soal (impor kisi-kisi atau panel C1-C6) agar tindak lanjut berbasis C1-C6 dapat disusun.'];
+            const actions = [];
+            cog.belowKkmLevels.forEach(l => {
+                actions.push(`Level ${l.level} (${l.label}) capaian ${l.pctCorrect.toFixed(1)}%, tertinggal ${l.gap.toFixed(1)} poin dari KKM ${cog.kkm}: perkuat melalui ${l.teach}; butir rujukan pembahasan No. ${l.weakItems.map(q => q.id).join(', ') || l.qs.slice(0, 3).join(', ')}.`);
+            });
+            cog.flags.filter(f => f.severity === 'high').forEach(f => actions.push(`${f.title}: ${f.action}`));
+            if (!actions.length) actions.push(`Seluruh level kognitif yang terukur sudah mencapai KKM ${cog.kkm}: lanjutkan pengayaan dan naikkan porsi latihan ${cog.hots.count ? 'C4-C6' : 'HOTS'} secara bertahap.`);
+            return limit ? actions.slice(0, limit) : actions;
+        }
+
         function flowImportantHtml(value) {
             return richImportantHtml(value).replace(/\s*-&gt;\s*/g, ' <span class="inline-flex items-center px-1.5 font-bold text-blue-600">&rarr;</span> ');
         }
 
         function importantHtmlClass(token) {
             const text = String(token || '').toLowerCase();
-            if (/(buang|risiko|peringatan|bermasalah|intervensi prioritas|daya beda rendah|negatif|miskonsepsi|zonking|ekstrem|tidak valid)/.test(text)) return 'font-bold text-red-700';
-            if (/(revisi dominan|prioritas|remedial|re-teaching|tindak lanjut|rekomendasi|perlu revisi|blank\/omission|konsistensi|coverage|gap analysis)/.test(text)) return 'font-bold text-orange-700';
-            if (/(revisi lemah|belum dipetakan|validasi|latihan ulang|learning path)/.test(text)) return 'font-bold text-amber-700';
-            if (/(simpan|layak|pengayaan|tuntas|reliabilitas|proporsi soal layak|baik)/.test(text)) return 'font-bold text-emerald-700';
+            if (/(buang|risiko|peringatan|bermasalah|intervensi prioritas|daya beda rendah|negatif|miskonsepsi|zonking|ekstrem|tidak valid|tidak lazim|peluang menebak|belum tercapai)/.test(text)) return 'font-bold text-red-700';
+            if (/(revisi dominan|prioritas|remedial|re-teaching|tindak lanjut|rekomendasi|perlu revisi|blank\/omission|konsistensi|coverage|gap analysis|dominan hots|dominan lots|bersyarat)/.test(text)) return 'font-bold text-orange-700';
+            if (/(revisi lemah|belum dipetakan|validasi|latihan ulang|learning path|butir terbatas)/.test(text)) return 'font-bold text-amber-700';
+            if (/(simpan|layak|pengayaan|tuntas|reliabilitas|proporsi soal layak|baik|proporsional|tercapai)/.test(text)) return 'font-bold text-emerald-700';
+            if (/^(c[1-6]|lots|hots|lots \(c1-c3\)|hots \(c4-c6\))$/.test(text)) return 'font-bold text-purple-700';
             return 'font-bold text-blue-700';
         }
 
         function richImportantHtml(value) {
             const source = String(value ?? '');
-            const pattern = /(Reliabilitas KR-20|Proporsi soal layak|Soal perlu revisi\/buang|Rombel\/topik risiko|KD paling lemah|Butir bermasalah prioritas|Siswa prioritas remedial|Profil kelemahan siswa|Learning path individu|Coverage blueprint|Level kognitif C1-C6|Revisi Dominan|Revisi Lemah|Intervensi Prioritas|Remedial Intensif|re-teaching|tindak lanjut|rekomendasi|prioritas|risiko|revisi|buang|simpan|layak|validasi|miskonsepsi|blank\/omission tinggi|konsistensi|gap analysis|HOTS|KD|KKM\s+\d+(?:[,.]\d+)?|\d+(?:[,.]\d+)?%|\d+\s+dari\s+\d+\s+butir|\d+\s+siswa)/gi;
+            const pattern = /(Reliabilitas KR-20|Proporsi soal layak|Soal perlu revisi\/buang|Rombel\/topik risiko|KD paling lemah|Butir bermasalah prioritas|Siswa prioritas remedial|Profil kelemahan siswa|Learning path individu|Coverage blueprint|Level kognitif C1-C6|Revisi Dominan|Revisi Lemah|Intervensi Prioritas|Remedial Intensif|re-teaching|tindak lanjut|rekomendasi|prioritas|risiko|revisi|buang|simpan|layak|validasi|miskonsepsi|blank\/omission tinggi|konsistensi|gap analysis|LOTS \(C1-C3\)|HOTS \(C4-C6\)|Belum tercapai \(berat\)|Belum tercapai|Tercapai|Dominan HOTS|Dominan LOTS|Proporsional|Dapat dibaca bersyarat|peluang menebak|tidak lazim|HOTS|LOTS|C[1-6]|KD|KKM\s+\d+(?:[,.]\d+)?|\d+(?:[,.]\d+)?%|\d+\s+dari\s+\d+\s+butir|\d+\s+butir|\d+\s+siswa)/gi;
             let output = '';
             let last = 0;
             source.replace(pattern, (match, ...args) => {
@@ -841,12 +1097,14 @@
             AppState.babConfig = Array.isArray(AppState.babConfig) ? AppState.babConfig : [];
             AppState.mappingApplied = !!AppState.mappingApplied;
             AppState.babResults = Array.isArray(AppState.babResults) ? AppState.babResults : [];
+            AppState.itemLevels = (AppState.itemLevels && typeof AppState.itemLevels === 'object') ? AppState.itemLevels : {};
             AppState.importMeta = AppState.importMeta || { actualQuestionCount: AppState.totalQuestions || 0, rowCount: AppState.students.length, warnings: [] };
             AppState.fileValidation = AppState.fileValidation || { valid: false, status: 'idle', message: 'Belum ada file aktif.', sheetName: '', signature: '', errors: [], warnings: [] };
             AppState.reliabilityCI = AppState.reliabilityCI || { lower: 0, upper: 0 };
             AppState.splitHalfReliability = AppState.splitHalfReliability || 0;
             AppState.mappingValidation = AppState.mappingValidation || { valid: true, invalid: [], duplicates: [], missing: [], covered: 0, coveragePct: 0 };
             AppState.blueprint = AppState.blueprint || { kd: [], cognitive: {}, difficulty: {}, distractorQuality: {} };
+            AppState.cognitiveResults = AppState.cognitiveResults || { active: false, levels: [], groups: {}, missingLevels: [], unmappedQs: [], mappedCount: 0, unmappedCount: 0 };
             AppState.diagnostics = AppState.diagnostics || { teacher: [], student: [], curriculum: [], leadership: [], itemDecision: { keep: 0, revise: 0, reviseDominan: 0, reviseLemah: 0, discard: 0 }, weakestKds: [], problemItems: [] };
             AppState.diagnostics.itemDecision = {
                 keep: 0,
@@ -864,11 +1122,13 @@
                 misconceptionPct: 0.30,
                 difficulty: { easy: 0.70, medium: 0.30 },
                 item: { reviseDiscrimination: 0.20, goodDiscrimination: 0.30, weakCorrectedR: 0.20, discardCorrectedR: 0, extremeLowP: 0.10, zonkingP: 0.20, tooEasyP: 0.95 },
+                cognitive: { hotsMinProportion: 0.20, hotsMaxProportion: 0.45, minItemsPerLevel: 2, gapModerate: 10, gapSevere: 25 },
                 distractor: { veryWeakPct: 0.02, weakPct: 0.05 },
                 collusion: { minWrongInCommon: 4, wrongInCommonRatio: 0.60, identicalRate: 0.90, minWrongForIdentical: 3, harppHoganRate: 0.85, minHardIdentical: 3 },
                 ...(AppState.analysisConfig || {}),
                 difficulty: { easy: 0.70, medium: 0.30, ...((AppState.analysisConfig || {}).difficulty || {}) },
                 item: { reviseDiscrimination: 0.20, goodDiscrimination: 0.30, weakCorrectedR: 0.20, discardCorrectedR: 0, extremeLowP: 0.10, zonkingP: 0.20, tooEasyP: 0.95, ...((AppState.analysisConfig || {}).item || {}) },
+                cognitive: { hotsMinProportion: 0.20, hotsMaxProportion: 0.45, minItemsPerLevel: 2, gapModerate: 10, gapSevere: 25, ...((AppState.analysisConfig || {}).cognitive || {}) },
                 distractor: { veryWeakPct: 0.02, weakPct: 0.05, ...((AppState.analysisConfig || {}).distractor || {}) },
                 collusion: { minWrongInCommon: 4, wrongInCommonRatio: 0.60, identicalRate: 0.90, minWrongForIdentical: 3, harppHoganRate: 0.85, minHardIdentical: 3, ...((AppState.analysisConfig || {}).collusion || {}) }
             };
@@ -880,6 +1140,14 @@
                 itemLevels: bab.itemLevels || {},
                 source: bab.source || ''
             }));
+            // Migrasi state lama: versi sebelumnya menyimpan Level Kognitif hanya di dalam masing-masing KD
+            // (bab.itemLevels). Pindahkan ke peta global agar ada SATU sumber kebenaran level per butir, dan
+            // agar perubahan/penghapusan level oleh guru lewat panel C1-C6 selalu berpengaruh.
+            AppState.babConfig.forEach(bab => {
+                Object.entries(bab.itemLevels || {}).forEach(([qid, level]) => {
+                    if (COGNITIVE_LEVELS.includes(level) && !AppState.itemLevels[qid]) AppState.itemLevels[qid] = level;
+                });
+            });
         }
 
         // Layer 1: Import & validasi data.
@@ -1606,7 +1874,24 @@
                 });
 
                 const mappingActive = !!state.mappingApplied && state.babResults.length > 0 && (state.mappingValidation.covered || 0) > 0 && !state.mappingValidation.invalid.length;
+
+                // Analisis Level Kognitif dihitung lebih dulu agar profil kognitif tiap siswa dapat diturunkan
+                // dari kelompok butir yang sama dengan yang dipakai tabel klasikal (satu sumber angka).
+                const cognitiveResults = this.cognitiveAnalysis(state);
+                state.cognitiveResults = cognitiveResults;
+
+                // Tempelkan level kognitif ke objek butir dan komposisi level ke tiap KD, supaya tabel butir,
+                // tabel KD, dan laporan Word membaca level dari SATU peta yang sama (tidak menghitung ulang).
+                state.questions.forEach(q => { q.cognitiveLevel = cognitiveResults.levelMap[q.id] || ''; });
+                state.babResults.forEach(kd => {
+                    kd.levelComposition = kdLevelCompositionText(kd.qs, cognitiveResults.levelMap);
+                    kd.lotsCount = kd.qs.filter(q => cognitiveGroupOf(cognitiveResults.levelMap[q]) === 'LOTS').length;
+                    kd.hotsCount = kd.qs.filter(q => cognitiveGroupOf(cognitiveResults.levelMap[q]) === 'HOTS').length;
+                    kd.levelUnmappedCount = kd.qs.filter(q => !cognitiveResults.levelMap[q]).length;
+                });
+
                 state.students.forEach(s => {
+                    s.cognitive = this.studentCognitiveProfile(s, cognitiveResults, state);
                     if (mappingActive) {
                         s.kdProfile = state.babResults.map(kd => {
                             const correct = s.detailBenar.filter(q => kd.qs.includes(q)).length;
@@ -1620,19 +1905,22 @@
                     }
                 });
 
-                const cognitive = mappingActive ? {} : { 'Belum dipetakan': state.totalQuestions || 0 };
-                if (mappingActive) {
-                    state.babResults.forEach(kd => {
-                        kd.qs.forEach(qid => {
-                            const level = kd.levelDetail?.[qid] || kd.level;
-                            cognitive[level || 'Belum dipetakan'] = (cognitive[level || 'Belum dipetakan'] || 0) + 1;
-                        });
-                    });
-                }
+                // Komposisi Level Kognitif dihitung dari peta level PER BUTIR untuk seluruh soal 1..totalQuestions,
+                // bukan hanya butir yang sudah masuk KD. Alasannya: level kognitif adalah atribut butir dari
+                // kisi-kisi, sehingga tetap sah dilaporkan walau penataan rentang KD masih berstatus draft.
+                // Butir tanpa level tetap dihitung eksplisit sebagai "Belum dipetakan" agar tidak ada klaim
+                // proporsi C1-C6 yang menyembunyikan bagian yang belum diisi guru.
+                const cognitiveTally = {};
+                COGNITIVE_LEVELS.forEach(level => {
+                    const count = cognitiveResults.levels.find(l => l.level === level)?.count || 0;
+                    if (count) cognitiveTally[level] = count;
+                });
+                if (cognitiveResults.unmappedCount) cognitiveTally[COGNITIVE_UNMAPPED] = cognitiveResults.unmappedCount;
                 const lowDistractorItems = state.questions.filter(q => q.pengecohKosong.length >= Math.max(1, Math.floor((state.optionsList.length - 1) / 2))).length;
                 state.blueprint = {
                     kd: mappingActive ? state.babResults : [],
-                    cognitive,
+                    cognitive: cognitiveTally,
+                    cognitiveDetail: cognitiveResults,
                     difficulty: state.proporsiKesukaran,
                     distractorQuality: { lowDistractorItems, total: state.questions.length }
                 };
@@ -1642,6 +1930,233 @@
                 state.diagnostics.student = this.studentRecommendations(state);
                 state.diagnostics.curriculum = this.curriculumRecommendations(state);
                 state.diagnostics.leadership = this.leadershipRecommendations(state);
+            },
+            // ---- Analisis Level Kognitif (C1-C6) ----
+            // Metode yang dipakai (agar dapat diaudit):
+            // - Ketercapaian satu level = jumlah jawaban benar seluruh siswa pada butir level tsb dibagi
+            //   (jumlah butir level tsb x jumlah siswa) x 100%. Metode ini sama dengan cara aplikasi menghitung
+            //   capaian per KD, sehingga angka antar-tabel konsisten dan dapat ditelusuri.
+            // - Siswa "tuntas pada level" = persentase benar siswa itu pada butir level tsb >= KKM/KKTP.
+            // - Mutu butir per level memakai P (kesukaran), D (daya beda), dan r item-total yang sudah dihitung
+            //   AnalysisEngine, bukan perhitungan terpisah, agar tidak ada dua versi angka untuk butir yang sama.
+            cognitiveAnalysis(state) {
+                const cfg = state.analysisConfig?.cognitive || {};
+                const minItems = cfg.minItemsPerLevel ?? 2;
+                const totalQ = Number(state.totalQuestions) || 0;
+                const students = state.students || [];
+                const totalStudents = students.length;
+                const kkm = Number(state.kkm) || 0;
+                const levelMap = buildItemLevelMap(state);
+                const mappedQs = Object.keys(levelMap).map(Number).sort((a, b) => a - b);
+                const unmappedQs = [];
+                for (let q = 1; q <= totalQ; q++) if (!levelMap[q]) unmappedQs.push(q);
+
+                const measure = (qs) => {
+                    const items = qs.map(qid => (state.questions || []).find(q => q.id === qid)).filter(Boolean);
+                    const totalPossible = qs.length * totalStudents;
+                    let totalCorrect = 0;
+                    students.forEach(s => { totalCorrect += (s.detailBenar || []).filter(q => qs.includes(q)).length; });
+                    const pctCorrect = totalPossible ? (totalCorrect / totalPossible) * 100 : 0;
+                    const mastered = students.filter(s => {
+                        const correct = (s.detailBenar || []).filter(q => qs.includes(q)).length;
+                        return qs.length ? (correct / qs.length) * 100 >= kkm : false;
+                    }).length;
+                    return {
+                        qs, count: qs.length, items,
+                        pctCorrect,
+                        pctWrong: totalPossible ? 100 - pctCorrect : 0,
+                        gap: Math.max(0, kkm - pctCorrect),
+                        pctOfItems: totalQ ? (qs.length / totalQ) * 100 : 0,
+                        avgP: items.length ? items.reduce((a, q) => a + Number(q.p || 0), 0) / items.length : 0,
+                        avgD: items.length ? items.reduce((a, q) => a + Number(q.dayaBeda || 0), 0) / items.length : 0,
+                        avgR: items.length ? items.reduce((a, q) => a + Number(q.correctedR || 0), 0) / items.length : 0,
+                        revise: items.filter(q => isRevisionStatus(q.decision?.status)).length,
+                        discard: items.filter(q => q.decision?.status === 'Buang').length,
+                        keep: items.filter(q => q.decision?.status === 'Simpan Bank Soal').length,
+                        misconception: items.filter(q => isClasswideMisconception(q, state)).length,
+                        weakItems: [...items].sort((a, b) => a.p - b.p).slice(0, 3),
+                        studentsMastered: mastered,
+                        studentsMasteredPct: totalStudents ? (mastered / totalStudents) * 100 : 0,
+                        byClass: (state.classes || []).map(kelas => {
+                            const list = students.filter(s => s.kelas === kelas);
+                            const possible = qs.length * list.length;
+                            const correct = list.reduce((sum, s) => sum + (s.detailBenar || []).filter(q => qs.includes(q)).length, 0);
+                            return { kelas, pctCorrect: possible ? (correct / possible) * 100 : 0, students: list.length };
+                        })
+                    };
+                };
+
+                const levelStatus = (data) => {
+                    if (data.count < minItems) return { label: 'Butir terbatas', tone: 'blue', note: `hanya ${data.count} butir, capaian belum stabil untuk disimpulkan` };
+                    if (data.pctCorrect >= kkm && data.avgD >= (state.analysisConfig?.item?.reviseDiscrimination ?? 0.20)) return { label: 'Tercapai', tone: 'green', note: 'capaian di atas KKM/KKTP dan butir cukup membedakan kemampuan' };
+                    if (data.pctCorrect >= kkm) return { label: 'Tercapai, butir perlu telaah', tone: 'yellow', note: 'capaian di atas KKM/KKTP tetapi daya beda butir level ini masih lemah' };
+                    if (data.gap >= 25) return { label: 'Belum tercapai (berat)', tone: 'red', note: `capaian tertinggal ${data.gap.toFixed(1)} poin dari KKM/KKTP` };
+                    return { label: 'Belum tercapai', tone: 'orange', note: `capaian tertinggal ${data.gap.toFixed(1)} poin dari KKM/KKTP` };
+                };
+
+                const levels = COGNITIVE_LEVELS
+                    .map(level => {
+                        const qs = mappedQs.filter(q => levelMap[q] === level);
+                        if (!qs.length) return null;
+                        const meta = cognitiveMeta(level);
+                        const data = measure(qs);
+                        return { level, label: meta.label, group: meta.group, verbs: meta.verbs, teach: meta.teach, ...data, status: levelStatus(data) };
+                    })
+                    .filter(Boolean);
+
+                const groupOf = (name) => {
+                    const qs = mappedQs.filter(q => cognitiveGroupOf(levelMap[q]) === name);
+                    const data = measure(qs);
+                    return { name, levels: levels.filter(l => l.group === name).map(l => l.level), ...data };
+                };
+                const lots = groupOf('LOTS');
+                const hots = groupOf('HOTS');
+
+                // Gap kognitif: selisih capaian LOTS - HOTS. Hanya disimpulkan bila kedua kelompok punya
+                // cukup butir; kalau tidak, aplikasi menyatakan gap "tidak dapat dibandingkan".
+                const comparable = lots.count >= minItems && hots.count >= minItems;
+                const gap = comparable ? lots.pctCorrect - hots.pctCorrect : null;
+                let gapSeverity = 'unknown';
+                if (comparable) {
+                    if (gap < -(cfg.gapModerate ?? 10)) gapSeverity = 'anomali';
+                    else if (gap >= (cfg.gapSevere ?? 25)) gapSeverity = 'severe';
+                    else if (gap >= (cfg.gapModerate ?? 10)) gapSeverity = 'moderate';
+                    else gapSeverity = 'none';
+                }
+
+                const hotsProportion = totalQ ? hots.count / totalQ : 0;
+                const minProp = cfg.hotsMinProportion ?? 0.20;
+                const maxProp = cfg.hotsMaxProportion ?? 0.45;
+                let composition;
+                if (!mappedQs.length) composition = { label: 'Belum dapat dinilai', tone: 'red', detail: 'Belum ada butir yang memiliki Level Kognitif. Impor kisi-kisi atau isi panel pemetaan C1-C6 terlebih dahulu.' };
+                else if (unmappedQs.length) composition = { label: 'Belum lengkap', tone: 'yellow', detail: `${unmappedQs.length} dari ${totalQ} butir belum memiliki Level Kognitif (No. ${unmappedQs.slice(0, 12).join(', ')}${unmappedQs.length > 12 ? ', ...' : ''}), sehingga proporsi C1-C6 dan klaim HOTS belum utuh.` };
+                else if (hotsProportion < minProp) composition = { label: 'Dominan LOTS', tone: 'yellow', detail: `Butir HOTS (C4-C6) hanya ${(hotsProportion * 100).toFixed(1)}% dari ${totalQ} butir, di bawah pita rujukan telaah ${(minProp * 100).toFixed(0)}-${(maxProp * 100).toFixed(0)}%. Paket ini lebih banyak mengukur kemampuan dasar.` };
+                else if (hotsProportion > maxProp) composition = { label: 'Dominan HOTS', tone: 'yellow', detail: `Butir HOTS (C4-C6) mencapai ${(hotsProportion * 100).toFixed(1)}% dari ${totalQ} butir, di atas pita rujukan telaah ${(minProp * 100).toFixed(0)}-${(maxProp * 100).toFixed(0)}%. Periksa apakah beban berpikir sudah sepadan dengan waktu dan pengalaman belajar siswa.` };
+                else composition = { label: 'Proporsional', tone: 'green', detail: `Butir HOTS (C4-C6) ${(hotsProportion * 100).toFixed(1)}% dari ${totalQ} butir, berada pada pita rujukan telaah ${(minProp * 100).toFixed(0)}-${(maxProp * 100).toFixed(0)}%.` };
+
+                const missingLevels = COGNITIVE_LEVELS.filter(level => !levels.some(l => l.level === level));
+                const weakestLevel = [...levels].filter(l => l.count >= minItems).sort((a, b) => a.pctCorrect - b.pctCorrect)[0] || null;
+                const strongestLevel = [...levels].filter(l => l.count >= minItems).sort((a, b) => b.pctCorrect - a.pctCorrect)[0] || null;
+                const belowKkmLevels = levels.filter(l => l.count >= minItems && l.pctCorrect < kkm);
+                const overall = measure(mappedQs);
+
+                // ---- Uji kelayakan pembacaan level kognitif (flags) ----
+                // Bagian ini menjaga agar kesimpulan C1-C6 tidak melampaui apa yang benar-benar didukung data.
+                // Tanpa uji ini, laporan bisa terbaca seolah "siswa kuat HOTS" padahal capaiannya masih berada
+                // di sekitar batas peluang menebak, atau label level pada kisi-kisi belum mencerminkan tuntutan
+                // berpikir butirnya. Semua flag dinyatakan terbuka di laporan agar dapat ditelaah pengawas/kombel.
+                const optionCount = Math.max(2, (state.optionsList || ['A','B','C','D']).length);
+                const chancePct = (1 / optionCount) * 100;
+                const flags = [];
+                if (unmappedQs.length) {
+                    flags.push({
+                        code: 'unmapped', severity: 'high', title: 'Level kognitif belum lengkap',
+                        detail: `${unmappedQs.length} dari ${totalQ} butir belum memiliki Level Kognitif, sehingga proporsi C1-C6 serta klaim LOTS/HOTS pada laporan ini belum utuh.`,
+                        action: 'Lengkapi Level Kognitif butir tersebut pada panel Pemetaan Level Kognitif (C1-C6) sebelum laporan dipakai sebagai dasar keputusan.'
+                    });
+                }
+                if (mappedQs.length && overall.pctCorrect < chancePct + 10) {
+                    flags.push({
+                        code: 'near-chance', severity: 'high', title: 'Capaian dekat batas peluang menebak',
+                        detail: `Rata-rata capaian pada butir terpetakan ${overall.pctCorrect.toFixed(1)}%, hanya ${(overall.pctCorrect - chancePct).toFixed(1)} poin di atas batas peluang menebak ${chancePct.toFixed(1)}% untuk ${optionCount} opsi jawaban.`,
+                        action: 'Baca capaian per level sebagai indikasi awal, bukan bukti penguasaan. Konfirmasi dengan asesmen lisan/tertulis singkat sebelum menyimpulkan level mana yang benar-benar dikuasai.'
+                    });
+                }
+                if (comparable && hots.pctCorrect >= lots.pctCorrect) {
+                    flags.push({
+                        code: 'inversion', severity: 'high', title: 'Gradasi kesukaran antar level tidak lazim',
+                        detail: `Capaian HOTS (C4-C6) ${hots.pctCorrect.toFixed(1)}% tidak lebih rendah daripada capaian LOTS (C1-C3) ${lots.pctCorrect.toFixed(1)}%. Pada paket yang gradasinya wajar, butir level lebih tinggi biasanya lebih sukar.`,
+                        action: 'Telaah ulang label Level Kognitif pada kisi-kisi: periksa apakah butir C4-C6 benar-benar menuntut analisis/evaluasi/kreasi, atau sebenarnya butir C2-C3 yang dikemas dalam stimulus panjang. Jangan menyimpulkan "siswa kuat HOTS" sebelum telaah ini selesai.'
+                    });
+                }
+                const missingLower = missingLevels.filter(l => l === 'C1' || l === 'C2');
+                if (mappedQs.length && missingLower.length) {
+                    flags.push({
+                        code: 'missing-lower', severity: 'medium', title: `Tidak ada butir ${missingLower.join('/')}`,
+                        detail: `Paket ini tidak memuat butir ${missingLower.join(' dan ')}, sehingga penguasaan konsep dasar (mengingat/memahami) tidak terukur secara langsung${levels.some(l => l.level === 'C3') ? ' dan pembacaan kemampuan dasar hanya bertumpu pada C3 (menerapkan)' : ''}.`,
+                        action: 'Untuk asesmen berikutnya, sertakan beberapa butir C1-C2 sebagai jangkar agar kemampuan dasar dan lompatan ke HOTS dapat dibaca bertingkat.'
+                    });
+                }
+                const thinLevels = levels.filter(l => l.count < minItems);
+                if (thinLevels.length) {
+                    flags.push({
+                        code: 'thin-level', severity: 'medium', title: 'Ada level dengan butir sangat sedikit',
+                        detail: `Level ${thinLevels.map(l => `${l.level} (${l.count} butir)`).join(', ')} diwakili kurang dari ${minItems} butir, sehingga capaiannya mudah berubah hanya karena satu butir.`,
+                        action: 'Perbanyak butir pada level tersebut atau nyatakan capaiannya sebagai indikasi, bukan simpulan.'
+                    });
+                }
+                const weakDiscLevels = levels.filter(l => l.count >= minItems && l.avgD < (state.analysisConfig?.item?.reviseDiscrimination ?? 0.20));
+                if (weakDiscLevels.length) {
+                    flags.push({
+                        code: 'weak-discrimination', severity: 'medium', title: 'Daya beda lemah pada level tertentu',
+                        detail: `Level ${weakDiscLevels.map(l => `${l.level} (rata-rata D ${l.avgD.toFixed(2)})`).join(', ')} memiliki daya beda rata-rata di bawah ${(state.analysisConfig?.item?.reviseDiscrimination ?? 0.20).toFixed(2)}, artinya butir level ini belum memisahkan siswa berpenguasaan tinggi dan rendah.`,
+                        action: 'Telaah butir level tersebut lebih dulu; capaiannya belum layak dijadikan dasar tunggal keputusan pembelajaran.'
+                    });
+                }
+                if (mappedQs.length && !unmappedQs.length && composition.tone !== 'green') {
+                    flags.push({
+                        code: 'composition', severity: 'medium', title: `Komposisi butir: ${composition.label}`,
+                        detail: composition.detail,
+                        action: 'Sesuaikan proporsi C1-C6 pada kisi-kisi asesmen berikutnya sesuai kebijakan sekolah dan karakteristik mata pelajaran.'
+                    });
+                }
+
+                const highFlags = flags.filter(f => f.severity === 'high');
+                const readability = !mappedQs.length
+                    ? { label: 'Belum dapat dibaca', tone: 'red', detail: 'Belum ada butir yang memiliki Level Kognitif, sehingga analisis C1-C6 belum dapat dijalankan.' }
+                    : (highFlags.length
+                        ? { label: 'Dapat dibaca bersyarat', tone: 'yellow', detail: `Capaian per level sudah dihitung penuh, tetapi ada ${highFlags.length} catatan penting yang harus dibaca bersamaan: ${highFlags.map(f => f.title.toLowerCase()).join('; ')}.` }
+                        : { label: 'Dapat dibaca', tone: 'green', detail: 'Tidak ada catatan berat pada pembacaan level kognitif; capaian per level dapat dipakai sebagai dasar tindak lanjut dengan verifikasi guru seperti biasa.' });
+
+                return {
+                    overall, chancePct, optionCount, flags, readability,
+                    active: mappedQs.length > 0,
+                    levelMap,
+                    levels,
+                    groups: { LOTS: lots, HOTS: hots },
+                    lots, hots,
+                    gap, gapSeverity, comparable,
+                    hotsProportion,
+                    composition,
+                    missingLevels,
+                    weakestLevel, strongestLevel, belowKkmLevels,
+                    mappedCount: mappedQs.length,
+                    unmappedCount: unmappedQs.length,
+                    unmappedQs,
+                    totalQuestions: totalQ,
+                    kkm,
+                    thresholds: { minItems, minProp, maxProp, gapModerate: cfg.gapModerate ?? 10, gapSevere: cfg.gapSevere ?? 25 }
+                };
+            },
+            // Profil kognitif per siswa: dipakai untuk learning path, rekomendasi materi, dan ekspor.
+            studentCognitiveProfile(student, cognitive, state) {
+                const levels = (cognitive?.levels || []).map(l => {
+                    const correct = (student.detailBenar || []).filter(q => l.qs.includes(q)).length;
+                    return { level: l.level, label: l.label, group: l.group, count: l.qs.length, correct, pct: l.qs.length ? (correct / l.qs.length) * 100 : 0, wrong: l.qs.filter(q => !(student.detailBenar || []).includes(q)) };
+                });
+                const groupPct = (name) => {
+                    const qs = (cognitive?.groups?.[name]?.qs) || [];
+                    if (!qs.length) return null;
+                    const correct = (student.detailBenar || []).filter(q => qs.includes(q)).length;
+                    return (correct / qs.length) * 100;
+                };
+                const lotsPct = groupPct('LOTS');
+                const hotsPct = groupPct('HOTS');
+                const minItems = cognitive?.thresholds?.minItems ?? 2;
+                const comparable = (cognitive?.lots?.count || 0) >= minItems && (cognitive?.hots?.count || 0) >= minItems;
+                const gap = (comparable && lotsPct !== null && hotsPct !== null) ? lotsPct - hotsPct : null;
+                let label = 'Profil kognitif belum dapat dibaca';
+                if (gap !== null) {
+                    const kkm = Number(state.kkm) || 0;
+                    if (lotsPct >= kkm && hotsPct >= kkm) label = 'Kuat di LOTS dan HOTS';
+                    else if (gap >= (state.analysisConfig?.cognitive?.gapSevere ?? 25)) label = 'Kuat dasar, lemah berpikir tingkat tinggi';
+                    else if (gap >= (state.analysisConfig?.cognitive?.gapModerate ?? 10)) label = 'Dasar memadai, HOTS perlu penguatan';
+                    else if (gap <= -(state.analysisConfig?.cognitive?.gapModerate ?? 10)) label = 'Pola tidak lazim: HOTS lebih tinggi dari dasar';
+                    else if (lotsPct < kkm && hotsPct < kkm) label = 'Perlu penguatan pada semua level';
+                    else label = 'Profil relatif seimbang';
+                }
+                const weakest = [...levels].filter(l => l.count >= minItems).sort((a, b) => a.pct - b.pct)[0] || null;
+                return { levels, lotsPct, hotsPct, gap, label, weakestLevel: weakest };
             },
             teacherRecommendations(state) {
                 const mappingActive = hasActiveCurriculumMapping();
@@ -1653,8 +2168,15 @@
                 const badItems = getProblemAuditItems(5).map(q => `No. ${q.id}`).join(', ') || '-';
                 const interventionCount = state.students.filter(s => this.classifyStudent(s, state.kkm, state.totalQuestions).label === 'Intervensi Prioritas').length;
                 const remedialTotal = state.students.filter(s => !s.isTuntas).length;
+                const cog = state.cognitiveResults || {};
+                const cognitiveLine = cog.active
+                    ? (cog.weakestLevel
+                        ? `Level kognitif terlemah: ${cog.weakestLevel.level} (${cog.weakestLevel.label}) capaian ${cog.weakestLevel.pctCorrect.toFixed(1)}% pada ${cog.weakestLevel.count} butir; ${cognitiveGapText(cog)}. Rancang latihan bertingkat: ${cog.weakestLevel.teach}.`
+                        : `Level kognitif sudah terpetakan (${cog.mappedCount}/${cog.totalQuestions} butir), tetapi tiap level masih diwakili terlalu sedikit butir untuk menetapkan level terlemah.`)
+                    : `Level kognitif C1-C6 belum terisi, sehingga rekomendasi latihan bertingkat (dasar -> HOTS) belum dapat disusun. Impor kisi-kisi atau isi panel Pemetaan Level Kognitif.`;
                 return [
                     mappingActive ? `KD paling lemah: ${weakKdText}${weakKdMoreNote}. Prioritaskan re-teaching pada KD tersebut.` : `KD paling lemah belum dapat dinyatakan karena pemetaan KD/TP/BAB belum diproses. Aktifkan pemetaan sebelum mengambil keputusan re-teaching berbasis KD.`,
+                    cognitiveLine,
                     `Butir bermasalah prioritas: ${badItems}. Periksa kunci, stimulus, dan fungsi pengecoh sebelum masuk bank soal.`,
                     `Siswa prioritas pendampingan: ${interventionCount} siswa Intervensi Prioritas (di bawah Transisi) dari ${remedialTotal} siswa di bawah KKM ${state.kkm}.`
                 ];
@@ -1663,8 +2185,21 @@
                 const mappingActive = hasActiveCurriculumMapping();
                 const highBlank = state.students.filter(s => s.raguRagu).length;
                 const lowConsistency = state.students.filter(s => s.konsistensiRendah || s.isTebakan).length;
+                const cog = state.cognitiveResults || {};
+                let cognitiveLine;
+                if (cog.active && cog.comparable) {
+                    const tally = {};
+                    state.students.forEach(s => { const label = s.cognitive?.label; if (label) tally[label] = (tally[label] || 0) + 1; });
+                    const top = Object.entries(tally).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([label, n]) => `${n} siswa berprofil "${label}"`).join('; ');
+                    cognitiveLine = `Profil kognitif individu (LOTS vs HOTS) sudah terbaca: ${top}. Gunakan profil ini untuk memilih jenis latihan, bukan hanya menentukan siapa yang remedial.`;
+                } else if (cog.active) {
+                    cognitiveLine = `Profil kognitif individu belum dapat dibandingkan antar kelompok karena LOTS (${cog.lots?.count || 0} butir) atau HOTS (${cog.hots?.count || 0} butir) terlalu sedikit; capaian per level tetap ditampilkan per siswa pada ekspor Excel.`;
+                } else {
+                    cognitiveLine = `Profil kognitif individu (kekuatan/kelemahan C1-C6) belum aktif karena Level Kognitif butir belum diisi.`;
+                }
                 return [
                     mappingActive ? `Profil kelemahan siswa sekarang diturunkan dari KD yang dipetakan, bukan hanya nilai akhir.` : `Profil kelemahan per KD belum aktif karena pemetaan KD/TP/BAB belum diproses; sementara gunakan nilai, distribusi frekuensi, dan pola respons individu.`,
+                    cognitiveLine,
                     `${highBlank} siswa memiliki blank/omission tinggi; ${lowConsistency} siswa perlu pengecekan pola tebakan atau konsistensi.`,
                     mappingActive ? `Learning path individu menampilkan maksimal dua KD terlemah untuk latihan ulang.` : `Learning path individu berbasis KD akan muncul setelah Proses Pemetaan atau Impor Kisi-Kisi.`
                 ];
@@ -1674,31 +2209,57 @@
                 const missing = state.mappingValidation.missing.length;
                 const under = state.babResults.filter(kd => kd.pctCorrect < state.kkm).length;
                 const tooEasy = state.babResults.filter(kd => kd.pctCorrect >= 90).length;
+                const cog = state.cognitiveResults || {};
+                // Catatan: baris level kognitif tetap dilaporkan walau pemetaan KD masih draft, karena level
+                // kognitif adalah atribut butir dari kisi-kisi dan tidak bergantung pada penataan rentang KD.
+                const cognitiveLine = cog.active
+                    ? `Komposisi kognitif: LOTS (C1-C3) ${cog.lots.count} butir dan HOTS (C4-C6) ${cog.hots.count} butir, proporsi HOTS ${(cog.hotsProportion * 100).toFixed(1)}% berstatus ${cog.composition.label}${cog.missingLevels.length ? `; level tidak diwakili: ${cog.missingLevels.join(', ')}` : ''}. Capaian LOTS ${cog.lots.pctCorrect.toFixed(1)}% vs HOTS ${cog.hots.pctCorrect.toFixed(1)}%.`
+                    : `Komposisi dan capaian C1-C6 belum dapat dinyatakan karena Level Kognitif butir belum diisi (impor kisi-kisi atau panel C1-C6).`;
+                const cognitiveWarning = cog.active && (cog.flags || []).some(f => f.severity === 'high')
+                    ? `Catatan kelayakan klaim HOTS: ${(cog.flags || []).filter(f => f.severity === 'high').map(f => f.title).join('; ')}. Telaah ini harus selesai sebelum laporan menyimpulkan tingkat berpikir siswa.`
+                    : (cog.active ? `Klaim LOTS/HOTS pada laporan ini lolos uji kelayakan internal aplikasi (${cog.readability.label}).` : `Uji kelayakan klaim HOTS menunggu Level Kognitif butir diisi.`);
                 if (!mappingActive) {
                     return [
                         `Coverage blueprint masih draft: ${state.mappingValidation.covered}/${state.totalQuestions} butir terbaca, tetapi belum dipakai untuk keputusan kurikulum.`,
                         `Gap analysis KD belum dinyatakan agar laporan tidak menyimpulkan kelemahan materi dari slot otomatis yang belum divalidasi guru.`,
-                        `Isi atau impor kisi-kisi, lalu tekan Proses Pemetaan untuk mengaktifkan evaluasi C1-C6, KD prioritas, dan rekomendasi re-teaching.`
+                        cognitiveLine,
+                        cognitiveWarning,
+                        `Isi atau impor kisi-kisi, lalu tekan Proses Pemetaan untuk mengaktifkan gap analysis per KD dan rekomendasi re-teaching berbasis KD.`
                     ];
                 }
                 return [
                     `Coverage blueprint: ${state.mappingValidation.covered}/${state.totalQuestions} butir (${state.mappingValidation.coveragePct.toFixed(1)}%). ${missing} butir belum dipetakan.`,
                     `${under} KD di bawah KKM dan ${tooEasy} KD terlalu mudah. Gunakan ini sebagai gap analysis materi.`,
-                    `Level kognitif C1-C6 dapat diisi per KD untuk memeriksa klaim HOTS.`
+                    cognitiveLine,
+                    cognitiveWarning
                 ];
             },
             leadershipRecommendations(state) {
                 const decisions = state.diagnostics.itemDecision || { keep: 0, revise: 0, reviseDominan: 0, reviseLemah: 0, discard: 0 };
                 const total = state.questions.length || 1;
-                const classStats = state.classes.map(kelas => {
+                // Peringkat rombel risiko hanya memakai kelas dengan jumlah siswa memadai (>= 5). Kelas yang
+                // sangat kecil -- sering muncul karena nama kelas salah tulis pada file rekap -- tidak boleh
+                // dinobatkan sebagai "rombel paling berisiko" hanya karena diisi satu-dua siswa.
+                const MIN_CLASS_FOR_RANKING = 5;
+                const allClassStats = state.classes.map(kelas => {
                     const list = state.students.filter(s => s.kelas === kelas);
                     const avg = list.length ? list.reduce((a,b) => a + b.score, 0) / list.length : 0;
-                    return { kelas, avg };
+                    return { kelas, avg, size: list.length };
                 }).sort((a,b) => a.avg - b.avg);
+                const classStats = allClassStats.filter(c => c.size >= MIN_CLASS_FOR_RANKING);
+                const smallClasses = allClassStats.filter(c => c.size < MIN_CLASS_FOR_RANKING);
+                const smallClassNote = smallClasses.length
+                    ? ` Kelas ${smallClasses.map(c => `${c.kelas} (${c.size} siswa)`).join(', ')} tidak diperingkat karena jumlah siswanya di bawah ${MIN_CLASS_FOR_RANKING}; periksa penulisan nama kelas pada file rekap.`
+                    : '';
+                const cog = state.cognitiveResults || {};
+                const cognitiveLine = cog.active
+                    ? `Ketercapaian berpikir tingkat tinggi: HOTS (C4-C6) ${cog.hots.count} butir (${(cog.hotsProportion * 100).toFixed(1)}% paket) dengan capaian ${cog.hots.pctCorrect.toFixed(1)}%, LOTS (C1-C3) ${cog.lots.count} butir capaian ${cog.lots.pctCorrect.toFixed(1)}%. Status pembacaan: ${cog.readability.label}.`
+                    : `Ketercapaian C1-C6 belum dapat dilaporkan karena Level Kognitif butir belum diisi; klaim HOTS sekolah belum memiliki dasar butir pada laporan ini.`;
                 return [
                     `Reliabilitas KR-20: ${state.reliabilitas.toFixed(2)} (CI aproks. ${state.reliabilityCI.lower.toFixed(2)}-${state.reliabilityCI.upper.toFixed(2)}); split-half ${state.splitHalfReliability.toFixed(2)}. Proporsi soal layak: ${((decisions.keep / total) * 100).toFixed(1)}%.`,
                     `Soal perlu revisi/buang: ${state.diagnostics.problemItems.length} dari ${total} butir (${decisions.reviseDominan || 0} Revisi Dominan, ${decisions.reviseLemah || 0} Revisi Lemah, ${decisions.discard || 0} Buang).`,
-                    `Rombel/topik risiko: ${classStats[0] ? `${classStats[0].kelas} (rerata ${classStats[0].avg.toFixed(1)})` : '-'}; ${hasActiveCurriculumMapping() && state.diagnostics.weakestKds[0] ? state.diagnostics.weakestKds[0].name : 'KD belum diproses'}.`
+                    cognitiveLine,
+                    `Rombel/topik risiko: ${classStats[0] ? `${classStats[0].kelas} (rerata ${classStats[0].avg.toFixed(1)} dari ${classStats[0].size} siswa)` : 'belum ada rombel dengan jumlah siswa memadai untuk diperingkat'}; ${hasActiveCurriculumMapping() && state.diagnostics.weakestKds[0] ? state.diagnostics.weakestKds[0].name : 'KD belum diproses'}.${smallClassNote}`
                 ];
             }
         };
@@ -1723,8 +2284,33 @@
             renderQuestionTable();
         };
 
+        // Data turunan (hasil analisis level kognitif dan profil kognitif per siswa) TIDAK disimpan ke
+        // localStorage: semuanya dihitung ulang oleh PedagogyRules.updateMappingDiagnostics() saat state dimuat.
+        // Menyimpannya akan menggandakan objek butir beberapa kali dan berisiko melewati kuota penyimpanan
+        // browser pada kelas besar, sehingga autosave bisa gagal. Yang disimpan adalah sumber datanya:
+        // AppState.itemLevels (peta level per butir) dan babConfig.
+        function serializableState() {
+            const { cognitiveResults, blueprint, students, ...rest } = AppState;
+            const { cognitiveDetail, ...blueprintRest } = blueprint || {};
+            return {
+                ...rest,
+                blueprint: blueprintRest,
+                students: (students || []).map(s => {
+                    const { cognitive, ...student } = s;
+                    return student;
+                })
+            };
+        }
+
         function saveState() {
-            localStorage.setItem('eduAnalyzerState', JSON.stringify(AppState));
+            try {
+                localStorage.setItem('eduAnalyzerState', JSON.stringify(serializableState()));
+            } catch (e) {
+                // Kuota penyimpanan browser penuh: analisis tetap berjalan normal di sesi ini, hanya
+                // penyimpanan otomatis yang gagal. Guru diberi tahu sekali lewat konsol, bukan dialog,
+                // agar tidak mengganggu alur kerja saat sedang menelaah hasil.
+                console.warn('Penyimpanan otomatis gagal (kemungkinan kuota penyimpanan browser penuh):', e?.name || e);
+            }
         }
 
         function loadState() {
@@ -1907,6 +2493,7 @@
             AppState.babDataBenar = [];
             AppState.babDataSalah = [];
             AppState.babResults = [];
+            AppState.itemLevels = {}; // file rekap baru -> peta level kognitif lama (dari file/kisi-kisi sebelumnya) tidak relevan lagi
             markCurriculumMappingDraft();
 
             if (AppState.students.length === 0) {
@@ -2030,21 +2617,47 @@
             const detail = isDraft
                 ? `Draft belum aktif. Klik Proses Pemetaan, Auto Slot KD, atau Impor Kisi-Kisi agar analisis KD dipakai dalam laporan.${warnings.length ? ` Catatan: ${warnings.join(' | ')}` : ''}`
                 : (warnings.length ? warnings.join(' | ') : 'Mapping konsisten dengan jumlah butir aktual.');
+            // Status level kognitif ditampilkan sejajar status pemetaan KD karena keduanya diperlukan agar
+            // laporan lengkap: pemetaan KD menjawab "materi apa", level kognitif menjawab "tuntutan berpikir apa".
+            const cog = getCognitiveResults();
+            const levelStatusText = cog.active
+                ? (cog.unmappedCount
+                    ? `<span class="text-amber-700"><b>Level kognitif:</b> ${cog.mappedCount}/${AppState.totalQuestions || 0} butir berlevel; ${cog.unmappedCount} butir belum (No. ${cog.unmappedQs.slice(0, 10).join(', ')}${cog.unmappedQs.length > 10 ? ', ...' : ''}). Lengkapi pada panel C1-C6 di bawah.</span>`
+                    : `<span class="text-emerald-700"><b>Level kognitif:</b> lengkap ${cog.mappedCount}/${AppState.totalQuestions || 0} butir (LOTS ${cog.lots.count} / HOTS ${cog.hots.count}) — status pembacaan ${escapeHtml(cog.readability.label)}.</span>`)
+                : `<span class="text-amber-700"><b>Level kognitif:</b> belum ada butir berlevel C1-C6. Impor kisi-kisi atau isi panel C1-C6 agar analisis LOTS/HOTS aktif.</span>`;
             el.innerHTML = `
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 ${statusClass}">
                     <div><b>Butir aktual:</b> ${AppState.totalQuestions || 0} | <b>Terpetakan:</b> ${v.covered || 0}/${AppState.totalQuestions || 0} (${(v.coveragePct || 0).toFixed(1)}%)</div>
                     <div class="font-semibold">${detail}</div>
                 </div>
+                <div class="mt-1">${levelStatusText}</div>
                 ${infoNotes.length ? `<div class="mt-1 text-blue-700"><i class="fas fa-info-circle mr-1"></i>${infoNotes.map(escapeHtml).join(' ')}</div>` : ''}`;
         }
 
         function updateBabField(idx, field, value) {
             if (!AppState.babConfig[idx]) return;
-            AppState.babConfig[idx][field] = value;
+            const bab = AppState.babConfig[idx];
+            const oldQs = parseQStr(bab.qs);
+            bab[field] = value;
             markCurriculumMappingDraft();
-            if (field === 'qs' || field === 'level') {
-                AppState.babConfig[idx].itemLevels = {};
-                AppState.babConfig[idx].source = '';
+            if (field === 'qs') {
+                // Nomor soal berubah: JANGAN hapus seluruh peta Level Kognitif (C1-C6) -- itu akan membuang
+                // hasil Impor Kisi-Kisi/input manual guru untuk butir yang tetap ada. Cukup buang level milik
+                // nomor soal yang tidak lagi termasuk rentang baru KD ini.
+                const newQsSet = new Set(parseQStr(value));
+                oldQs.forEach(q => {
+                    if (!newQsSet.has(q) && bab.itemLevels && bab.itemLevels[q] !== undefined) delete bab.itemLevels[q];
+                });
+                bab.source = '';
+            } else if (field === 'level') {
+                // Guru memilih satu level tunggal (bukan "Campuran"/kosong) untuk SELURUH butir pada KD ini secara
+                // eksplisit -> terapkan ke peta global AppState.itemLevels agar konsisten dengan panel C1-C6.
+                if (value && value !== 'Campuran') {
+                    applyLevelToAllQuestionsInKd(idx, value);
+                    bab.itemLevels = {};
+                    parseQStr(bab.qs).forEach(q => { bab.itemLevels[q] = value; });
+                }
+                bab.source = '';
             }
             PedagogyRules.updateMappingDiagnostics(AppState);
             renderMappingStatus();
@@ -2116,14 +2729,33 @@
             const groups = new Map();
             const warnings = [];
             let currentMateri = '';
+            let nonPgSkipped = 0;
+            const nonPgForms = new Set();
             rows.slice(headerIndex + 1).forEach((row, offset) => {
                 if (!row || !Array.isArray(row) || row.every(cell => String(cell ?? '').trim() === '')) return;
                 const materiRaw = String(row[headerMap.materi] ?? '').trim();
                 const indikator = headerMap.indikator !== undefined ? String(row[headerMap.indikator] ?? '').trim() : '';
                 const level = normalizeCognitiveLevel(headerMap.level !== undefined ? row[headerMap.level] : '');
+                const bentukRaw = headerMap.bentuk !== undefined ? String(row[headerMap.bentuk] ?? '').trim() : '';
                 const qRaw = String(row[headerMap.noSoal] ?? '').trim();
                 if (materiRaw) currentMateri = materiRaw;
                 const materi = currentMateri || indikator || `Materi baris ${headerIndex + offset + 2}`;
+
+                // PENTING: baris kisi-kisi berbentuk non-PG (mis. Uraian/Esai) LAZIM memakai penomoran soal
+                // TERPISAH dari PG (contoh nyata: "Uraian No. 1" pada kisi-kisi bukan soal yang sama dengan
+                // "PG No. 1"). Rekap LJK yang dipakai aplikasi ini hanya menilai butir PG (lihat kolom
+                // Jawaban/Nomor Benar berformat "PG: ..."), sehingga mencampur kedua penomoran itu akan
+                // membuat KD/topik salah petakan (butir Uraian No. 1 tertukar seolah PG No. 1, dan level
+                // kognitifnya pun ikut tertukar). Baris non-PG karena itu TIDAK diikutkan ke pemetaan
+                // otomatis di sini; guru tetap bisa memetakan/menilai bagian Uraian secara terpisah.
+                const bentukNorm = bentukRaw.toLowerCase().replace(/[^a-z]/g, '');
+                const isNonPg = !!bentukRaw && !/^(pg|pilihanganda|multiplechoice|mc|objektif)$/.test(bentukNorm);
+                if (isNonPg) {
+                    nonPgSkipped++;
+                    nonPgForms.add(bentukRaw);
+                    return;
+                }
+
                 const qNumsAll = parseQStr(qRaw);
                 if (!qNumsAll.length) return;
                 const inRange = qNumsAll.filter(q => q >= 1 && (!AppState.totalQuestions || q <= AppState.totalQuestions));
@@ -2141,6 +2773,9 @@
                     if (level) group.itemLevels[q] = level;
                 });
             });
+            if (nonPgSkipped) {
+                warnings.push(`${nonPgSkipped} baris berbentuk ${[...nonPgForms].join('/')} (non-PG) tidak diikutkan ke pemetaan KD otomatis karena penomorannya terpisah dari nomor PG dan berpotensi tertukar/bentrok. Jika bagian ini dinilai dan ingin dianalisis, petakan/tambahkan secara manual dengan rentang nomor PG yang benar.`);
+            }
             const config = [...groups.values()]
                 .map(group => {
                     const qNums = [...group.qs].sort((a,b) => a - b);
@@ -2158,11 +2793,22 @@
                 .sort((a,b) => Math.min(...parseQStr(a.qs)) - Math.min(...parseQStr(b.qs)));
             if (!config.length) throw new Error('Tidak ada nomor soal kisi-kisi yang cocok dengan jumlah soal aktual.');
             AppState.babConfig = config;
+            // Bangun ulang peta Level Kognitif (C1-C6) GLOBAL per butir soal dari hasil impor ini -- ini yang
+            // menjadi sumber utama analisis C1-C6 di seluruh aplikasi (lihat renderCognitiveLevelMapping()).
+            AppState.itemLevels = {};
+            config.forEach(bab => {
+                Object.entries(bab.itemLevels || {}).forEach(([q, lvl]) => { AppState.itemLevels[q] = lvl; });
+            });
+            const mappedLevelCount = Object.keys(AppState.itemLevels).length;
+            const totalMappedQs = config.reduce((sum, bab) => sum + parseQStr(bab.qs).length, 0);
+            if (mappedLevelCount < totalMappedQs) {
+                warnings.push(`${totalMappedQs - mappedLevelCount} butir PG belum memiliki Level Kognitif pada file kisi-kisi (kolom Level Kognitif kosong/tidak dikenali). Lengkapi lewat panel Pemetaan Level Kognitif (C1-C6) per Butir Soal agar analisis C1-C6 lengkap.`);
+            }
             AppState.importMeta.warnings = [...new Set([...(AppState.importMeta.warnings || []), ...warnings])].slice(0, 12);
             applyBabAnalysis(true);
             renderBabInputs();
             renderStudentTable();
-            alert(`Kisi-kisi berhasil diimpor: ${config.length} materi/topik aktif.${warnings.length ? `\n\nCatatan: ${warnings.slice(0,3).join(' ')}` : ''}`);
+            alert(`Kisi-kisi berhasil diimpor: ${config.length} materi/topik aktif, ${mappedLevelCount}/${totalMappedQs} butir PG memiliki Level Kognitif (C1-C6).${warnings.length ? `\n\nCatatan: ${warnings.slice(0,3).join(' ')}` : ''}`);
         }
 
         function handleKisiFileSelect(event) {
@@ -2424,8 +3070,8 @@
                         <i class="fas ${card.icon}"></i>
                         <h4 class="text-xs sm:text-sm font-bold uppercase tracking-wide">Output ${card.title}</h4>
                     </div>
-                    <ul class="text-[10px] sm:text-xs text-gray-700 space-y-1 leading-relaxed">
-                        ${(card.items || []).slice(0,3).map(item => `<li>${richImportantHtml(item)}</li>`).join('')}
+                    <ul class="text-[10px] sm:text-xs text-gray-700 space-y-1 leading-relaxed list-disc ml-4">
+                        ${(card.items || []).map(item => `<li>${richImportantHtml(item)}</li>`).join('')}
                     </ul>
                 </div>`).join('');
         }
@@ -2450,7 +3096,7 @@
                         </div>
                         <span class="text-[10px] sm:text-xs text-slate-500">Bukan pengganti verifikasi guru</span>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                         ${items.map(item => `
                             <div class="rounded-lg border p-2 ${readinessToneClass(item.tone)}">
                                 <div class="text-[10px] font-bold uppercase tracking-wide">${escapeHtml(item.title)}</div>
@@ -2479,16 +3125,24 @@
                         Setelah aktif, aplikasi menganalisis <b>seluruh KD/topik yang dipetakan</b> (tidak dibatasi jumlahnya) dan mengurutkannya dari yang paling perlu tindak lanjut, berdasarkan skor gabungan: gap terhadap KKM, butir revisi/buang, miskonsepsi lintas kelas, daya beda D, dan korelasi item-total.
                     </div>
                 </div>`;
+                renderCognitiveLevelMapping();
+            renderCognitiveAchievement();
                 return;
             }
             const cognitive = AppState.blueprint?.cognitive || {};
+            const cogDetail = getCognitiveResults();
             const displayedLevels = ['C1','C2','C3','C4','C5','C6'].filter(level => (cognitive[level] || 0) > 0);
-            if ((cognitive['Belum dipetakan'] || 0) > 0) displayedLevels.push('Belum dipetakan');
+            if ((cognitive[COGNITIVE_UNMAPPED] || 0) > 0) displayedLevels.push(COGNITIVE_UNMAPPED);
+            // Kartu ringkas ini sekarang memuat capaian, bukan hanya jumlah butir, agar komposisi kisi-kisi dan
+            // hasil belajar terbaca sekaligus. Rinciannya (mutu butir, sebaran kelas, status) ada pada panel
+            // "Analisis Ketercapaian Level Kognitif (C1-C6)".
             const cognitiveHtml = (displayedLevels.length ? displayedLevels : ['Belum ada level']).map(level => {
                 const count = cognitive[level] || 0;
                 const pct = AppState.totalQuestions ? (count / AppState.totalQuestions) * 100 : 0;
-                const note = level === 'Belum ada level' ? 'Import/isi level C1-C6' : `${count} butir (${pct.toFixed(1)}%)`;
-                return `<div class="bg-white border border-slate-200 rounded-lg p-2"><div class="font-bold text-slate-800">${level}</div><div class="text-slate-500">${note}</div></div>`;
+                if (level === 'Belum ada level') return `<div class="bg-white border border-slate-200 rounded-lg p-2"><div class="font-bold text-slate-800">Belum ada level</div><div class="text-slate-500">Import/isi level C1-C6</div></div>`;
+                const detail = cogDetail.levels?.find(l => l.level === level);
+                const achieved = detail ? `<div class="${detail.pctCorrect >= AppState.kkm ? 'text-emerald-600' : 'text-red-600'} font-bold">Capaian ${detail.pctCorrect.toFixed(1)}%</div>` : (level === COGNITIVE_UNMAPPED ? `<div class="text-red-600 font-bold">Perlu dilengkapi</div>` : '');
+                return `<div class="bg-white border border-slate-200 rounded-lg p-2"><div class="font-bold text-slate-800">${level}${detail ? ` <span class="font-normal text-slate-400">${escapeHtml(detail.group)}</span>` : ''}</div><div class="text-slate-500">${count} butir (${pct.toFixed(1)}%)</div>${achieved}</div>`;
             }).join('');
             const allKds = getAllMappedKdsWithPriority();
             const totalKd = allKds.length;
@@ -2511,7 +3165,7 @@
                     <td class="px-2 py-1 text-center">${statusBadge}</td>
                     <td class="px-2 py-1 font-semibold">${escapeHtml(kd.name)}</td>
                     <td class="px-2 py-1 wide-text">${escapeHtml(kd.material || '-')}</td>
-                    <td class="px-2 py-1 text-center">${escapeHtml(kd.level || 'Belum')}</td>
+                    <td class="px-2 py-1 text-center whitespace-nowrap">${escapeHtml(kd.levelComposition || kd.level || 'Belum')}${(kd.lotsCount || kd.hotsCount) ? `<div class="text-[9px] text-slate-400">LOTS ${kd.lotsCount || 0} / HOTS ${kd.hotsCount || 0}${kd.levelUnmappedCount ? ` / ? ${kd.levelUnmappedCount}` : ''}</div>` : ''}</td>
                     <td class="px-2 py-1 text-center font-bold ${kd.pctCorrect < AppState.kkm ? 'text-red-600' : 'text-green-600'}">${kd.pctCorrect.toFixed(1)}%</td>
                     <td class="px-2 py-1 text-center">Skor ${kd.priority.score.toFixed(1)} | Gap ${kd.priority.gap.toFixed(1)} | Revisi ${kd.priority.revise + kd.priority.discard} | Misk ${kd.priority.classwideMisconception}</td>
                     <td class="px-2 py-1 wide-text">${escapeHtml(action)}</td>
@@ -2535,6 +3189,243 @@
                             <tbody class="divide-y divide-gray-100">${weakHtml || '<tr><td colspan="7" class="px-2 py-3 text-center text-gray-500 italic">KD belum dipetakan.</td></tr>'}</tbody>
                         </table>
                     </div>
+                </div>`;
+            renderCognitiveLevelMapping();
+            renderCognitiveAchievement();
+        }
+
+        function cognitiveToneClasses(tone) {
+            if (tone === 'green') return { badge: 'bg-emerald-100 text-emerald-800 border-emerald-200', row: 'bg-emerald-50/40', text: 'text-emerald-700' };
+            if (tone === 'red') return { badge: 'bg-red-100 text-red-800 border-red-200', row: 'bg-red-50/40', text: 'text-red-700' };
+            if (tone === 'orange') return { badge: 'bg-orange-100 text-orange-800 border-orange-200', row: 'bg-orange-50/40', text: 'text-orange-700' };
+            if (tone === 'yellow') return { badge: 'bg-amber-100 text-amber-800 border-amber-200', row: 'bg-amber-50/40', text: 'text-amber-700' };
+            return { badge: 'bg-blue-100 text-blue-800 border-blue-200', row: '', text: 'text-blue-700' };
+        }
+
+        // Panel ketercapaian per level kognitif: menyatukan capaian, mutu butir, sebaran kelas, dan status baca.
+        function renderCognitiveAchievement() {
+            const el = document.getElementById('cognitive-achievement-container');
+            if (!el) return;
+            if (!AppState.students.length) { el.innerHTML = ''; return; }
+            const cog = getCognitiveResults();
+            if (!cog.active) {
+                el.innerHTML = `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 sm:p-4 text-[10px] sm:text-xs text-amber-800">
+                    <p class="font-bold text-xs sm:text-sm mb-1"><i class="fas fa-brain mr-2"></i>Analisis Ketercapaian Level Kognitif (C1-C6) belum aktif</p>
+                    <p class="leading-relaxed">Belum ada butir yang memiliki Level Kognitif. Impor kisi-kisi (kolom <b>Level Kognitif</b>) atau isi langsung pada panel <b>Pemetaan Level Kognitif (C1-C6) per Butir Soal</b> di bawah. Setelah terisi, aplikasi akan menghitung capaian tiap level, membandingkan LOTS dengan HOTS, dan menurunkan rekomendasi latihan bertingkat.</p>
+                </div>`;
+                if (chartCognitiveInst) { chartCognitiveInst.destroy(); chartCognitiveInst = null; }
+                return;
+            }
+            const kkm = cog.kkm;
+            const readTone = cognitiveToneClasses(cog.readability.tone);
+            const compTone = cognitiveToneClasses(cog.composition.tone);
+            const showClasses = (AppState.classes || []).length > 1;
+
+            const rows = cog.levels.map(l => {
+                const tone = cognitiveToneClasses(l.status.tone);
+                const classText = showClasses ? l.byClass.map(c => `${escapeHtml(c.kelas)} ${c.pctCorrect.toFixed(0)}%`).join(' · ') : '-';
+                return `<tr class="border-b border-gray-100 ${tone.row}">
+                    <td class="px-2 py-2 whitespace-nowrap"><span class="font-bold text-purple-800">${l.level}</span> <span class="text-[9px] sm:text-[11px] text-slate-500">${escapeHtml(l.label)}</span><div class="text-[9px] text-slate-400">${l.group}</div></td>
+                    <td class="px-2 py-2 text-center whitespace-nowrap">${l.count}<div class="text-[9px] text-slate-400">${l.pctOfItems.toFixed(1)}%</div></td>
+                    <td class="px-2 py-2 text-[9px] sm:text-[10px] text-slate-500 leading-tight">No. ${l.qs.join(', ')}</td>
+                    <td class="px-2 py-2 text-center whitespace-nowrap"><span class="font-extrabold ${l.pctCorrect >= kkm ? 'text-emerald-600' : 'text-red-600'}">${l.pctCorrect.toFixed(1)}%</span><div class="text-[9px] text-slate-400">${l.gap > 0 ? `-${l.gap.toFixed(1)} dari KKM` : 'di atas KKM'}</div></td>
+                    <td class="px-2 py-2 text-center whitespace-nowrap">${l.studentsMastered}<div class="text-[9px] text-slate-400">${l.studentsMasteredPct.toFixed(0)}% siswa</div></td>
+                    <td class="px-2 py-2 text-center whitespace-nowrap"><span class="${l.avgD < (AppState.analysisConfig.item.reviseDiscrimination) ? 'text-red-600 font-bold' : 'text-slate-700'}">${l.avgD.toFixed(2)}</span><div class="text-[9px] text-slate-400">r ${l.avgR.toFixed(2)}</div></td>
+                    <td class="px-2 py-2 text-center whitespace-nowrap">${l.revise + l.discard}<div class="text-[9px] text-slate-400">${l.misconception} miskonsepsi</div></td>
+                    ${showClasses ? `<td class="px-2 py-2 text-[9px] sm:text-[10px] text-slate-600 leading-tight">${classText}</td>` : ''}
+                    <td class="px-2 py-2 text-center"><span class="inline-block px-1.5 py-0.5 rounded border text-[9px] sm:text-[10px] font-bold ${tone.badge}">${escapeHtml(l.status.label)}</span></td>
+                </tr>`;
+            }).join('');
+
+            const groupRow = (g, label) => `<tr class="bg-slate-50 border-b border-slate-200 font-bold">
+                <td class="px-2 py-2 whitespace-nowrap text-slate-800">${label}</td>
+                <td class="px-2 py-2 text-center">${g.count}<div class="text-[9px] font-normal text-slate-400">${g.pctOfItems.toFixed(1)}%</div></td>
+                <td class="px-2 py-2 text-[9px] font-normal text-slate-400">${g.levels.join(', ') || '-'}</td>
+                <td class="px-2 py-2 text-center ${g.count ? (g.pctCorrect >= kkm ? 'text-emerald-700' : 'text-red-700') : 'text-slate-400'}">${g.count ? `${g.pctCorrect.toFixed(1)}%` : '-'}</td>
+                <td class="px-2 py-2 text-center">${g.count ? g.studentsMastered : '-'}</td>
+                <td class="px-2 py-2 text-center font-normal">${g.count ? g.avgD.toFixed(2) : '-'}</td>
+                <td class="px-2 py-2 text-center font-normal">${g.count ? (g.revise + g.discard) : '-'}</td>
+                ${showClasses ? `<td class="px-2 py-2"></td>` : ''}
+                <td class="px-2 py-2"></td>
+            </tr>`;
+
+            const flagHtml = (cog.flags || []).length
+                ? `<div class="mt-3 space-y-1">${cog.flags.map(f => {
+                    const tone = cognitiveToneClasses(f.severity === 'high' ? 'red' : 'yellow');
+                    return `<div class="text-[10px] sm:text-xs rounded-lg border p-2 ${tone.badge}"><b><i class="fas ${f.severity === 'high' ? 'fa-exclamation-triangle' : 'fa-info-circle'} mr-1"></i>${escapeHtml(f.title)}</b> ${escapeHtml(f.detail)} <i>${escapeHtml(f.action)}</i></div>`;
+                }).join('')}</div>`
+                : `<div class="mt-3 text-[10px] sm:text-xs rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 p-2"><b><i class="fas fa-check-circle mr-1"></i>Tidak ada catatan berat</b> pada pembacaan level kognitif.</div>`;
+
+            el.innerHTML = `
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5">
+                    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-2 border-b pb-3 mb-3">
+                        <div>
+                            <h4 class="font-bold text-gray-800"><i class="fas fa-layer-group text-purple-600 mr-2"></i>Analisis Ketercapaian Level Kognitif (C1-C6)</h4>
+                            <p class="text-[10px] sm:text-xs text-gray-500 mt-1 leading-relaxed">Capaian satu level = jumlah jawaban benar seluruh siswa pada butir level tersebut dibagi (jumlah butir level x jumlah siswa). Metodenya sama dengan perhitungan capaian per KD, sehingga angka pada seluruh tabel dan laporan konsisten dan dapat ditelusuri ke nomor butir.</p>
+                        </div>
+                        <div class="flex flex-col gap-1 text-[10px] sm:text-xs whitespace-nowrap">
+                            <span class="inline-block px-2 py-1 rounded-lg border font-bold ${readTone.badge}">Status pembacaan: ${escapeHtml(cog.readability.label)}</span>
+                            <span class="inline-block px-2 py-1 rounded-lg border font-bold ${compTone.badge}">Komposisi: ${escapeHtml(cog.composition.label)} (HOTS ${(cog.hotsProportion * 100).toFixed(1)}%)</span>
+                        </div>
+                    </div>
+                    <div class="custom-scroll overflow-x-auto border rounded-lg">
+                        <table class="w-full text-[10px] sm:text-xs">
+                            <thead class="bg-gray-100 text-gray-600 uppercase text-[9px] sm:text-[10px]">
+                                <tr>
+                                    <th class="px-2 py-2 text-left font-bold">Level</th>
+                                    <th class="px-2 py-2 text-center font-bold">Butir</th>
+                                    <th class="px-2 py-2 text-left font-bold">Nomor soal</th>
+                                    <th class="px-2 py-2 text-center font-bold">Capaian<div class="font-normal normal-case text-[8px]">KKM ${kkm}</div></th>
+                                    <th class="px-2 py-2 text-center font-bold">Siswa tuntas</th>
+                                    <th class="px-2 py-2 text-center font-bold">Rata-rata D<div class="font-normal normal-case text-[8px]">& r item-total</div></th>
+                                    <th class="px-2 py-2 text-center font-bold">Butir bermasalah</th>
+                                    ${showClasses ? '<th class="px-2 py-2 text-left font-bold">Sebaran kelas</th>' : ''}
+                                    <th class="px-2 py-2 text-center font-bold">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white text-slate-700">
+                                ${rows}
+                                ${groupRow(cog.lots, 'LOTS (C1-C3)')}
+                                ${groupRow(cog.hots, 'HOTS (C4-C6)')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-4">
+                        <div class="relative w-full h-[240px] sm:h-[280px] border rounded-lg p-2">
+                            <div class="flex justify-between items-start mb-1">
+                                <p class="text-[10px] sm:text-xs font-bold text-slate-700">Capaian per Level Kognitif vs KKM</p>
+                                <button onclick="downloadChart('chartCognitive', 'Grafik_Level_Kognitif')" class="text-[9px] sm:text-[10px] text-blue-600 hover:text-blue-800"><i class="fas fa-download"></i> Unduh</button>
+                            </div>
+                            <div class="relative w-full" style="height: calc(100% - 22px)"><canvas id="chartCognitive"></canvas></div>
+                        </div>
+                        <div class="text-[10px] sm:text-xs text-slate-700 leading-relaxed border rounded-lg p-3 bg-slate-50">
+                            <p class="mb-2">${flowImportantHtml(cognitiveMeaningNarrative(cog))}</p>
+                            <p>${richImportantHtml(cognitiveCompositionNarrative(cog))}</p>
+                        </div>
+                    </div>
+                    ${flagHtml}
+                </div>`;
+            drawCognitiveChart();
+        }
+
+        function drawCognitiveChart() {
+            if (!window.Chart) return;
+            const canvas = document.getElementById('chartCognitive');
+            if (!canvas) return;
+            const cog = getCognitiveResults();
+            if (!cog.active || !cog.levels.length) return;
+            const ctx = canvas.getContext('2d');
+            if (chartCognitiveInst) chartCognitiveInst.destroy();
+            const kkm = Number(cog.kkm) || 0;
+            chartCognitiveInst = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: cog.levels.map(l => `${l.level} ${l.label}`),
+                    datasets: [
+                        {
+                            label: 'Capaian (%)',
+                            data: cog.levels.map(l => Number(l.pctCorrect.toFixed(1))),
+                            backgroundColor: cog.levels.map(l => l.group === 'HOTS' ? 'rgba(147,51,234,0.65)' : 'rgba(59,130,246,0.65)'),
+                            borderColor: cog.levels.map(l => l.group === 'HOTS' ? '#7e22ce' : '#2563eb'),
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            order: 2
+                        },
+                        {
+                            label: `KKM/KKTP ${kkm}`,
+                            data: cog.levels.map(() => kkm),
+                            type: 'line',
+                            borderColor: '#ef4444',
+                            borderDash: [6, 4],
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: false,
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 100, title: { display: true, text: '% benar' } }, x: { grid: { display: false } } },
+                    plugins: {
+                        legend: { display: true, labels: { boxWidth: 10, font: { size: 9 } } },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: item => {
+                                    const l = cog.levels[item.dataIndex];
+                                    if (!l || item.datasetIndex !== 0) return '';
+                                    return `${l.count} butir (No. ${l.qs.join(', ')}) | ${l.studentsMastered} siswa tuntas | ${l.status.label}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderCognitiveLevelMapping() {
+            const el = document.getElementById('cognitive-level-mapping-container');
+            if (!el || !AppState.students.length) return;
+            if (!AppState.totalQuestions || !(AppState.babConfig || []).some(bab => parseQStr(bab.qs).length)) {
+                el.innerHTML = '';
+                return;
+            }
+            const cognitive = AppState.blueprint?.cognitive || {};
+            const totalQ = AppState.totalQuestions;
+            const levelOptions = ['', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6'];
+            const covered = new Set();
+            const groups = (AppState.babConfig || []).map(bab => {
+                const qs = parseQStr(bab.qs).sort((a,b) => a - b);
+                qs.forEach(q => covered.add(q));
+                return { name: bab.name || 'Tanpa nama', qs };
+            }).filter(g => g.qs.length);
+            const unmapped = [];
+            for (let q = 1; q <= totalQ; q++) if (!covered.has(q)) unmapped.push(q);
+            if (unmapped.length) groups.push({ name: 'Belum masuk KD/topik manapun', qs: unmapped, isUnmapped: true });
+
+            const chipHtml = (qid) => {
+                const current = getQuestionLevel(qid);
+                const isEmpty = !current;
+                return `
+                <div class="flex items-center gap-1 rounded px-1.5 py-1 border ${isEmpty ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white'}">
+                    <span class="text-[9px] sm:text-[10px] font-mono text-slate-500">No.${qid}</span>
+                    <select onchange="setItemLevel(${qid}, this.value)" class="text-[10px] sm:text-[11px] font-bold bg-transparent border-0 outline-none cursor-pointer ${isEmpty ? 'text-red-500' : 'text-indigo-700'}">
+                        ${levelOptions.map(l => `<option value="${l}" ${current === l ? 'selected' : ''}>${l || '?'}</option>`).join('')}
+                    </select>
+                </div>`;
+            };
+
+            const groupsHtml = groups.map(g => `
+                <div class="border ${g.isUnmapped ? 'border-amber-200 bg-amber-50' : 'border-slate-200'} rounded-lg p-2 sm:p-3">
+                    <div class="text-[11px] sm:text-xs font-bold ${g.isUnmapped ? 'text-amber-800' : 'text-slate-800'} mb-2">${escapeHtml(g.name)} <span class="font-normal text-slate-400">(${g.qs.length} butir)</span></div>
+                    <div class="flex flex-wrap gap-1.5">${g.qs.map(chipHtml).join('')}</div>
+                </div>`).join('');
+
+            const summaryHtml = ['C1','C2','C3','C4','C5','C6','Belum dipetakan'].map(level => {
+                const count = cognitive[level] || 0;
+                if (!count) return '';
+                const pct = totalQ ? (count / totalQ * 100).toFixed(1) : '0.0';
+                const isGap = level === 'Belum dipetakan';
+                return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] sm:text-xs font-bold ${isGap ? 'bg-red-100 text-red-700' : 'bg-indigo-100 text-indigo-700'}">${level}: ${count} (${pct}%)</span>`;
+            }).join(' ');
+
+            const lots = (cognitive.C1 || 0) + (cognitive.C2 || 0) + (cognitive.C3 || 0);
+            const hots = (cognitive.C4 || 0) + (cognitive.C5 || 0) + (cognitive.C6 || 0);
+            const hotsPct = totalQ ? (hots / totalQ * 100).toFixed(1) : '0.0';
+            const belumCount = cognitive['Belum dipetakan'] || 0;
+
+            el.innerHTML = `
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5 mt-4">
+                    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 border-b pb-3 mb-3">
+                        <div>
+                            <h4 class="font-bold text-gray-800"><i class="fas fa-brain text-purple-600 mr-2"></i>Pemetaan Level Kognitif (C1-C6) per Butir Soal</h4>
+                            <p class="text-[10px] sm:text-xs text-gray-500 mt-1">Terisi otomatis dari Impor Kisi-Kisi (kolom Level Kognitif). Guru dapat memeriksa/mengubah langsung per nomor soal di bawah ini &mdash; perubahan otomatis memperbarui komposisi C1-C6, klaim HOTS/LOTS, dan seluruh laporan terkait.</p>
+                        </div>
+                        <div class="text-[10px] sm:text-xs bg-slate-50 border rounded-lg px-3 py-2 text-slate-700 whitespace-nowrap">LOTS (C1-C3): <b>${lots}</b> butir | HOTS (C4-C6): <b>${hots}</b> butir (${hotsPct}%)</div>
+                    </div>
+                    ${belumCount > 0 ? `<div class="mb-3 text-[10px] sm:text-xs bg-red-50 border border-red-200 text-red-700 rounded-lg p-2"><i class="fas fa-exclamation-triangle mr-1"></i><b>${belumCount} butir belum punya Level Kognitif</b> (kotak bertepi merah di bawah) &mdash; komposisi C1-C6 dan klaim HOTS/LOTS belum lengkap sebelum ini diisi.</div>` : ''}
+                    <div class="flex flex-wrap gap-2 mb-4">${summaryHtml || '<span class="text-[10px] sm:text-xs text-gray-400 italic">Belum ada level kognitif yang terpetakan.</span>'}</div>
+                    <div class="custom-scroll overflow-y-auto space-y-2" style="max-height: 26rem;">${groupsHtml}</div>
                 </div>`;
         }
 
@@ -2580,6 +3471,7 @@
             PendingFile = null;
             AppState.babConfig = [];
             AppState.mappingApplied = false;
+            AppState.itemLevels = {};
             AppState.babResults = [];
             AppState.babLabels = [];
             AppState.babDataBenar = [];
@@ -2648,6 +3540,10 @@
             soalText += `<li><b>${sZonk.length} Kesukaran Ekstrem (Zonking):</b> ${idList(sZonk)} (Rasio kebenaran &lt; ${AppState.analysisConfig.item.zonkingP.toFixed(2)}).</li>`;
             soalText += `<li><b>${sMis.length} Indikasi Miskonsepsi Lintas Kelas:</b> ${idList(sMis)} (Pengecoh dominan muncul minimal pada satu siswa di setiap kelas/rombel).</li>`;
             soalText += `<li><b>Keputusan Bank Soal:</b> ${itemDecision.keep} simpan, ${itemDecision.revise} revisi, ${itemDecision.discard} buang. Label telaah: ${itemDecision.reviseDominan || 0} Revisi Dominan dan ${itemDecision.reviseLemah || 0} Revisi Lemah.</li>`;
+            const cogSummary = getCognitiveResults();
+            soalText += cogSummary.active
+                ? `<li><b>Komposisi & Ketercapaian Level Kognitif:</b> LOTS (C1-C3) ${cogSummary.lots.count} butir dengan capaian ${cogSummary.lots.count ? `${cogSummary.lots.pctCorrect.toFixed(1)}%` : '-'} dan HOTS (C4-C6) ${cogSummary.hots.count} butir dengan capaian ${cogSummary.hots.count ? `${cogSummary.hots.pctCorrect.toFixed(1)}%` : '-'}; proporsi HOTS <b>${(cogSummary.hotsProportion * 100).toFixed(1)}%</b> berstatus <b>${escapeHtml(cogSummary.composition.label)}</b>. Status pembacaan level: <b>${escapeHtml(cogSummary.readability.label)}</b>${(cogSummary.flags || []).filter(f => f.severity === 'high').length ? ` (${(cogSummary.flags || []).filter(f => f.severity === 'high').map(f => escapeHtml(f.title)).join('; ')})` : ''}. Rincian per level tersedia pada tab Analisis Klasikal.</li>`
+                : `<li><b>Komposisi & Ketercapaian Level Kognitif:</b> belum dapat dinyatakan karena Level Kognitif butir belum diisi. Impor kisi-kisi atau lengkapi panel Pemetaan Level Kognitif (C1-C6) agar klaim LOTS/HOTS pada laporan memiliki dasar butir.</li>`;
             soalText += `</ul>`;
             soalText += `<p class="text-[10px] sm:text-xs"><b>Aturan keputusan:</b> ${escapeHtml(itemDecisionCriteriaText())}</p><p class="text-[10px] sm:text-xs mt-1"><b>Rekomendasi:</b> verifikasi kunci/stimulus untuk butir ekstrem, revisi pengecoh lemah, dan hanya masukkan butir layak ke bank soal setelah telaah guru.</p>`;
             document.getElementById('summary-soal-text').innerHTML = soalText;
@@ -2680,6 +3576,25 @@
                 html += `<div class="insight-card p-2 sm:p-3 rounded-r-lg border border-blue-200 bg-blue-50" style="border-left-color:#3b82f6">
                     <p class="font-bold text-blue-800 text-[11px] sm:text-sm"><i class="fas fa-route"></i> Peta Pengajaran Ulang Berbasis KD</p>
                     <p class="text-[10px] sm:text-xs text-blue-800 mt-1 leading-relaxed">${flowImportantHtml(reteachingPriorityNarrative())}</p>
+                </div>`;
+            }
+            const cog = getCognitiveResults();
+            if (cog.active) {
+                const toneMap = { green: ['border-emerald-200 bg-emerald-50', '#10b981', 'text-emerald-800'], yellow: ['border-amber-200 bg-amber-50', '#f59e0b', 'text-amber-800'], red: ['border-red-200 bg-red-50', '#ef4444', 'text-red-800'] };
+                const [boxClass, accent, textClass] = toneMap[cog.readability.tone] || toneMap.yellow;
+                const ladder = cog.levels.map(l => {
+                    const badgeTone = l.status.tone === 'green' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : (l.status.tone === 'red' ? 'bg-red-100 text-red-800 border-red-200' : (l.status.tone === 'orange' ? 'bg-orange-100 text-orange-800 border-orange-200' : (l.status.tone === 'yellow' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-blue-100 text-blue-800 border-blue-200')));
+                    return `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] sm:text-[11px] font-bold ${badgeTone}" title="${escapeHtml(l.label)} — ${escapeHtml(l.status.note)}">${l.level} ${l.pctCorrect.toFixed(1)}% <span class="font-normal">(${l.count} butir)</span></span>`;
+                }).join(' ');
+                const flagHtml = (cog.flags || []).length
+                    ? `<ul class="list-disc ml-4 mt-2 space-y-1">${cog.flags.map(f => `<li><b>${escapeHtml(f.title)}:</b> ${escapeHtml(f.detail)} <i>${escapeHtml(f.action)}</i></li>`).join('')}</ul>`
+                    : '';
+                html += `<div class="insight-card p-2 sm:p-3 rounded-r-lg border ${boxClass}" style="border-left-color:${accent}">
+                    <p class="font-bold ${textClass} text-[11px] sm:text-sm"><i class="fas fa-brain"></i> Diagnosis Level Kognitif C1-C6 (${escapeHtml(cog.readability.label)})</p>
+                    <div class="flex flex-wrap gap-1 mt-2 mb-2">${ladder}</div>
+                    <p class="text-[10px] sm:text-xs ${textClass} leading-relaxed">${flowImportantHtml(cognitiveMeaningNarrative(cog))}</p>
+                    <p class="text-[10px] sm:text-xs ${textClass} mt-2 leading-relaxed">${richImportantHtml(cognitiveCompositionNarrative(cog))}</p>
+                    ${flagHtml ? `<div class="text-[10px] sm:text-xs ${textClass} mt-2 leading-relaxed"><b>Uji kelayakan pembacaan:</b>${flagHtml}</div>` : ''}
                 </div>`;
             }
             const auditItems = getFocusedAuditItems(0);
@@ -2718,25 +3633,64 @@
             return 'Pemetaan KD belum aktif';
         }
 
+        // Rekomendasi jenis latihan berdasarkan level kognitif terlemah siswa (bukan hanya materi/KD).
+        // Dipisah dari rekomendasi materi agar guru tahu: materi APA yang diulang, dan dengan CARA berpikir apa.
+        function studentCognitiveRecommendation(student) {
+            const cog = getCognitiveResults();
+            if (!cog.active || !student?.cognitive) return '';
+            const profile = student.cognitive;
+            const weakest = profile.weakestLevel;
+            if (!weakest) return '';
+            const meta = cognitiveMeta(weakest.level);
+            const wrong = (weakest.wrong || []).slice(0, 4);
+            const gapNote = profile.gap !== null && profile.gap >= (AppState.analysisConfig?.cognitive?.gapModerate ?? 10)
+                ? ` Dasar sudah lebih kuat daripada HOTS (selisih ${profile.gap.toFixed(0)} poin), jadi latihan dinaikkan bertahap, bukan mengulang hafalan.`
+                : (profile.gap !== null && profile.gap <= -(AppState.analysisConfig?.cognitive?.gapModerate ?? 10)
+                    ? ` Pola capaiannya tidak lazim (HOTS lebih tinggi dari dasar), perlu konfirmasi lisan sebelum menyimpulkan penguasaan.`
+                    : '');
+            return `Latihan level ${weakest.level} (${meta.label}, benar ${weakest.correct}/${weakest.count}${wrong.length ? `; butir ${wrong.join(', ')}` : ''}): ${meta.teach}.${gapNote}`;
+        }
+
         function studentMaterialRecommendations(student, limit = 2) {
             if (!student) return [];
+            const cognitiveRec = studentCognitiveRecommendation(student);
             if (hasActiveCurriculumMapping() && student.learningPath && student.learningPath.length) {
-                return student.learningPath.slice(0, limit).map(kd => {
+                const list = student.learningPath.slice(0, limit).map(kd => {
                     const material = kd.material && kd.material !== kd.name ? `${kd.name} - ${kd.material}` : kd.name;
                     const wrong = (kd.wrong || []).slice(0, 4);
                     const focus = wrong.length ? `fokus butir ${wrong.join(', ')}` : 'cek pemahaman konsep inti';
                     return `Ulangi ${material} (${kd.pct.toFixed(0)}%; ${focus})`;
                 });
+                if (cognitiveRec) list.push(cognitiveRec);
+                return list;
             }
             const category = getStudentCategory(student);
             if (category.label === 'Tuntas' || category.label === 'Pengayaan') {
-                return ['Pertahankan capaian; lanjutkan pengayaan atau latihan HOTS.'];
+                const base = getCognitiveResults().active && student.cognitive?.hotsPct !== null && student.cognitive?.hotsPct < AppState.kkm
+                    ? [`Pertahankan capaian dasar; naikkan porsi latihan HOTS (C4-C6) karena capaian HOTS siswa ini masih ${student.cognitive.hotsPct.toFixed(0)}%.`]
+                    : ['Pertahankan capaian; lanjutkan pengayaan atau latihan HOTS.'];
+                if (cognitiveRec) base.push(cognitiveRec);
+                return base;
+            }
+            if (cognitiveRec && hasActiveCurriculumMapping()) {
+                return [cognitiveRec, 'Belum ada KD lemah spesifik; gunakan remedial umum sesuai butir yang salah.'];
             }
             if (!hasActiveCurriculumMapping()) {
                 const wrong = (student.detailSalah || []).slice(0, 6);
                 return [`Aktifkan pemetaan KD untuk rekomendasi materi; sementara bahas butir salah${wrong.length ? ` No. ${wrong.join(', ')}` : ''}.`];
             }
             return ['Belum ada KD lemah spesifik; gunakan remedial umum sesuai butir yang salah.'];
+        }
+
+        function studentCognitiveSummaryText(student) {
+            const cog = getCognitiveResults();
+            if (!cog.active || !student?.cognitive) return 'Level kognitif belum dipetakan';
+            const p = student.cognitive;
+            const perLevel = p.levels.map(l => `${l.level} ${l.correct}/${l.count}`).join(', ');
+            const groupText = (p.lotsPct !== null && p.hotsPct !== null)
+                ? ` | LOTS ${p.lotsPct.toFixed(0)}% vs HOTS ${p.hotsPct.toFixed(0)}%`
+                : '';
+            return `${perLevel}${groupText}`;
         }
 
         function studentDiagnosticNotes(student) {
@@ -2771,14 +3725,18 @@
                 if(s.isMencontek) d.push(`<span class="bg-gray-800 text-white text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded border border-gray-900" title="Analisis Spasial: WIC / Harpp-Hogan ekstrem">Indikasi Kolusi</span>`);
                 const learningPath = studentLearningPathText(s);
                 const materialRecommendations = studentMaterialRecommendations(s, 2);
-                
+                const cogActive = hasActiveCognitiveMapping();
+                const profile = s.cognitive || {};
+                const cognitiveBadge = cogActive && profile.label
+                    ? `<div class="text-[9px] sm:text-xs text-purple-800 bg-purple-50 border border-purple-100 inline-block px-1 rounded whitespace-nowrap leading-relaxed mt-1"><b>Profil kognitif:</b> ${escapeHtml(studentCognitiveSummaryText(s))} — ${escapeHtml(profile.label)}</div>`
+                    : '';
                 const category = getStudentCategory(s);
                 return `<tr class="hover:bg-slate-50 transition-colors border-b border-gray-100">
                     <td class="px-2 sm:px-3 py-2 sm:py-3 text-center font-bold text-gray-800 align-middle">${escapeHtml(s.no)}</td>
                     <td class="px-3 sm:px-4 py-2 sm:py-3 whitespace-nowrap"><div class="font-semibold text-xs sm:text-sm text-gray-800">${escapeHtml(s.nama)}</div><div class="text-[9px] sm:text-xs text-gray-500">Kelas ${escapeHtml(s.kelas)}</div></td>
                     <td class="px-2 sm:px-4 py-2 sm:py-3 text-center font-bold text-xs sm:text-sm ${s.isTuntas?'text-green-600':'text-red-600'} align-middle">${s.score.toFixed(1)}</td>
                     <td class="px-2 sm:px-4 py-2 sm:py-3 text-center align-middle"><span class="${category.className} text-[9px] sm:text-xs px-2 py-1 rounded font-bold">${category.label}</span></td>
-                    <td class="px-2 sm:px-4 py-2 sm:py-3 align-middle wide-text"><div class="flex gap-1 mb-1 whitespace-nowrap">${d.join('')}</div><div class="text-[9px] sm:text-xs text-gray-600 bg-gray-50 inline-block px-1 rounded whitespace-nowrap leading-relaxed"><b>Learning path:</b> ${learningPath}</div></td>
+                    <td class="px-2 sm:px-4 py-2 sm:py-3 align-middle wide-text"><div class="flex gap-1 mb-1 whitespace-nowrap">${d.join('')}</div><div class="text-[9px] sm:text-xs text-gray-600 bg-gray-50 inline-block px-1 rounded whitespace-nowrap leading-relaxed"><b>Learning path:</b> ${learningPath}</div>${cognitiveBadge}</td>
                     <td class="px-3 sm:px-4 py-2 sm:py-3 align-middle wide-text">
                         <ol class="list-decimal ml-4 text-[10px] sm:text-xs text-slate-700 leading-relaxed whitespace-nowrap">
                             ${materialRecommendations.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
@@ -2805,13 +3763,15 @@
             const aoa = [
                 ['TABEL PERFORMA INDIVIDU & CATATAN DIAGNOSTIK'],
                 [`${REPORT_SCHOOL_NAME} | ${AppState.subject || '-'} | ${AppState.examType || '-'} | ${filterLabel}`],
-                [`Guru: ${AppState.teacherName || '-'} | KKM/KKTP: ${AppState.kkm} | Tanggal: ${analysisDate} | Pemetaan KD: ${hasActiveCurriculumMapping() ? 'Aktif' : 'Draft/belum aktif'}`],
+                [`Guru: ${AppState.teacherName || '-'} | KKM/KKTP: ${AppState.kkm} | Tanggal: ${analysisDate} | Pemetaan KD: ${hasActiveCurriculumMapping() ? 'Aktif' : 'Draft/belum aktif'} | Level Kognitif: ${hasActiveCognitiveMapping() ? `${getCognitiveResults().mappedCount}/${AppState.totalQuestions} butir berlevel (${getCognitiveResults().readability.label})` : 'belum diisi'}`],
                 [],
-                ['No', 'Nama Peserta Didik', 'Kelas', 'Benar', 'Salah', 'Kosong', 'Nilai', 'Ketuntasan', 'Rekomendasi Materi Ulang 1', 'Rekomendasi Materi Ulang 2', 'Learning Path', 'Catatan Diagnostik']
+                ['No', 'Nama Peserta Didik', 'Kelas', 'Benar', 'Salah', 'Kosong', 'Nilai', 'Ketuntasan', 'Capaian per Level Kognitif', 'LOTS (C1-C3) %', 'HOTS (C4-C6) %', 'Profil Kognitif', 'Level Terlemah', 'Rekomendasi Materi Ulang 1', 'Rekomendasi Materi Ulang 2', 'Rekomendasi Latihan Berbasis Level', 'Learning Path', 'Catatan Diagnostik']
             ];
+            const cogActive = hasActiveCognitiveMapping();
             rows.forEach(s => {
                 const category = getStudentCategory(s);
                 const recs = studentMaterialRecommendations(s, 2);
+                const profile = s.cognitive || {};
                 aoa.push([
                     s.no,
                     s.nama,
@@ -2821,28 +3781,36 @@
                     s.kosong,
                     Number(s.score.toFixed(1)),
                     category.label,
+                    cogActive ? studentCognitiveSummaryText(s) : 'Level kognitif belum dipetakan',
+                    cogActive && profile.lotsPct !== null && profile.lotsPct !== undefined ? Number(profile.lotsPct.toFixed(1)) : '-',
+                    cogActive && profile.hotsPct !== null && profile.hotsPct !== undefined ? Number(profile.hotsPct.toFixed(1)) : '-',
+                    cogActive ? (profile.label || '-') : '-',
+                    cogActive && profile.weakestLevel ? `${profile.weakestLevel.level} (${profile.weakestLevel.label})` : '-',
                     recs[0] || '-',
                     recs[1] || '-',
+                    cogActive ? (studentCognitiveRecommendation(s) || '-') : '-',
                     studentLearningPathText(s),
                     studentDiagnosticNotes(s)
                 ]);
             });
 
             const ws = XLSX.utils.aoa_to_sheet(aoa);
+            const lastCol = 17; // A..R (18 kolom)
             ws['!merges'] = [
-                { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
-                { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
-                { s: { r: 2, c: 0 }, e: { r: 2, c: 11 } }
+                { s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } },
+                { s: { r: 1, c: 0 }, e: { r: 1, c: lastCol } },
+                { s: { r: 2, c: 0 }, e: { r: 2, c: lastCol } }
             ];
             ws['!cols'] = [
                 { wch: 8 }, { wch: 34 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
-                { wch: 10 }, { wch: 22 }, { wch: 48 }, { wch: 48 }, { wch: 42 }, { wch: 42 }
+                { wch: 10 }, { wch: 22 }, { wch: 34 }, { wch: 16 }, { wch: 16 }, { wch: 38 },
+                { wch: 22 }, { wch: 48 }, { wch: 48 }, { wch: 56 }, { wch: 42 }, { wch: 42 }
             ];
             ws['!rows'] = [{ hpt: 24 }, { hpt: 20 }, { hpt: 20 }, { hpt: 8 }, { hpt: 28 }];
-            if (aoa.length >= 5) ws['!autofilter'] = { ref: `A5:L${aoa.length}` };
+            if (aoa.length >= 5) ws['!autofilter'] = { ref: `A5:R${aoa.length}` };
 
             const headerRow = 4;
-            for (let c = 0; c < 12; c++) {
+            for (let c = 0; c <= lastCol; c++) {
                 const ref = XLSX.utils.encode_cell({ r: headerRow, c });
                 if (ws[ref]) {
                     ws[ref].s = {
@@ -2868,10 +3836,10 @@
         }
 
         function renderQuestionTable() {
-            ['no','p','d','r','keputusan'].forEach(col => {
+            ['no','level','p','d','r','keputusan'].forEach(col => {
                 const icon = document.getElementById(`sort-icon-soal-${col}`);
                 if (!icon) return;
-                const numeric = col !== 'keputusan';
+                const numeric = col !== 'keputusan' && col !== 'level';
                 const active = sortColSoal === col;
                 const iconClass = !active ? 'fa-sort text-gray-300' : (numeric
                     ? (sortAscSoal ? 'fa-sort-numeric-up text-blue-600' : 'fa-sort-numeric-down text-blue-600')
@@ -2895,6 +3863,7 @@
                 else if (sortColSoal === 'd') { valA = a.dayaBeda; valB = b.dayaBeda; }
                 else if (sortColSoal === 'r') { valA = a.correctedR; valB = b.correctedR; }
                 else if (sortColSoal === 'keputusan') { valA = decisionSortRank(a.decision); valB = decisionSortRank(b.decision); }
+                else if (sortColSoal === 'level') { valA = a.cognitiveLevel || 'Z'; valB = b.cognitiveLevel || 'Z'; }
                 else { valA = a.id; valB = b.id; }
                 if (valA < valB) return sortAscSoal ? -1 : 1;
                 if (valA > valB) return sortAscSoal ? 1 : -1;
@@ -2917,6 +3886,9 @@
                     <td class="px-2 sm:px-3 py-2 sm:py-3 text-center align-middle bg-blue-50">
                         <input type="text" maxlength="1" value="${escapeHtml(q.kunci)}" onchange="updateKunci(${q.id}, this.value)" class="w-6 text-center font-mono font-bold text-blue-600 bg-transparent border-b border-blue-400 focus:outline-none focus:border-blue-700 uppercase cursor-pointer" title="Edit Kunci Jawaban">
                     </td>
+                    <td class="px-2 sm:px-3 py-2 sm:py-3 text-center align-middle">${q.cognitiveLevel
+                        ? `<div class="font-bold text-purple-700">${q.cognitiveLevel}</div><div class="text-[8px] sm:text-[10px] text-gray-500">${escapeHtml(cognitiveMeta(q.cognitiveLevel).label)} · ${cognitiveGroupOf(q.cognitiveLevel)}</div>`
+                        : `<div class="font-bold text-red-500" title="Level kognitif butir ini belum diisi pada panel Pemetaan Level Kognitif (C1-C6)">?</div><div class="text-[8px] sm:text-[10px] text-red-400">belum diisi</div>`}</td>
                     <td class="px-2 sm:px-3 py-2 sm:py-3 text-center align-middle"><div class="font-bold ${q.difficultyLabel==='Mudah'?'text-green-600':q.difficultyLabel==='Sedang'?'text-yellow-600':'text-red-600'}">${(q.p*100).toFixed(0)}%</div><div class="text-[8px] sm:text-[10px] text-gray-500">${q.difficultyLabel}</div></td>
                     <td class="px-2 sm:px-3 py-2 sm:py-3 text-center align-middle"><div class="font-bold ${q.dayaBeda<0.2?'text-red-600':'text-green-600'}">${q.dayaBeda.toFixed(2)}</div><div class="text-[8px] sm:text-[10px] text-gray-500">${q.dayaBeda<0?'Negatif':q.dayaBeda===0?'Nol':q.dayaBeda<0.2?'Rendah':'Memadai'}</div></td>
                     <td class="px-2 sm:px-3 py-2 sm:py-3 text-center align-middle"><div class="font-bold ${q.correctedR<0.2?'text-red-600':'text-green-600'}">${q.correctedR.toFixed(2)}</div><div class="text-[8px] sm:text-[10px] text-gray-500">Terkoreksi</div></td>
@@ -3243,10 +4215,12 @@
         }
 
         function topWeaknesses() {
+            const cog = getCognitiveResults();
             const kdWeak = getBlueprintPriorityKds(3).map(kd => `${kd.name} (${kd.pctCorrect.toFixed(1)}%)`);
+            const levelWeak = (cog.active && cog.weakestLevel) ? [`Level ${cog.weakestLevel.level} ${cog.weakestLevel.label} (${cog.weakestLevel.pctCorrect.toFixed(1)}%)`] : [];
             const itemWeak = getProblemAuditItems(3).map(q => `Soal ${q.id} (${decisionLabelText(q.decision) || 'perlu telaah'}; ${docxPercent(q.p, 0)} benar)`);
             const distractorWeak = AppState.questions.filter(q => q.miskonsepsi || (q.pengecohKosong || []).length).slice(0, 3).map(q => `Soal ${q.id}: ${(q.auditReasons || []).join(', ') || 'distraktor perlu ditelaah'}`);
-            return [...kdWeak, ...itemWeak, ...distractorWeak].slice(0, 3);
+            return [...kdWeak.slice(0, 2), ...levelWeak, ...itemWeak, ...distractorWeak].slice(0, 3);
         }
 
         function followUpActions() {
@@ -3257,14 +4231,25 @@
             const remedialPriority = getInterventionPriorityStudents();
             const remedialStudents = remedialPriority.slice(0, 8).map(s => s.nama);
             const dominantRevisionItems = getDominantRevisionItems();
+            const cog = getCognitiveResults();
+            const cognitiveActions = cognitiveActionItems(cog, 4);
+            const studentCognitiveAction = cog.active && cog.comparable
+                ? (() => {
+                    const needHots = AppState.students.filter(s => (s.cognitive?.gap ?? 0) >= (AppState.analysisConfig?.cognitive?.gapModerate ?? 10)).length;
+                    const needAll = AppState.students.filter(s => s.cognitive?.label === 'Perlu penguatan pada semua level').length;
+                    return `Bedakan jenis latihan berdasarkan profil kognitif: ${needAll} siswa perlu penguatan di semua level (mulai dari konsep dasar), dan ${needHots} siswa sudah memadai di kemampuan dasar tetapi tertinggal pada butir HOTS (beri latihan analisis data, penalaran bertahap, dan pembiasaan memberi alasan atas jawaban).`;
+                })()
+                : 'Profil kognitif per siswa akan menjadi dasar pembeda jenis latihan setelah Level Kognitif butir terisi lengkap.';
             return {
                 guru: [
                     ...weakKdActions,
+                    ...cognitiveActions,
                     reviseItems.length ? `Revisi soal nomor ${reviseItems.join(', ')} dengan memeriksa stimulus, kunci, dan pengecoh.` : 'Pertahankan butir yang layak simpan untuk bank soal.',
                     discardItems.length ? `Buang atau tulis ulang total soal nomor ${discardItems.join(', ')} sebelum dipakai ulang.` : 'Tidak ada butir prioritas buang berdasarkan konfigurasi saat ini.'
                 ],
                 siswa: [
                     remedialStudents.length ? `Pendampingan prioritas untuk ${remedialPriority.length} siswa Intervensi Prioritas di bawah Transisi; daftar lengkap tersedia pada tabel ekspor, contoh awal: ${remedialStudents.join(', ')}.` : 'Tidak ada siswa berlabel Intervensi Prioritas; tindak lanjut dapat difokuskan pada Remedial Intensif/Ringan sesuai kebutuhan.',
+                    studentCognitiveAction,
                     dominantRevisionItems.length
                         ? (mappingActive ? `Berikan latihan ulang berbasis KD lemah dan bahas ${dominantRevisionItems.length} butir Revisi Dominan secara klasikal.` : `Bahas ${dominantRevisionItems.length} butir Revisi Dominan secara klasikal; latihan berbasis KD menunggu pemetaan aktif.`)
                         : (mappingActive ? 'Berikan latihan ulang berbasis KD lemah; tidak ada butir Revisi Dominan yang perlu dibahas khusus.' : 'Gunakan latihan berdasarkan butir salah dominan; latihan berbasis KD menunggu pemetaan aktif.'),
@@ -3293,10 +4278,13 @@
             const priorityMaxScore = (priorityMaxCorrect / totalQuestionSafe) * 100;
             const mappingActive = hasActiveCurriculumMapping();
             const priorityKds = getBlueprintPriorityKds(); // seluruh KD/topik berstatus prioritas, tidak dibatasi jumlahnya
-            const c = mappingActive ? (AppState.blueprint.cognitive || {}) : { 'Belum dipetakan': AppState.totalQuestions || 0 };
+            // Komposisi level kognitif dibaca dari peta level PER BUTIR (blueprint.cognitive), yang berlaku
+            // walau pemetaan KD masih draft, karena level kognitif berasal dari kisi-kisi butir itu sendiri.
+            const cog = getCognitiveResults();
+            const c = AppState.blueprint.cognitive || {};
             const lots = (c.C1 || 0) + (c.C2 || 0) + (c.C3 || 0);
             const hots = (c.C4 || 0) + (c.C5 || 0) + (c.C6 || 0);
-            const unmapped = c['Belum dipetakan'] || 0;
+            const unmapped = c[COGNITIVE_UNMAPPED] || 0;
             const manualKeys = AppState.questions.filter(q => q.keyLocked);
             const actions = followUpActions();
             const weaknesses = topWeaknesses();
@@ -3315,10 +4303,16 @@
             const reliabilityInfo = reliabilityInterpretation();
             const reliabilityLabel = reliabilityInfo.label.toLowerCase();
             const classModel = classSummaryModel(AppState.students.length, tuntas, avg);
-            const [classNarrative, classAdvice] = classSummaryParagraphs(classModel);
+            const classParagraphs = classSummaryParagraphs(classModel);
+            const [classNarrative, classAdvice] = classParagraphs;
             const classInterpretation = classModel.heterogeneity > 15 ? 'Kelas heterogen (sebaran kemampuan lebar), sehingga tindak lanjut perlu dibedakan antara kelompok prioritas dan kelompok pengayaan.' : 'Kelas relatif homogen (sebaran kemampuan rapat), sehingga intervensi dapat dilakukan lebih klasikal.';
             const programDirection = classModel.assimilation.label;
-            const executiveNarrative = `Secara umum, rerata kelas adalah: ${avg.toFixed(1)} dengan ketuntasan ${pctT}% (${tuntas} dari ${AppState.students.length} siswa). ${classInterpretation} ${programDirection} Tiga sinyal utama yang perlu dibaca bersama adalah kelemahan KD (${weakKdNames}), butir paling lemah (${weakItemNames}), dan mutu instrumen (${itemDecision.keep} simpan, ${itemDecision.revise} revisi, ${itemDecision.discard} buang).`;
+            const cognitiveExecutive = cog.active
+                ? (cog.weakestLevel
+                    ? ` Dari sisi tuntutan berpikir, level terlemah adalah ${cog.weakestLevel.level} (${cog.weakestLevel.label}) dengan capaian ${cog.weakestLevel.pctCorrect.toFixed(1)}%, sementara ${cognitiveGapText(cog)}; status pembacaan level kognitif laporan ini adalah ${cog.readability.label.toLowerCase()}.`
+                    : ` Level kognitif sudah terpetakan pada ${cog.mappedCount} dari ${AppState.totalQuestions} butir, namun tiap level masih diwakili terlalu sedikit butir untuk disimpulkan.`)
+                : ' Ketercapaian per level kognitif (C1-C6) belum dapat dinyatakan karena Level Kognitif butir belum diisi.';
+            const executiveNarrative = `Secara umum, rerata kelas adalah: ${avg.toFixed(1)} dengan ketuntasan ${pctT}% (${tuntas} dari ${AppState.students.length} siswa). ${classInterpretation} ${programDirection} Tiga sinyal utama yang perlu dibaca bersama adalah kelemahan KD (${weakKdNames}), butir paling lemah (${weakItemNames}), dan mutu instrumen (${itemDecision.keep} simpan, ${itemDecision.revise} revisi, ${itemDecision.discard} buang).${cognitiveExecutive}`;
             const studentNarrative = mappingActive
                 ? `Bagian ini membaca kelemahan siswa bukan hanya dari nilai akhir, tetapi juga dari learning path per KD. Tabel Siswa Prioritas Pendampingan hanya menampilkan peserta didik berlabel Intervensi Prioritas, yaitu siswa pada dua rentang terendah Distribusi Frekuensi atau di bawah Transisi (maksimal ${priorityMaxCorrect} benar dari ${totalQuestionSafe} butir / sekitar ${priorityMaxScore.toFixed(1)}%). Remedial Intensif/Ringan dapat ditangani melalui program kelas atau kelompok belajar terpisah.`
                 : `Bagian ini membaca kelemahan siswa dari nilai, distribusi frekuensi, dan pola respons karena pemetaan KD/TP/BAB belum diproses. Tabel Siswa Prioritas Pendampingan tetap hanya menampilkan peserta didik berlabel Intervensi Prioritas, yaitu siswa pada dua rentang terendah Distribusi Frekuensi atau di bawah Transisi (maksimal ${priorityMaxCorrect} benar dari ${totalQuestionSafe} butir / sekitar ${priorityMaxScore.toFixed(1)}%). Learning path per KD akan aktif setelah Proses Pemetaan atau Impor Kisi-Kisi.`;
@@ -3329,7 +4323,10 @@
             const curriculumNarrative = curriculumMeaningNarrative(mappingActive, priorityKds);
             const distributionNarrative = buildDistributionNarrative();
             const detailDiagnosticNarrative = [reteachingPriorityNarrative(), auditTraceNarrative()];
-            const conclusionNarrative = `Kesimpulan manajerial: mutu pembelajaran dan mutu soal harus dibaca bersamaan. Paket ini memiliki ${itemDecision.keep} butir layak simpan, ${itemDecision.revise} butir perlu revisi, dan ${itemDecision.discard} butir perlu dibuang atau ditulis ulang. Label telaah menunjukkan ${itemDecision.reviseDominan || 0} Revisi Dominan dan ${itemDecision.reviseLemah || 0} Revisi Lemah; butir Buang dapat membawa dua label jika perlu diganti sekaligus direvisi. Output Pimpinan: ${leadershipNarrative || 'belum ada ringkasan pimpinan yang tersedia.'} Prioritas kebijakan sekolah adalah memastikan re-teaching KD lemah, telaah butir bermasalah, dan dokumentasi bank soal berbasis bukti statistik.`;
+            const cognitiveConclusion = cog.active
+                ? ` Pada aspek tuntutan berpikir, paket ini memuat ${cog.lots.count} butir LOTS (C1-C3) dan ${cog.hots.count} butir HOTS (C4-C6) atau ${(cog.hotsProportion * 100).toFixed(1)}% dari total butir, dengan capaian ${cog.lots.count ? `LOTS ${cog.lots.pctCorrect.toFixed(1)}%` : 'LOTS belum terukur'} dan ${cog.hots.count ? `HOTS ${cog.hots.pctCorrect.toFixed(1)}%` : 'HOTS belum terukur'}. ${(cog.flags || []).filter(f => f.severity === 'high').length ? `Sebelum laporan ini dipakai untuk menyimpulkan tingkat berpikir siswa, ${(cog.flags || []).filter(f => f.severity === 'high').length} catatan kelayakan pada Bagian C harus ditindaklanjuti lebih dulu (${(cog.flags || []).filter(f => f.severity === 'high').map(f => f.title.toLowerCase()).join('; ')}).` : 'Pembacaan capaian per level tidak memiliki catatan berat sehingga dapat langsung dipakai sebagai dasar tindak lanjut dengan verifikasi guru.'}`
+                : ' Ketercapaian level kognitif belum dapat dilaporkan karena Level Kognitif butir belum diisi; klaim HOTS pada evaluasi diri sekolah sebaiknya ditunda sampai pemetaan C1-C6 lengkap.';
+            const conclusionNarrative = `Kesimpulan manajerial: mutu pembelajaran dan mutu soal harus dibaca bersamaan. Paket ini memiliki ${itemDecision.keep} butir layak simpan, ${itemDecision.revise} butir perlu revisi, dan ${itemDecision.discard} butir perlu dibuang atau ditulis ulang. Label telaah menunjukkan ${itemDecision.reviseDominan || 0} Revisi Dominan dan ${itemDecision.reviseLemah || 0} Revisi Lemah; butir Buang dapat membawa dua label jika perlu diganti sekaligus direvisi. Output Pimpinan: ${leadershipNarrative || 'belum ada ringkasan pimpinan yang tersedia.'} Prioritas kebijakan sekolah adalah memastikan re-teaching KD lemah, telaah butir bermasalah, dan dokumentasi bank soal berbasis bukti statistik.${cognitiveConclusion}`;
             const policyCritique = 'Catatan keputusan: nilai akhir tidak dipakai sendirian. Keputusan tindak lanjut membaca capaian KD, daya beda, korelasi item-total, fungsi distraktor, dan pola respons siswa secara bersama.';
 
             const identityRows = [
@@ -3346,6 +4343,10 @@
                 ['Ketuntasan', `${tuntas}/${AppState.students.length} siswa (${docxPercent(tuntasPct)})`, { text: tuntasPct >= 0.80 ? 'Baik' : (tuntasPct >= 0.50 ? 'Perlu remedial terarah' : 'Perlu remedial massal'), fill: tuntasPct >= 0.80 ? REPORT_COLORS.green : (tuntasPct >= 0.50 ? REPORT_COLORS.yellow : REPORT_COLORS.red), bold: true }],
                 ['Reliabilitas tes', `KR-20 ${AppState.reliabilitas.toFixed(2)}; split-half ${AppState.splitHalfReliability.toFixed(2)}`, { text: reliabilityInfo.label, fill: reliabilityInfo.fill, bold: true }],
                 ['Mutu butir', `${itemDecision.keep} simpan, ${itemDecision.revise} revisi, ${itemDecision.discard} buang; label: ${itemDecision.reviseDominan || 0} dominan, ${itemDecision.reviseLemah || 0} lemah`, { text: itemDecision.discard ? 'Ada risiko instrumen' : ((itemDecision.reviseDominan || 0) ? 'Perlu tindak lanjut' : 'Terkendali'), fill: itemDecision.discard ? REPORT_COLORS.red : ((itemDecision.reviseDominan || 0) ? REPORT_COLORS.orange : REPORT_COLORS.green), bold: true }],
+                ['Ketercapaian level kognitif', cog.active
+                    ? `LOTS (C1-C3) ${cog.lots.count} butir: ${cog.lots.count ? `${cog.lots.pctCorrect.toFixed(1)}%` : '-'}; HOTS (C4-C6) ${cog.hots.count} butir: ${cog.hots.count ? `${cog.hots.pctCorrect.toFixed(1)}%` : '-'}; proporsi HOTS ${(cog.hotsProportion * 100).toFixed(1)}%`
+                    : 'Belum dapat dinyatakan (Level Kognitif butir belum diisi)',
+                    { text: cog.active ? cog.readability.label : 'Perlu dilengkapi', fill: cog.active ? (cog.readability.tone === 'green' ? REPORT_COLORS.green : (cog.readability.tone === 'red' ? REPORT_COLORS.red : REPORT_COLORS.yellow)) : REPORT_COLORS.yellow, bold: true }],
                 ['3 kelemahan terbesar', weaknesses.join('\n') || '-', { text: 'Prioritas tindak lanjut', fill: REPORT_COLORS.yellow, bold: true }]
             ];
             const readinessRows = [
@@ -3368,7 +4369,7 @@
             ];
 
             const kdRows = [
-                ['KD/TP/BAB', 'Materi', 'Level', 'Butir', 'Capaian', 'Tindak lanjut'],
+                ['KD/TP/BAB', 'Materi', 'Komposisi Level', 'Butir', 'Capaian', 'Tindak lanjut'],
                 ...(mappingActive ? AppState.babResults.map(kd => {
                     const key = `${kd.name}||${kd.material || ''}||${(kd.qs || []).join(',')}`;
                     const priorityMatch = priorityKds.find(item => `${item.name}||${item.material || ''}||${(item.qs || []).join(',')}` === key);
@@ -3381,7 +4382,7 @@
                     return [
                         { text: kd.name, fill: priorityFill, color: priorityColor, bold: isBlueprintPriority },
                         { text: kd.material || '-', fill: priorityFill, color: priorityColor, bold: isBlueprintPriority },
-                        kd.level || 'Belum dipetakan',
+                        { text: kd.levelComposition || kd.level || COGNITIVE_UNMAPPED, align: 'center' },
                         kd.qs.join(', '),
                         { text: `${kd.pctCorrect.toFixed(1)}%`, fill: kd.pctCorrect >= AppState.kkm ? REPORT_COLORS.green : REPORT_COLORS.red, bold: true, align: 'center' },
                         actionText
@@ -3423,10 +4424,11 @@
             ];
 
             const itemRows = [
-                ['No', 'Kunci', 'P', 'D', 'Status dan Keputusan', 'Rekomendasi'],
+                ['No', 'Kunci', 'Level', 'P', 'D', 'Status dan Keputusan', 'Rekomendasi'],
                 ...AppState.questions.map(q => [
                     String(q.id),
                     q.kunci,
+                    { text: q.cognitiveLevel || '?', fill: q.cognitiveLevel ? REPORT_COLORS.white : REPORT_COLORS.yellow, align: 'center', bold: !!q.cognitiveLevel },
                     { text: q.p.toFixed(2), fill: q.p < AppState.analysisConfig.item.zonkingP ? REPORT_COLORS.red : (q.p > AppState.analysisConfig.item.tooEasyP ? REPORT_COLORS.yellow : REPORT_COLORS.white), align: 'center' },
                     { text: q.dayaBeda.toFixed(2), fill: q.dayaBeda < AppState.analysisConfig.item.reviseDiscrimination ? REPORT_COLORS.red : (q.dayaBeda < AppState.analysisConfig.item.goodDiscrimination ? REPORT_COLORS.yellow : REPORT_COLORS.white), align: 'center' },
                     { text: decisionLabelText(q.decision), fill: statusFill(decisionLabelText(q.decision)), bold: true, align: 'center' },
@@ -3448,17 +4450,71 @@
                     ];
                 })
             ];
+            // ---- Tabel ketercapaian per level kognitif (menggantikan tabel komposisi HOTS yang lama) ----
+            const levelToneFill = (tone) => tone === 'green' ? REPORT_COLORS.green : (tone === 'red' ? REPORT_COLORS.red : (tone === 'orange' ? REPORT_COLORS.orange : (tone === 'yellow' ? REPORT_COLORS.yellow : REPORT_COLORS.blue)));
+            const cognitiveGroupRow = (g, label) => [
+                { text: label, bold: true },
+                { text: g.count ? String(g.count) : '0', bold: true, align: 'center' },
+                { text: docxPercent(g.pctOfItems / 100), align: 'center' },
+                { text: g.count ? `${g.pctCorrect.toFixed(1)}%` : '-', fill: g.count ? (g.pctCorrect >= AppState.kkm ? REPORT_COLORS.green : REPORT_COLORS.red) : REPORT_COLORS.white, bold: true, align: 'center' },
+                { text: g.count ? `${g.studentsMastered}/${AppState.students.length}` : '-', align: 'center' },
+                { text: g.count ? g.avgD.toFixed(2) : '-', align: 'center' },
+                { text: g.count ? String(g.revise + g.discard) : '-', align: 'center' },
+                label.startsWith('LOTS') ? 'Kemampuan dasar (mengingat, memahami, menerapkan)' : 'Berpikir tingkat tinggi (menganalisis, mengevaluasi, mencipta)'
+            ];
             const hotsRows = [
-                ['Kategori', 'Jumlah Butir', 'Proporsi', 'Keterangan'],
-                ['C1', String(c.C1 || 0), docxPercent((c.C1 || 0) / Math.max(1, AppState.totalQuestions)), 'Mengingat'],
-                ['C2', String(c.C2 || 0), docxPercent((c.C2 || 0) / Math.max(1, AppState.totalQuestions)), 'Memahami'],
-                ['C3', String(c.C3 || 0), docxPercent((c.C3 || 0) / Math.max(1, AppState.totalQuestions)), 'Menerapkan'],
-                ['C4', String(c.C4 || 0), docxPercent((c.C4 || 0) / Math.max(1, AppState.totalQuestions)), 'Menganalisis'],
-                ['C5', String(c.C5 || 0), docxPercent((c.C5 || 0) / Math.max(1, AppState.totalQuestions)), 'Mengevaluasi'],
-                ['C6', String(c.C6 || 0), docxPercent((c.C6 || 0) / Math.max(1, AppState.totalQuestions)), 'Mencipta'],
-                ['LOTS (C1-C3)', String(lots), docxPercent(lots / Math.max(1, AppState.totalQuestions)), 'Keterampilan dasar'],
-                ['HOTS (C4-C6)', String(hots), docxPercent(hots / Math.max(1, AppState.totalQuestions)), 'Berpikir tingkat tinggi'],
-                ...(unmapped ? [['Belum dipetakan', String(unmapped), docxPercent(unmapped / Math.max(1, AppState.totalQuestions)), 'Perlu dilengkapi guru']] : [])
+                ['Level', 'Jumlah Butir', 'Proporsi Butir', 'Capaian Kelas', 'Siswa Tuntas', 'Rata-rata D', 'Butir Revisi/Buang', 'Makna dan Tindak Lanjut'],
+                ...(cog.active ? [
+                    ...cog.levels.map(l => [
+                        { text: `${l.level} ${l.label}`, bold: true },
+                        { text: String(l.count), align: 'center' },
+                        { text: docxPercent(l.pctOfItems / 100), align: 'center' },
+                        { text: `${l.pctCorrect.toFixed(1)}%`, fill: l.pctCorrect >= AppState.kkm ? REPORT_COLORS.green : REPORT_COLORS.red, bold: true, align: 'center' },
+                        { text: `${l.studentsMastered}/${AppState.students.length}`, align: 'center' },
+                        { text: l.avgD.toFixed(2), fill: l.avgD < AppState.analysisConfig.item.reviseDiscrimination ? REPORT_COLORS.yellow : REPORT_COLORS.white, align: 'center' },
+                        { text: String(l.revise + l.discard), align: 'center' },
+                        { text: `${l.status.label} — ${l.status.note}. Butir No. ${l.qs.join(', ')}. Tindak lanjut: ${l.teach}.`, fill: levelToneFill(l.status.tone) }
+                    ]),
+                    cognitiveGroupRow(cog.lots, 'LOTS (C1-C3)'),
+                    cognitiveGroupRow(cog.hots, 'HOTS (C4-C6)'),
+                    ...(unmapped ? [[
+                        { text: COGNITIVE_UNMAPPED, bold: true },
+                        { text: String(unmapped), align: 'center' },
+                        { text: docxPercent(unmapped / Math.max(1, AppState.totalQuestions)), align: 'center' },
+                        { text: '-', align: 'center' }, { text: '-', align: 'center' }, { text: '-', align: 'center' }, { text: '-', align: 'center' },
+                        { text: `Butir No. ${cog.unmappedQs.join(', ')} belum memiliki Level Kognitif sehingga tidak ikut dihitung pada capaian level mana pun. Lengkapi pada panel Pemetaan Level Kognitif (C1-C6).`, fill: REPORT_COLORS.red }
+                    ]] : [])
+                ] : [[
+                    'Belum diisi',
+                    String(AppState.totalQuestions || 0),
+                    docxPercent(1),
+                    '-', '-', '-', '-',
+                    'Level Kognitif butir belum diisi, sehingga capaian C1-C6 dan klaim LOTS/HOTS belum dapat dinyatakan. Impor kisi-kisi (kolom Level Kognitif) atau isi panel Pemetaan Level Kognitif (C1-C6).'
+                ]])
+            ];
+            const cognitiveClassRows = (cog.active && (AppState.classes || []).length > 1) ? [
+                ['Level', ...AppState.classes.map(kelas => `${kelas} (${AppState.students.filter(s => s.kelas === kelas).length} siswa)`)],
+                ...cog.levels.map(l => [
+                    { text: `${l.level} ${l.label}`, bold: true },
+                    ...l.byClass.map(row => ({ text: `${row.pctCorrect.toFixed(1)}%`, fill: row.pctCorrect >= AppState.kkm ? REPORT_COLORS.green : (row.pctCorrect < AppState.kkm - 25 ? REPORT_COLORS.red : REPORT_COLORS.yellow), align: 'center' }))
+                ]),
+                [{ text: 'LOTS (C1-C3)', bold: true }, ...cog.lots.byClass.map(row => ({ text: cog.lots.count ? `${row.pctCorrect.toFixed(1)}%` : '-', bold: true, align: 'center' }))],
+                [{ text: 'HOTS (C4-C6)', bold: true }, ...cog.hots.byClass.map(row => ({ text: cog.hots.count ? `${row.pctCorrect.toFixed(1)}%` : '-', bold: true, align: 'center' }))]
+            ] : null;
+            const cognitiveFlagRows = cog.active ? [
+                ['Catatan Kelayakan', 'Temuan', 'Tindak Lanjut'],
+                ...((cog.flags || []).length
+                    ? cog.flags.map(f => [
+                        { text: f.title, fill: f.severity === 'high' ? REPORT_COLORS.red : REPORT_COLORS.yellow, bold: true },
+                        f.detail,
+                        f.action
+                    ])
+                    : [[{ text: 'Tidak ada catatan berat', fill: REPORT_COLORS.green, bold: true }, 'Uji kelayakan internal tidak menemukan hal yang menghalangi pembacaan capaian per level.', 'Gunakan capaian per level sebagai dasar tindak lanjut dengan verifikasi guru sebagaimana bagian lain laporan ini.']])
+            ] : null;
+            const cognitiveNarrative = [
+                cognitiveMeaningNarrative(cog),
+                cognitiveCompositionNarrative(cog),
+                `Metode perhitungan: capaian satu level dihitung sebagai jumlah jawaban benar seluruh siswa pada butir level tersebut dibagi (jumlah butir level x jumlah siswa), sama dengan metode capaian per KD pada Bagian A, sehingga angka pada seluruh tabel laporan ini konsisten dan dapat ditelusuri ke nomor butir. Siswa dinyatakan tuntas pada satu level bila persentase benarnya pada butir level tersebut mencapai KKM/KKTP ${AppState.kkm}. Sumber Level Kognitif adalah kisi-kisi yang disusun guru (kolom Level Kognitif), sehingga tetap berlaku walau penataan rentang KD masih ditinjau.`
             ];
 
             const glossaryRows = [
@@ -3473,7 +4529,12 @@
                 ['Buang', 'Butir dengan sinyal statistik berat, misalnya daya beda negatif, r item-total negatif, atau akurasi sangat rendah.'],
                 ['Distribusi Frekuensi', 'Pengelompokan jumlah benar siswa. Tabel ini membaca posisi siswa, bukan urutan nomor soal.'],
                 ['Distraktor', 'Opsi pengecoh pada soal pilihan ganda. Distraktor baik dipilih oleh sebagian siswa yang belum menguasai konsep.'],
-                ['HOTS', 'Higher Order Thinking Skills: soal level C4-C6 yang menuntut analisis, evaluasi, atau kreasi.'],
+                ['HOTS', 'Higher Order Thinking Skills: butir level C4-C6 yang menuntut analisis, evaluasi, atau kreasi.'],
+                ['LOTS', 'Lower Order Thinking Skills: butir level C1-C3 (mengingat, memahami, menerapkan) yang mengukur kemampuan dasar.'],
+                ['Level kognitif C1-C6', 'Tingkat tuntutan berpikir butir menurut taksonomi Bloom revisi: C1 mengingat, C2 memahami, C3 menerapkan, C4 menganalisis, C5 mengevaluasi, C6 mencipta. Sumbernya adalah kisi-kisi yang disusun guru, bukan tafsiran aplikasi.'],
+                ['Capaian level', 'Jumlah jawaban benar seluruh siswa pada butir satu level dibagi (jumlah butir level x jumlah siswa), dinyatakan dalam persen. Nilainya setara dengan rata-rata tingkat kesukaran (P) butir pada level tersebut.'],
+                ['Batas peluang menebak', 'Persentase benar yang dapat dicapai tanpa penguasaan pada soal pilihan ganda, yaitu 1 dibagi jumlah opsi. Capaian yang mendekati batas ini harus dibaca sebagai indikasi, bukan bukti penguasaan.'],
+                ['Gradasi kesukaran antar level', 'Kecenderungan butir level lebih tinggi menjadi lebih sukar. Bila capaian HOTS tidak lebih rendah daripada LOTS, label level pada kisi-kisi perlu ditelaah ulang.'],
                 ['Guttman-like pattern', 'Sinyal heuristik ketika siswa benar pada soal sukar tetapi lemah pada soal dasar; bukan estimasi IRT formal.']
             ];
             const auditRows = [
@@ -3483,6 +4544,11 @@
                 ['Metode jumlah soal', AppState.importMeta.questionCountMethod || '-'],
                 ['Kriteria keputusan butir', itemDecisionCriteriaText()],
                 ['Status pemetaan KD', mappingActive ? `Aktif; ${AppState.mappingValidation.covered}/${AppState.totalQuestions} butir terpetakan.` : 'Draft/belum diproses; tidak dipakai untuk keputusan kurikulum.'],
+                ['Sumber Level Kognitif', cog.active
+                    ? `Kisi-kisi guru (kolom Level Kognitif), dipetakan per butir: ${cog.mappedCount}/${AppState.totalQuestions} butir berlevel${cog.unmappedCount ? `, ${cog.unmappedCount} butir belum berlevel` : ''}. Peta level bersifat independen dari status pemetaan KD dan dapat diperiksa/diperbaiki guru per nomor soal pada panel Pemetaan Level Kognitif (C1-C6).`
+                    : 'Belum ada butir yang memiliki Level Kognitif; seluruh pernyataan C1-C6 dan HOTS pada laporan ini dinyatakan belum dapat disimpulkan.'],
+                ['Ambang telaah level kognitif', `Pita proporsi HOTS ${(cog.thresholds?.minProp * 100 || 20).toFixed(0)}-${(cog.thresholds?.maxProp * 100 || 45).toFixed(0)}%, minimal ${cog.thresholds?.minItems || 2} butir per level agar capaian dinyatakan stabil, selisih LOTS-HOTS ${cog.thresholds?.gapModerate || 10} poin (perlu dibahas) dan ${cog.thresholds?.gapSevere || 25} poin (lompatan belum terjembatani). Angka ini adalah rujukan telaah internal aplikasi, bukan ketentuan hukum, dan dapat disesuaikan kebijakan sekolah.`],
+                ['Uji kelayakan level kognitif', cog.active ? `${cog.readability.label}: ${cog.readability.detail}` : 'Belum dijalankan karena Level Kognitif butir belum diisi.'],
                 ['Catatan validasi', (AppState.importMeta.warnings || []).length ? AppState.importMeta.warnings.join('\n') : 'Tidak ada peringatan validasi impor utama.']
             ];
             const keyRows = [
@@ -3500,7 +4566,7 @@
                 wTable(executiveRows, { widths: [2500, 3100, 3000] }),
                 wParagraph('A. ANALISIS PENYERAPAN MATERI (Klasikal / Kelas)', 'Heading1'),
                 wParagraph('1. Profil Hasil Klasikal', 'Heading2'),
-                wNarrative('Interpretasi Klasikal', [classNarrative, classAdvice], tuntasPct < 0.50 ? 'C00000' : (tuntasPct < 0.80 ? 'D97706' : '548235')),
+                wNarrative('Interpretasi Klasikal', classParagraphs, tuntasPct < 0.50 ? 'C00000' : (tuntasPct < 0.80 ? 'D97706' : '548235')),
                 wParagraph('2. Distribusi Nilai', 'Heading2'),
                 wNarrative('Cara Membaca Distribusi Frekuensi', distributionNarrative, 'D97706'),
                 chartRelId ? wImageDrawing(chartRelId) : wNarrative('Distribusi Nilai', 'Grafik kanvas tidak tersedia saat ekspor. Sebagai gantinya, distribusi nilai disajikan dalam tabel proporsi berwarna di bawah ini.', 'D97706'),
@@ -3518,11 +4584,22 @@
                 wParagraph('C. EVALUASI KUALITAS SOAL UJIAN (Analisis Butir Instrumen)', 'Heading1'),
                 wNarrative('Cara Membaca Bagian C', [itemNarrative, itemAdvice, `P adalah tingkat kesukaran, D adalah daya beda, dan status soal menggabungkan P, D, korelasi item-total, serta fungsi distraktor. Hijau berarti layak simpan, kuning berarti Revisi Lemah, oranye berarti Revisi Dominan (D < ${AppState.analysisConfig.item.reviseDiscrimination.toFixed(2)} dan/atau miskonsepsi lintas kelas), dan merah berarti Buang. Jika satu butir menampilkan Revisi Dominan / Buang, artinya butir tersebut bermasalah kuat dan sebaiknya diganti atau ditulis ulang.`]),
                 wParagraph('1. Analisis Butir Soal per Nomor', 'Heading2'),
-                wTable(itemRows, { widths: [650, 850, 700, 700, 1500, 5200] }),
+                wTable(itemRows, { widths: [600, 750, 700, 650, 650, 1450, 4800] }),
                 wParagraph('2. Analisis Distraktor', 'Heading2'),
                 wTable(distractorRows, { widths: [650, 3600, 2200, 2200, 3000] }),
-                wParagraph('3. Evaluasi HOTS', 'Heading2'),
-                wTable(hotsRows, { widths: [2500, 1600, 1600, 3900] }),
+                wParagraph('3. Analisis Ketercapaian Level Kognitif (C1-C6) dan Evaluasi HOTS', 'Heading2'),
+                wNarrative('Cara Membaca Analisis Level Kognitif', cognitiveNarrative, '7030A0'),
+                wTable(hotsRows, { widths: [1500, 800, 900, 900, 900, 800, 900, 3300], layout: 'fixed' }),
+                ...(cognitiveClassRows ? [
+                    wParagraph('4. Ketercapaian Level Kognitif per Rombel', 'Heading2'),
+                    wParagraph('Tabel ini memisahkan capaian tiap level menurut rombel agar terlihat apakah kelemahan pada satu level bersifat merata di semua kelas (indikasi masalah pembelajaran/instrumen) atau hanya terjadi pada rombel tertentu (indikasi kebutuhan pendampingan kelas tersebut).', '', { align: 'both', rich: true }),
+                    wTable(cognitiveClassRows, { widths: [2200, ...AppState.classes.map(() => Math.floor(6800 / Math.max(1, AppState.classes.length)))], layout: 'fixed' })
+                ] : []),
+                ...(cognitiveFlagRows ? [
+                    wParagraph(`${cognitiveClassRows ? '5' : '4'}. Uji Kelayakan Pembacaan Level Kognitif (${cog.readability.label})`, 'Heading2'),
+                    wParagraph('Bagian ini dicantumkan agar kesimpulan tentang tingkat berpikir siswa tidak melampaui apa yang didukung data. Catatan di bawah harus dibaca bersama tabel capaian di atas.', '', { align: 'both', rich: true }),
+                    wTable(cognitiveFlagRows, { widths: [2200, 3800, 3000] })
+                ] : []),
                 wPageBreak(),
                 wParagraph('KESIMPULAN MANAJERIAL & REKOMENDASI KEBIJAKAN SEKOLAH', 'Heading1'),
                 wNarrative('Kesimpulan', [conclusionNarrative, policyCritique], itemDecision.discard ? 'C00000' : '548235'),
